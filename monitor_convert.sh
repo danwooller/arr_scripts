@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder,
+# determines whether the file is 1080p or 4K and converts the file using HandBrakeCLI
+# before copying back to the network for further sorting.
+
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/${HOST}_convert"
