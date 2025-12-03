@@ -32,7 +32,7 @@ clean_filename() {
     # 2. Convert to lowercase
     local cleaned_name=$(echo "$name_without_ext" | tr '[:upper:]' '[:lower:]')
     
-    # 3. Replace spaces, dots, and common separators with hyphens
+    # 3. Replace spaces, dots, and common separators with underscores
     cleaned_name=$(echo "$cleaned_name" | sed -E 's/[. ]+/_/g')
     
     # 4. Remove any characters that are not alphanumeric, hyphens, or underscores
