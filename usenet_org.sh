@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# A a bash script for linux that starts in the folder /mnt/media/torrent/$(hostname)_convert,
+# looks for subfolders and then looks for mkv and mp4 files one or two folders down
+# and renames those files before moving them to /mnt/media/torrent/$(hostname)_convert.
+# Processes obfuscated usenet Linux ISOs and renames them to the parent folder.
+
 # --- Configuration ---
 # Set the base directory using the current hostname
 # Example path: /mnt/media/torrent/myhostname_convert
