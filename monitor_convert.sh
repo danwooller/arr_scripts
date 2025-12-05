@@ -25,6 +25,17 @@ MIN_FILE_AGE=5
 # --- Setup Directories ---
 mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_DIR"
 
+# Check if 'jq' command is already available
+if command -v jq >/dev/null 2>&1; then
+    echo "✅ 'jq' is already installed. Proceeding with JSON processing."
+    return 0
+else
+    if command -v apt-get >/dev/null 2>&1; then
+        echo "Installing 'jq' via apt-get..."
+        sudo apt-get update && sudo apt-get install -y jq
+    fi
+fi
+
 # --- Logging Function ---
 log() {
     echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
@@ -86,8 +97,11 @@ while true; do
         SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
         log "   -> Checking for English forced subtitles..."
         
-        TRACK_INFO=$(mkvmerge -i "$FILE_TO_PROCESS" 2>/dev/null)
-        SUB_TRACK_ID=$(echo "$TRACK_INFO" | grep -E "Track ID [0-9]+: subtitles.*language:eng.*forced" | head -n 1 | awk '{print $3}' | sed 's/://')
+        TRACK_INFO=$(mkvmerge -J "$FILE_TO_PROCESS" 2>/dev/null)
+#        SUB_TRACK_ID=$(echo "$TRACK_INFO" | grep -E "Track ID [0-9]+: subtitles.*language:eng.*forced" | head -n 1 | awk '{print $3}' | sed 's/://')
+#        SUB_TRACK_ID=$(echo "$TRACK_INFO" | grep -E "Track ID [0-9]+: subtitles.*language:eng.*forced track" | head -n 1 | awk '{print $3}' | sed 's/://')
+        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
+        echo "Extracted Forced Track ID: $SUB_TRACK_ID"
 
         if [[ -n "$SUB_TRACK_ID" ]]; then
             log "   -> English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
@@ -106,25 +120,38 @@ while true; do
 
         # --- 4. Determine Resolution and Preset (FIXED: -P removed) ---
         
-        log "   -> Scanning file resolution..."
+#        log "   -> Scanning file resolution..."
 
         # Capture the scan output without the erroneous -P flag
-        SCAN_OUTPUT=$(HandBrakeCLI --scan -i "$FILE_TO_PROCESS" 2>/dev/null) 
+#        SCAN_OUTPUT=$(HandBrakeCLI --scan -i "$FILE_TO_PROCESS" 2>/dev/null) 
 
         # Extract height using a robust method
-        VIDEO_HEIGHT=$(echo "$SCAN_OUTPUT" | grep -E 'size: [0-9]+x[0-9]+|height: [0-9]+' | head -n 1 | sed -E 's/.*size: [0-9]+x([0-9]+).*/\1/' | awk -F'height: ' '{print $2}' | tr -d '[:space:]')
+#        VIDEO_HEIGHT=$(echo "$SCAN_OUTPUT" | grep -E 'size: [0-9]+x[0-9]+|height: [0-9]+' | head -n 1 | sed -E 's/.*size: [0-9]+x([0-9]+).*/\1/' | awk -F'height: ' '{print $2}' | tr -d '[:space:]')
         
-        if ! [[ "$VIDEO_HEIGHT" =~ ^[0-9]+$ ]]; then
-            log "   -> 🛑 WARNING: Failed to extract height. Assuming 1080p for conversion."
-            VIDEO_HEIGHT=1080 # Set a default to ensure the script doesn't crash
-        fi
+#        if ! [[ "$VIDEO_HEIGHT" =~ ^[0-9]+$ ]]; then
+#            log "   -> 🛑 WARNING: Failed to extract height. Assuming 1080p for conversion."
+#            VIDEO_HEIGHT=1080 # Set a default to ensure the script doesn't crash
+#        fi
         
-        if [[ "$VIDEO_HEIGHT" -ge 2160 ]]; then
+#        if [[ "$VIDEO_HEIGHT" -ge 2160 ]]; then
+#            PRESET="$PRESET_4K"
+#            log "   -> Detected 4K resolution ($VIDEO_HEIGHT). Using preset: $PRESET_4K"
+#        else
+#            PRESET="$PRESET_1080P"
+#            log "   -> Detected HD/lower resolution ($VIDEO_HEIGHT). Using preset: $PRESET_1080P"
+#        fi
+
+        log "   -> Determining preset based on filename content..."
+        
+        # Convert filename to lowercase for case-insensitive check
+        LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
+        
+        if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then
             PRESET="$PRESET_4K"
-            log "   -> Detected 4K resolution ($VIDEO_HEIGHT). Using preset: $PRESET_4K"
+            log "   -> Filename contains '2160p'. Using preset: $PRESET_4K (4K)"
         else
             PRESET="$PRESET_1080P"
-            log "   -> Detected HD/lower resolution ($VIDEO_HEIGHT). Using preset: $PRESET_1080P"
+            log "   -> Filename does not contain '2160p'. Using preset: $PRESET_1080P (1080p default)"
         fi
 
         # --- 5. Convert with HandBrakeCLI ---
