@@ -12,7 +12,7 @@ WORKING_DIR="/home/pi/${HOST}_done"
 SUBTITLE_DIR="/mnt/media/backup/subtitles"
 FINISHED_DIR="/mnt/media/torrent/finished"
 COMPLETED_DIR="/mnt/media/torrent/completed"
-LOG_FILE="/home/pi/handbrake_convert.log"
+LOG_FILE="/mnt/media/torrent/$(HOST)_monitor_convert.log"
 
 # HandBrake Presets (Using system presets)
 PRESET_4K="H.265 MKV 2160p60"
@@ -129,7 +129,7 @@ while true; do
             
             if [[ $? -eq 0 ]]; then
                 log "   -> Subtitles extracted successfully."
-                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname \"Forced\""
+                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
                 SUB_FILE_EXTRACTED=true
             else
                 log "   -> WARNING: Subtitle extraction failed. Will NOT embed subtitles."
@@ -185,7 +185,9 @@ while true; do
             --audio-fallback aac \
             --optimize \
             $HANDBRAKE_SUB_ARGS 
-            
+
+            mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced"
+
         CONVERSION_EXIT_CODE=$?
 
         # --- 6. Post-Conversion Cleanup and Move ---
