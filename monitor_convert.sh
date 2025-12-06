@@ -12,7 +12,8 @@ WORKING_DIR="/home/pi/${HOST}_done"
 SUBTITLE_DIR="/mnt/media/backup/subtitles"
 FINISHED_DIR="/mnt/media/torrent/finished"
 COMPLETED_DIR="/mnt/media/torrent/completed"
-LOG_FILE="/mnt/media/torrent/$(HOST)_monitor_convert.log"
+LOG_FILE="/mnt/media/torrent/${HOST}_monitor_convert.log"
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
 
 # HandBrake Presets (Using system presets)
 PRESET_4K="H.265 MKV 2160p60"
@@ -60,6 +61,7 @@ while true; do
         # Get filename and base name
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
+        EXTENSION="${FILENAME##*.}"
         
         log "✅ Detected video file: $FILENAME"
 
@@ -186,7 +188,9 @@ while true; do
             --optimize \
             $HANDBRAKE_SUB_ARGS 
 
-            mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced"
+	    if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
+	        mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced"
+	    fi
 
         CONVERSION_EXIT_CODE=$?
 
@@ -209,8 +213,10 @@ while true; do
             fi
 
             # Move the original file to the finished folder
-            mv "$SOURCE_FILE" "$FINISHED_DIR/"
-            log "   -> Moved original file to $FINISHED_DIR."
+#            mv "$SOURCE_FILE" "$FINISHED_DIR/"
+#            log "   -> Moved original file to $FINISHED_DIR."
+            mv "$SOURCE_FILE" "$FINISHED_DIR/$BASE_NAME-$TIMESTAMP.$EXTENSION"
+            log "   -> Moved original file to $FINISHED_DIR/$BASE_NAME_$TIMESTAMP.$EXTENSION."
             
         else
             log "   -> 🛑 ERROR: HandBrake conversion failed with exit code $CONVERSION_EXIT_CODE for $FILENAME."
