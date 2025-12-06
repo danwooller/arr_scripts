@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Define the source and target directories
+SOURCE_DIR="/mnt/media/Movies"
+TARGET_DIR="/mnt/synologyusb/Movies"
+
+echo "🔍 Searching for ALL folders in **$SOURCE_DIR** missing from **$TARGET_DIR** (Standardizing Line Endings)..."
+echo "---"
+
+# Set locale to 'C' for reliable byte-by-byte sorting.
+export LC_ALL=C
+
+# Function to safely process and clean the folder list
+process_list() {
+    # 1. Use -printf "%f\n" to get basename
+    # 2. sed "s/^'//; s/'$//" to remove quotes
+    # 3. sed 's/[[:space:]]*$//' to remove trailing whitespace
+    # 4. tr -d '\r' to strip CR (Windows line endings) if present
+    # 5. tr -cd '\11\12\15\40-\176' to strip ALL non-printable characters
+    # 6. grep -v '^$' to remove any empty lines
+    # 7. grep -v "$(basename "$1")" to explicitly exclude the parent directory name
+    # 8. sort the result
+    find "$1" -maxdepth 1 -type d -printf "%f\n" | \
+    sed "s/^'//; s/'$//" | \
+    sed 's/[[:space:]]*$//' | \
+    tr -d '\r' | \
+    tr -cd '\11\12\15\40-\176\n' | \
+    grep -v '^$' | \
+    grep -v "$(basename "$1")" | \
+    sort
+}
+
+# 1. Get list of ALL cleaned directories from the SOURCE
+process_list "$SOURCE_DIR" > /tmp/source_folders.list
+
+# 2. Get list of ALL cleaned directories from the TARGET
+process_list "$TARGET_DIR" > /tmp/target_folders.list
+
+# --- DEBUGGING OUTPUT (Removed unnecessary cat to simplify) ---
+echo "✅ Comparing $(cat /tmp/source_folders.list | wc -l) source folders against $(cat /tmp/target_folders.list | wc -l) target folders."
+echo "---"
+# --- END DEBUGGING OUTPUT ---
+
+# 3. Compare lists: Find lines unique to file 1 (the missing folders).
+MISSING_FOLDERS=$(comm -23 /tmp/source_folders.list /tmp/target_folders.list)
+
+if [ -z "$MISSING_FOLDERS" ]; then
+    echo "✅ No missing folders found. The directories are synchronized."
+else
+    echo "❌ The following folders are MISSING from **$TARGET_DIR**:"
+    # Use 'while read' loop to safely output the full path.
+    echo "$MISSING_FOLDERS" | while IFS= read -r folder; do
+        echo "$SOURCE_DIR/$folder"
+    done
+fi
+
+# Clean up temporary files
+rm /tmp/source_folders.list /tmp/target_folders.list
+
+echo "---"
+echo "Script finished."
