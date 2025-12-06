@@ -62,6 +62,26 @@ while true; do
         BASE_NAME="${FILENAME%.*}"
         
         log "✅ Detected video file: $FILENAME"
+
+        # --- 1.5. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
+        SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
+        log "   -> Checking for English forced subtitles..."
+        TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
+        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
+        echo "Extracted Forced Track ID: $SUB_TRACK_ID"
+
+        if [[ -n "$SUB_TRACK_ID" ]]; then
+            log "   -> English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
+            mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
+            if [[ $? -eq 0 ]]; then
+                log "   -> Subtitles extracted successfully."
+                SUB_FILE_EXTRACTED=true
+            else
+                log "   -> WARNING: Subtitle extraction failed. Will NOT embed subtitles."
+            fi
+        else
+            log "   -> No suitable English forced subtitle track found in the source file."
+        fi
         
         # --- 2. Copy the file to the conversion folder ---
         log "   -> Copying to $CONVERT_DIR..."
@@ -109,7 +129,7 @@ while true; do
             
             if [[ $? -eq 0 ]]; then
                 log "   -> Subtitles extracted successfully."
-                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --sub-lang eng --sub-default 1 --sub-forced 1 --sub-name \"Forced\""
+                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname \"Forced\""
                 SUB_FILE_EXTRACTED=true
             else
                 log "   -> WARNING: Subtitle extraction failed. Will NOT embed subtitles."
