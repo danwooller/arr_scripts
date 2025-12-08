@@ -13,7 +13,7 @@ SUBTITLE_DIR="/mnt/media/backup/subtitles"
 FINISHED_DIR="/mnt/media/torrent/finished"
 COMPLETED_DIR="/mnt/media/torrent/completed"
 LOG_FILE="/mnt/media/torrent/${HOST}_monitor_convert.log"
-TIMESTAMP=$(date +"%Y-%m-%d_%H-%M")
+TIMESTAMP=$(date +"%H-%M")
 
 # HandBrake Presets (Using system presets)
 PRESET_4K="H.265 MKV 2160p60"
