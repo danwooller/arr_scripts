@@ -195,6 +195,8 @@ while true; do
             --preset "$PRESET" \
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
+            --audio-lang-list eng \
+            --audio any \
             --aencoder copy --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
             --audio-fallback aac \
             --optimize \
