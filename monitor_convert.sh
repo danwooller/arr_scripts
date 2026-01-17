@@ -19,6 +19,8 @@ TIMESTAMP=$(date +"%H-%M")
 # HandBrake Presets (Using system presets)
 PRESET_4K="H.265 MKV 2160p60"
 PRESET_1080P="Very Fast 1080p30"
+PRESET_720p="Very Fast 720p30"
+PRESET_SD="Very Fast 480p30"
 
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
@@ -177,12 +179,22 @@ while true; do
         if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then
             PRESET="$PRESET_4K"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename contains '2160p'. Using preset: $PRESET_4K (4K)"
+                log "   -> Filename contains '2160p'. Using preset: $PRESET_4K"
             fi
-        else
+        elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then
             PRESET="$PRESET_1080P"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename does not contain '2160p'. Using preset: $PRESET_1080P (1080p default)"
+                log "   -> Filename contains '1080p'. Using preset: $PRESET_1080P"
+            fi
+        elif [[ "$LOWER_FILENAME" =~ "720p" ]]; then
+            PRESET="$PRESET_720P"
+            if [[ $LOG_LEVEL = "debug" ]]; then
+                log "   -> Filename contains '720p'. Using preset: $PRESET_720P"
+            fi
+        else
+            PRESET="$PRESET_SD"
+            if [[ $LOG_LEVEL = "debug" ]]; then
+                log "   -> Filename does not contain '2160p', '1080p' or '720p'. Using preset: $PRESET_SD"
             fi
         fi
 
@@ -196,7 +208,6 @@ while true; do
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
             --audio-lang-list eng \
-            --audio any \
             --aencoder copy --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
             --audio-fallback aac \
             --optimize \
