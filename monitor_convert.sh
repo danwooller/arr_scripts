@@ -7,8 +7,8 @@
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/${HOST}_convert"
-CONVERT_DIR="/home/pi/convert"
-WORKING_DIR="/home/pi/${HOST}_done"
+CONVERT_DIR="$HOME/convert"
+WORKING_DIR="$HOME/${HOST}_done"
 SUBTITLE_DIR="/mnt/media/backup/subtitles"
 FINISHED_DIR="/mnt/media/torrent/finished"
 COMPLETED_DIR="/mnt/media/torrent/completed"
@@ -19,19 +19,49 @@ TIMESTAMP=$(date +"%H-%M")
 # HandBrake Presets (Using system presets)
 PRESET_4K="H.265 MKV 2160p60"
 PRESET_1080P="Very Fast 1080p30"
+PRESET_1080P_X265="H.265 MKV 1080p30"
 PRESET_720p="Very Fast 720p30"
+PRESET_576p="Very Fast 576p25"
 PRESET_SD="Very Fast 480p30"
 
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
 MIN_FILE_AGE=5 
 
+# --- Logging Function ---
+log() {
+#    echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
+}
+
 # --- Setup Directories ---
 mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_DIR"
 
+# Check if 'HandBrakeCLI' command is already available
+if command -v HandBrakeCLI >/dev/null 2>&1; then
+    log "✅ 'HandBrakeCLI' is already installed. Proceeding."
+    return 0
+else
+    if command -v apt-get >/dev/null 2>&1; then
+        echo "Installing 'HandBrakeCLI' via apt-get..."
+        sudo apt-get update && sudo apt-get install -y handbrake-cli
+    fi
+fi
+
+# Check if 'mkvmerge' command is already available
+if command -v mkvmerge >/dev/null 2>&1; then
+    log "✅ 'mkvmerge' is already installed. Proceeding."
+    return 0
+else
+    if command -v apt-get >/dev/null 2>&1; then
+        echo "Installing 'mkvmerge' via apt-get..."
+        sudo apt-get update && sudo apt-get install -y mkvmerge
+    fi
+fi
+
 # Check if 'jq' command is already available
 if command -v jq >/dev/null 2>&1; then
-    echo "✅ 'jq' is already installed. Proceeding with JSON processing."
+    log "✅ 'jq' is already installed. Proceeding with JSON processing."
     return 0
 else
     if command -v apt-get >/dev/null 2>&1; then
@@ -39,12 +69,6 @@ else
         sudo apt-get update && sudo apt-get install -y jq
     fi
 fi
-
-# --- Logging Function ---
-log() {
-#    echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
-    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
-}
 
 log "--- HandBrake Converter started ---"
 
@@ -181,6 +205,11 @@ while true; do
             if [[ $LOG_LEVEL = "debug" ]]; then
                 log "   -> Filename contains '2160p'. Using preset: $PRESET_4K"
             fi
+        elif [[ "$LOWER_FILENAME" =~ "1080p.x265" ]]; then
+            PRESET="$PRESET_1080P_X265"
+            if [[ $LOG_LEVEL = "debug" ]]; then
+                log "   -> Filename contains '1080p.x265'. Using preset: $PRESET_1080P_X265"
+            fi
         elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then
             PRESET="$PRESET_1080P"
             if [[ $LOG_LEVEL = "debug" ]]; then
@@ -191,10 +220,15 @@ while true; do
             if [[ $LOG_LEVEL = "debug" ]]; then
                 log "   -> Filename contains '720p'. Using preset: $PRESET_720P"
             fi
+        elif [[ "$LOWER_FILENAME" =~ "576p" ]]; then
+            PRESET="$PRESET_576P"
+            if [[ $LOG_LEVEL = "debug" ]]; then
+                log "   -> Filename contains '576p'. Using preset: $PRESET_576P"
+            fi
         else
             PRESET="$PRESET_SD"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename does not contain '2160p', '1080p' or '720p'. Using preset: $PRESET_SD"
+                log "   -> Filename does not contain '2160p', '1080p', '720p' or '576p'. Using preset: $PRESET_SD"
             fi
         fi
 
@@ -205,6 +239,7 @@ while true; do
 
         HandBrakeCLI \
             --preset "$PRESET" \
+            -q 24.0 \
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
             --audio-lang-list eng \
