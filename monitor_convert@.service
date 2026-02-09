@@ -1,0 +1,17 @@
+[Unit]
+Description=media conversion with handbrake on %i
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /usr/local/bin/monitor_convert.sh
+Restart=always
+RestartSec=10
+# %i will be replaced by whatever you put after the @ when starting
+User=%i
+Group=%i
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
