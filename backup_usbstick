@@ -1,0 +1,104 @@
+#!/bin/bash
+
+prompt="Please select a disk to BACKUP from:"
+PS3="$prompt"
+
+files="/dev/"
+options=( $(find "$files"sd? -maxdepth 1 -print0 | xargs -0) )
+select disk in "${options[@]}" "Quit" ; do
+    if (( REPLY > 0 && REPLY <= ${#options[@]} )) ; then
+        break
+    else
+        echo "Invalid option. Try another one."
+    fi
+done
+
+show_menu_host(){
+    normal=`echo "\033[m"`
+    menu=`echo "\033[36m"` #Blue
+    number=`echo "\033[33m"` #yellow
+    bgred=`echo "\033[41m"`
+    fgred=`echo "\033[31m"`
+    printf "\n${bgred}- Backup usb stick -${normal}\n"
+    printf "${bgred}-    to network${menu}    -${normal}\n"
+    printf "${menu}--------------------${normal}\n"
+    printf "${menu}|${number} 1.${menu} pi11          | ${normal}\n"
+    printf "${menu}|${number} 2.${menu} pi12          | ${normal}\n"
+    printf "${menu}|${number} 3.${menu} pi13          | ${normal}\n"
+    printf "${menu}|${number} 4.${menu} pi14          | ${normal}\n"
+    printf "${menu}|${number} 5.${menu} pi15          | ${normal}\n"
+    printf "${menu}|${number} 6.${menu} pi16          | ${normal}\n"
+    printf "${menu}|${number} 7.${menu} pi20          | ${normal}\n"
+    printf "${menu}|${number} 8.${menu} ubuntu10      | ${normal}\n"
+    printf "${menu}|${number} 9.${menu} ubuntu24      | ${normal}\n"
+    printf "${menu}--------------------${normal}\n"
+    printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
+    read opt
+}
+
+option_picked(){
+    msgcolor=`echo "\033[01;31m"` # bold red
+    normal=`echo "\033[00;00m"` # normal white
+    message=${@:-"${normal}Error: No message passed"}
+    printf "${msgcolor}${message}${normal}\n"
+}
+
+clear
+
+show_menu_host
+
+while [ $opt != '' ]
+    do
+    if [ $opt = '' ]; then
+      exit;
+    else
+      case $opt in
+        1) clear;
+            name=pi11
+            break
+        ;;
+        2) clear;
+            name=pi12
+            break
+        ;;
+        3) clear;
+            name=pi13
+            break
+        ;;
+        4) clear;
+            name=pi14
+            break
+        ;;
+        5) clear;
+            name=pi15
+            break
+        ;;
+        6) clear;
+            name=pi16
+            break
+        ;;
+        7) clear;
+            name=pi20
+            break
+        ;;
+        8) clear;
+            name=ubuntu10
+            break
+        ;;
+        9) clear;
+            name=ubuntu24
+            break
+        ;;
+        x)exit;
+        ;;
+        \n)exit;
+        ;;
+        *)clear;
+            option_picked "Pick an option from the menu";
+        ;;
+      esac
+    fi
+done
+echo "Backing up "$name" from "$disk" to the network"
+sudo dd if=$disk of=/mnt/media/backup/"$name"/"$name"_$(date -d "today" +"%Y%m%d%H%M").img bs=4M status=progress
+#echo " sudo dd if=$disk of=/mnt/media/backup/"$name"/"$name"_$(date -d "today" +"%Y%m%d%H%M").img bs=4M status=progress"
