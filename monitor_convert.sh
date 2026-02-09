@@ -7,6 +7,11 @@
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/${HOST}_convert"
+if [[ $HOST == "pi"* ]]; then
+    HOME_DIR="/home/pi"
+else
+    HOME_DIR="/home/dan"
+fi
 CONVERT_DIR="$HOME/convert"
 WORKING_DIR="$HOME/${HOST}_done"
 SUBTITLE_DIR="/mnt/media/backup/subtitles"
@@ -250,7 +255,7 @@ while true; do
 
         #Set the subtitle name.
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
-            mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced"
+            mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
         fi
 
         CONVERSION_EXIT_CODE=$?
