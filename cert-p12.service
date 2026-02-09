@@ -1,0 +1,12 @@
+[Unit]
+Description=Let's Encrypt to P12 Converter Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cert-monitor.sh
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
