@@ -1,108 +1,74 @@
 #!/bin/bash
 
-# A a bash script for linux that starts in the folder /mnt/media/torrent/$(hostname)_convert,
-# looks for subfolders and then looks for mkv and mp4 files one or two folders down
-# and renames those files before moving them to /mnt/media/torrent/$(hostname)_convert.
-# Processes obfuscated usenet Linux ISOs and renames them to the parent folder.
-
 # --- Configuration ---
-# Set the base directory using the current hostname
-# Example path: /mnt/media/torrent/myhostname_convert
-BASE_DIR="/mnt/media/torrent/$(hostname)_convert"
+HOST=$(hostname)
+BASE_DIR="/mnt/media/torrent/${HOST}_convert"
+TARGET_DIR="$BASE_DIR"
+LOG_FILE="/mnt/media/torrent/${HOST}.log"
 
-# Maximum depth for finding files (2 levels deep, e.g., Dir1/Dir2/file.mkv)
-# If BASE_DIR is level 0:
-# mindepth 2 = BASE_DIR/Subfolder/file
-# maxdepth 3 = BASE_DIR/Subfolder/Subfolder/file
 SEARCH_DEPTH_MIN=2
 SEARCH_DEPTH_MAX=3
+SLEEP_INTERVAL=60 # Seconds to wait between full scans
 
-# Target directory is the root of the conversion folder
-TARGET_DIR="$BASE_DIR"
+# --- Logging Function ---
+log() {
+    # Outputs to console (for journalctl) and appends to the log file
+    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
+}
 
-# --- Functions ---
-
-# Function to safely clean up a filename (removes spaces, special characters, converts to lowercase)
+# Function to safely clean up a filename
 clean_filename() {
     local filename="$1"
-    # 1. Remove file extension
     local name_without_ext="${filename%.*}"
     local extension="${filename##*.}"
-    
-    # 2. Convert to lowercase
     local cleaned_name=$(echo "$name_without_ext" | tr '[:upper:]' '[:lower:]')
-    
-    # 3. Replace spaces, dots, and common separators with underscores
     cleaned_name=$(echo "$cleaned_name" | sed -E 's/[. ]+/_/g')
-    
-    # 4. Remove any characters that are not alphanumeric, hyphens, or underscores
     cleaned_name=$(echo "$cleaned_name" | sed -E 's/[^a-z0-9_-]//g')
-    
-    # 5. Collapse multiple underscores
     cleaned_name=$(echo "$cleaned_name" | sed -E 's/_+/-/g')
-
-    # 6. Reconstruct the full path
     echo "${cleaned_name}.${extension}"
 }
 
+# --- Service Execution ---
 
-# --- Script Execution ---
+log "Service started. Monitoring: $BASE_DIR"
 
-echo "Starting media organization script..."
-echo "Base Directory: $BASE_DIR"
-
-# Check if the base directory exists
+# Ensure the base directory exists
 if [ ! -d "$BASE_DIR" ]; then
-    echo "Error: Base directory $BASE_DIR does not exist. Please create it first."
-    exit 1
+    log "Error: Base directory $BASE_DIR does not exist. Creating it..."
+    mkdir -p "$BASE_DIR"
 fi
 
-# Find all .mkv and .mp4 files within the specified depth
-# -type f: find files
-# \( -name "*.mkv" -o -name "*.mp4" \): find files with either extension
-# -mindepth and -maxdepth control the folder structure deep inside $BASE_DIR
-# NOTE: -mindepth and -maxdepth are global options and are moved before -type f to silence warnings.
-find "$BASE_DIR" -mindepth $SEARCH_DEPTH_MIN -maxdepth $SEARCH_DEPTH_MAX -type f \( -name "*.mkv" -o -name "*.mp4" \) | while IFS= read -r full_path; do
-    
-    # Check if the file still exists (important if files are moved concurrently)
-    if [ ! -f "$full_path" ]; then
-        continue
-    fi
-    
-    # Get the original file name and directory
-    original_filename=$(basename -- "$full_path")
-    original_dir=$(dirname -- "$full_path")
-    
-    # 1. Generate the cleaned-up target filename
-    new_filename=$(clean_filename "$original_filename")
-    
-    # 2. Define the full path for the destination file
-    destination_path="$TARGET_DIR/$new_filename"
-    
-    echo "Processing: $original_filename in $original_dir"
-    echo " -> New Name: $new_filename"
-    
-    # 3. Execute the move/rename operation
-    # Check if the destination file already exists to prevent overwriting
-    if [ -f "$destination_path" ]; then
-        echo "   [SKIP] Destination file already exists: $destination_path"
-    else
-        # Use 'mv' to rename and move in one atomic operation
-        if mv "$full_path" "$destination_path"; then
-            echo "   [SUCCESS] Moved and renamed to: $destination_path"
-        else
-            echo "   [ERROR] Failed to move $full_path"
+while true; do
+    # Find all .mkv and .mp4 files
+    # We process all found files in one batch, then sleep.
+    find "$BASE_DIR" -mindepth $SEARCH_DEPTH_MIN -maxdepth $SEARCH_DEPTH_MAX -type f \( -name "*.mkv" -o -name "*.mp4" \) | while IFS= read -r full_path; do
+        
+        if [ ! -f "$full_path" ]; then continue; fi
+        
+        original_filename=$(basename -- "$full_path")
+        new_filename=$(clean_filename "$original_filename")
+        destination_path="$TARGET_DIR/$new_filename"
+        
+        log "Processing: $original_filename"
+        
+        # Check for collisions
+        if [ -f "$destination_path" ]; then
+            log "[SKIP] Destination already exists: $new_filename"
+            continue
         fi
-    fi
 
-    # Add a 60-second pause as requested
-    echo "   [PAUSE] Pausing for 60 seconds before checking the next file..."
-    sleep 60
+        # Execute move
+        if mv "$full_path" "$destination_path"; then
+            log "[SUCCESS] Moved to: $new_filename"
+        else
+            log "[ERROR] Failed to move $original_filename"
+        fi
+    done
 
+    # Optional: Clean up empty directories
+    # Only removes directories inside BASE_DIR, not BASE_DIR itself.
+    find "$BASE_DIR" -mindepth 1 -depth -type d -empty -not -path "$BASE_DIR" -exec rmdir {} \; 2>/dev/null
+
+    # Wait for the next cycle
+    sleep "$SLEEP_INTERVAL"
 done
-
-echo "Script completed."
-# Optional cleanup: remove empty directories left behind
-echo "Cleaning up empty directories..."
-find "$BASE_DIR" -depth -type d -empty -exec rmdir {} \; 2>/dev/null
-echo "Cleanup finished."
