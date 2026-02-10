@@ -17,7 +17,11 @@ WORKING_DIR="$HOME/${HOST}_done"
 SUBTITLE_DIR="/mnt/media/backup/subtitles"
 FINISHED_DIR="/mnt/media/torrent/finished"
 COMPLETED_DIR="/mnt/media/torrent/completed"
+<<<<<<< HEAD
 LOG_FILE="/mnt/media/torrent/${HOST}.log"
+=======
+LOG_FILE="/mnt/media/torrent/${HOST}_monitor_convert.log"
+>>>>>>> edd06db15e1d36ce1271f72581869256db69cb16
 #LOG_LEVEL="debug"
 TIMESTAMP=$(date +"%H-%M")
 
@@ -75,6 +79,15 @@ else
     fi
 fi
 
+<<<<<<< HEAD
+=======
+# --- Logging Function ---
+log() {
+#    echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M') - $1" | tee -a "$LOG_FILE"
+}
+
+>>>>>>> edd06db15e1d36ce1271f72581869256db69cb16
 log "--- HandBrake Converter started ---"
 
 # --- Main Monitoring Loop (Polling) ---
@@ -114,7 +127,11 @@ while true; do
         if [[ -n "$SUB_TRACK_ID" ]]; then
             #if [[ $LOG_LEVEL = "debug" ]]; then
                 #log "   -> English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
+<<<<<<< HEAD
                 log "   -> Forced subtitles (ID: $SUB_TRACK_ID): $BASE_NAME..."
+=======
+                log "   -> Forced subtitles (ID: $SUB_TRACK_ID): $SUB_FILE..."
+>>>>>>> edd06db15e1d36ce1271f72581869256db69cb16
             #fi
             mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
             if [[ $? -eq 0 ]]; then
@@ -208,6 +225,7 @@ while true; do
         if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then
             PRESET="$PRESET_4K"
             if [[ $LOG_LEVEL = "debug" ]]; then
+<<<<<<< HEAD
                 log "   -> Filename contains '2160p'. Using preset: $PRESET_4K"
             fi
         elif [[ "$LOWER_FILENAME" =~ "1080p.x265" ]]; then
@@ -234,6 +252,14 @@ while true; do
             PRESET="$PRESET_SD"
             if [[ $LOG_LEVEL = "debug" ]]; then
                 log "   -> Filename does not contain '2160p', '1080p', '720p' or '576p'. Using preset: $PRESET_SD"
+=======
+                log "   -> Filename contains '2160p'. Using preset: $PRESET_4K (4K)"
+            fi
+        else
+            PRESET="$PRESET_1080P"
+            if [[ $LOG_LEVEL = "debug" ]]; then
+                log "   -> Filename does not contain '2160p'. Using preset: $PRESET_1080P (1080p default)"
+>>>>>>> edd06db15e1d36ce1271f72581869256db69cb16
             fi
         fi
 
@@ -255,7 +281,11 @@ while true; do
 
         #Set the subtitle name.
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
+<<<<<<< HEAD
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
+=======
+            mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced"
+>>>>>>> edd06db15e1d36ce1271f72581869256db69cb16
         fi
 
         CONVERSION_EXIT_CODE=$?
@@ -278,6 +308,17 @@ while true; do
             if [[ $LOG_LEVEL = "debug" ]]; then
                 log "   -> Deleted temporary copy in $CONVERT_DIR."
             fi
+<<<<<<< HEAD
+=======
+
+            # Delete the temporary .srt file (if it was created)
+#            if $SUB_FILE_EXTRACTED ; then
+#                if [[ $LOG_LEVEL = "debug" ]]; then
+#                    log "   -> Deleting temporary SRT file from working directory: $SUB_FILE"
+#                fi
+#                rm -f "$SUB_FILE"
+#            fi
+>>>>>>> edd06db15e1d36ce1271f72581869256db69cb16
 
             # Move the original file to the finished folder
             mv "$SOURCE_FILE" "$FINISHED_DIR/$BASE_NAME-$TIMESTAMP.$EXTENSION"
