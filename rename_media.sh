@@ -17,10 +17,10 @@ log() {
 set -e
 
 log "--- Starting Media Renamer Script (Continuous Mode) ---"
-log "Target Video Directory: $CONVERT_DIR"
-log "Metadata Directory: $NZB_DIR"
-log "Log File: $LOG_FILE"
-log "-------------------------------------------------------"
+#log "Target Video Directory: $CONVERT_DIR"
+#log "Metadata Directory: $NZB_DIR"
+#log "Log File: $LOG_FILE"
+#log "-------------------------------------------------------"
 
 # Check if the directories exist
 if [[ ! -d "$CONVERT_DIR" ]]; then
