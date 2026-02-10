@@ -6,15 +6,6 @@ SOURCE_DIR="/mnt/media/torrent/completed-movies"
 DEST_DIR="/mnt/media/torrent/completed"
 FINISHED_DIR="/mnt/media/torrent/finished"
 LOG_FILE="/mnt/media/torrent/${HOST}.log"
-
-# Ensure directories exist#!/bin/bash
-
-# --- Configuration ---
-HOST=$(hostname -s)
-SOURCE_DIR="/mnt/media/torrent/completed-movies"
-DEST_DIR="/mnt/media/torrent/completed"
-FINISHED_DIR="/mnt/media/torrent/finished"
-LOG_FILE="/mnt/media/torrent/${HOST}.log"
 SLEEP_INTERVAL=120
 
 # Ensure directories exist
