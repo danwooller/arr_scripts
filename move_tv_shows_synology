@@ -1,107 +1,81 @@
 #!/bin/bash
 
 # === Configuration ===
-
-# The directory to check *against*.
-# We will look for matches to the folder names found here.
-# This is also the FINAL destination.
+HOST_NAME=$(hostname)
 SYNOLOGY_DIR="/mnt/synology/TV"
-
-# The directory to move folders *from*.
 MEDIA_DIR="/mnt/media/TV"
+LOG_FILE="/mnt/media/torrent/${HOST_NAME}.log"
+SLEEP_INTERVAL=60
 
-# Set to "true" for a dry run. No files will be moved.
-# Set to "false" to perform the actual move.
+# Set to "true" for a dry run.
 DRY_RUN=false
-#DRY_RUN=true
 
-# === End of Configuration ===
-
+# --- Logging Function ---
+log() {
+    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
+}
 
 # --- Safety Checks ---
-if [ ! -d "$SYNOLOGY_DIR" ]; then
-    echo "Error: Synology directory not found: $SYNOLOGY_DIR"
-    echo "Please check the path and permissions."
+if [[ ! -d "$SYNOLOGY_DIR" ]]; then
+    log "Error: Synology TV directory not found: $SYNOLOGY_DIR"
     exit 1
 fi
 
-if [ ! -d "$MEDIA_DIR" ]; then
-    echo "Error: Media directory not found: $MEDIA_DIR"
-    echo "Please check the path and permissions."
+if [[ ! -d "$MEDIA_DIR" ]]; then
+    log "Error: Media TV directory not found: $MEDIA_DIR"
     exit 1
 fi
 
-echo "Starting TV show sync..."
-echo "Reference (and Destination): $SYNOLOGY_DIR"
-echo "Source (Move From):         $MEDIA_DIR"
-echo "---"
+log "--- TV Show Sync Service Started ---"
+log "Monitoring: $MEDIA_DIR"
 
+# Configure rsync options
 if $DRY_RUN; then
-    echo "DRY RUN ENABLED. No files will be moved."
-    RSYNC_OPTS="-avhn --progress --stats"
+    log "DRY RUN ENABLED."
+    RSYNC_OPTS="-avhn"
 else
-    echo "PRODUCTION RUN. Files will be moved."
-    # -a: archive mode (recursive, preserves permissions, etc.)
-    # -v: verbose
-    # -h: human-readable
-    # --remove-source-files: This is what makes it a "move" operation.
-    # --progress: Shows file transfer progress.
-    RSYNC_OPTS="-avh --remove-source-files --progress"
+    log "PRODUCTION RUN. Moving files..."
+    RSYNC_OPTS="-avh --remove-source-files"
 fi
-echo "---"
 
+# === Main Service Loop ===
+while true; do
+#    log "Starting TV folder scan..."
 
-# Loop through each directory in the SYNOLOGY_DIR
-# The */ at the end of the path ensures we only match directories
-for dest_show_path in "$SYNOLOGY_DIR"/*/; do
+    # Loop through each directory in the SYNOLOGY_DIR
+    for dest_show_path in "$SYNOLOGY_DIR"/*/; do
 
-    # Check if the path is a valid directory (handles empty dirs)
-    if [ -d "$dest_show_path" ]; then
-    
-        # Get just the folder name, e.g. "/mnt/synology/TV/Show Name/" -> "Show Name"
-        show_name=$(basename "$dest_show_path")
-        
-        # Construct the full path to the matching source folder
-        source_show_path="$MEDIA_DIR/$show_name"
-        
-        # Check if that matching folder exists in the MEDIA_DIR
-        if [ -d "$source_show_path" ]; then
-            echo "Match found: '$show_name'"
-            echo "Syncing from: '$source_show_path/'"
-            echo "Syncing to:   '$dest_show_path/'"
+        if [[ -d "$dest_show_path" ]]; then
+            show_name=$(basename "$dest_show_path")
+            source_show_path="$MEDIA_DIR/$show_name"
             
-            # --- The Move Operation ---
-            # We use rsync to "move-and-merge" the contents.
-            # The trailing slash on the source path ($source_show_path/) is critical.
-            # It tells rsync to move the *contents* of the folder,
-            # not the folder itself, which prevents nesting.
-            rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path/"
-            
-            # --- Cleanup ---
-            # If the move was successful (and not a dry run),
-            # the source dir might be empty. If so, remove it.
-            if ! $DRY_RUN; then
-
-		echo "Cleaning up empty sub-directories in '$source_show_path'..."
-                # Find all empty directories (-type d -empty) starting from 
-                # one level down (-mindepth 1) and delete them.
-                find "$source_show_path" -mindepth 1 -type d -empty -delete
-
-                if [ -d "$source_show_path" ] && [ -z "$(ls -A "$source_show_path")" ]; then
-                    echo "Removing empty source directory: $source_show_path"
-                    rmdir "$source_show_path"
+            # Check if matching show folder exists in the source
+            if [[ -d "$source_show_path" ]]; then
+                log "Match found: '$show_name'. Syncing..."
+                
+                # Execute rsync - capture detailed output to log file
+                rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE" 2>&1
+                
+                if [[ $? -eq 0 ]]; then
+                    log "[SUCCESS] Sync completed for '$show_name'"
+                    
+                    if ! $DRY_RUN; then
+                        # Clean up empty sub-directories (Seasons, etc.)
+                        find "$source_show_path" -mindepth 1 -type d -empty -delete
+                        
+                        # Remove the show folder if it's completely empty
+                        if [[ -d "$source_show_path" ]] && [[ -z "$(ls -A "$source_show_path")" ]]; then
+                            rmdir "$source_show_path"
+                            log "Removed empty source folder: $show_name"
+                        fi
+                    fi
                 else
-                    echo "Source directory '$source_show_path' not empty, skipping removal."
+                    log "[ERROR] rsync failed for '$show_name'. Check log for details."
                 fi
             fi
-            
-            echo "---"
-        else
-            # Uncomment this line if you want to see which shows were checked but not found
-            # echo "No match in $MEDIA_DIR for: '$show_name'"
-            : # This is a 'no-op' command to prevent a syntax error
         fi
-    fi
-done
+    done
 
-echo "Script finished."
+#    log "Scan complete. Waiting ${SLEEP_INTERVAL}s..."
+    sleep "$SLEEP_INTERVAL"
+done
