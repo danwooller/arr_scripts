@@ -1,7 +1,16 @@
 #!/bin/bash
 
-REAL_USER="pi"
-DEST_DIR="/home/pi/arr_scripts"
+# 1. Detect Hostname and Set User
+CURRENT_HOSTNAME=$(hostname)
+if [[ "$CURRENT_HOSTNAME" == *"pi"* ]]; then
+    REAL_USER="pi"
+else
+    REAL_USER="dan"
+fi
+
+# 2. Configuration
+GH_USER="danwooller"
+DEST_DIR="/home/$REAL_USER/arr_scripts"
 SOURCE_PATH=$1
 
 if [ -z "$SOURCE_PATH" ]; then
@@ -11,22 +20,34 @@ fi
 
 FILENAME=$(basename "$SOURCE_PATH")
 
-# 1. Sync file
+# 3. Ensure the local repo directory exists
+mkdir -p "$DEST_DIR"
+
+# 4. Sync file from source to local repo
 sudo cp "$SOURCE_PATH" "$DEST_DIR/"
 sudo chown $REAL_USER:$REAL_USER "$DEST_DIR/$FILENAME"
 
 cd "$DEST_DIR" || exit
 
-# 2. Identify the active branch (main or master)
-BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")
+# 5. Auto-Initialize Git if missing
+if [ ! -d ".git" ]; then
+    echo "Initializing new Git repository in $DEST_DIR..."
+    sudo -u $REAL_USER git init
+    sudo -u $REAL_USER git remote add origin "https://$GH_USER@github.com/$GH_USER/arr_scripts.git"
+    sudo -u $REAL_USER git branch -M main
+fi
 
-# 3. Fix permissions and pull
+# 6. Safety: Fix permissions and identify as danwooller
 sudo chown -R $REAL_USER:$REAL_USER "$DEST_DIR"
-sudo -u $REAL_USER git pull origin "$BRANCH" --rebase
+sudo rm -f .git/index.lock
+sudo -u $REAL_USER git config user.name "$GH_USER"
+sudo -u $REAL_USER git config credential.helper store
 
-# 4. Add, Commit, and Push
+# 7. Sync and Push
+echo "Using user: $REAL_USER on $CURRENT_HOSTNAME"
+sudo -u $REAL_USER git pull origin main --rebase
 sudo -u $REAL_USER git add "$FILENAME"
-sudo -u $REAL_USER git commit -m "Update $FILENAME"
-sudo -u $REAL_USER git push origin "$BRANCH"
+sudo -u $REAL_USER git commit -m "Update $FILENAME from $CURRENT_HOSTNAME"
+sudo -u $REAL_USER git push origin main
 
-echo "Pushed to branch: $BRANCH"
+echo "Successfully pushed $FILENAME to GitHub!"
