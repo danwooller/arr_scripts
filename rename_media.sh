@@ -88,7 +88,7 @@ while true; do
             else
                 log "  -> WARNING: Metadata file found, but could not extract <meta type=\"name\"> content."
             fi
-        else
+#        else
 #            log "  -> No metadata match found in $NZB_DIR"
         fi
 #        log "-------------------------------------"
