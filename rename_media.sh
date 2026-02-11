@@ -60,7 +60,7 @@ while true; do
         METADATA_FILE=$(grep -r -l -F "<meta type=\"title\">$FILENAME_WITH_EXT</meta>" "$NZB_DIR" 2>/dev/null | head -n 1)
 
         if [[ -n "$METADATA_FILE" ]]; then
-            log "  -> MATCH FOUND in $METADATA_FILE"
+#            log "  -> MATCH FOUND in $METADATA_FILE"
             
             # Extract the new filename
             NEW_NAME_RAW=$(grep -oP '(?<=<meta type="name">).*?(?=</meta>)' "$METADATA_FILE" | head -n 1)
