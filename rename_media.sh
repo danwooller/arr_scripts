@@ -35,7 +35,7 @@ fi
 # Main infinite loop for continuous monitoring
 while true; do
     
-    log "--- Starting scan ---"
+#    log "--- Starting scan ---"
     
     # Use find to locate all .mp4 and .mkv files
     # Note: Removed 'set -e' requirement for the find loop to prevent crash on minor read errors
@@ -46,7 +46,7 @@ while true; do
         BASE_NAME="${FILENAME_WITH_EXT%.*}"
         EXTENSION="${FILENAME_WITH_EXT##*.}"
 
-        log "Processing: $FILENAME_WITH_EXT"
+#        log "Processing: $FILENAME_WITH_EXT"
 
         # --- 1. Filtering ---
         if [[ "$BASE_NAME" =~ [._] ]]; then
@@ -54,7 +54,7 @@ while true; do
             continue
         fi
         
-        log "  -> Passed filter. Searching for metadata..."
+#        log "  -> Passed filter. Searching for metadata..."
 
         # --- 2. Search for metadata match ---
         METADATA_FILE=$(grep -r -l -F "<meta type=\"title\">$FILENAME_WITH_EXT</meta>" "$NZB_DIR" 2>/dev/null | head -n 1)
