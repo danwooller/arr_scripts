@@ -94,7 +94,7 @@ while true; do
         log "-------------------------------------"
 
     done
-    
-    log "--- Scan completed. Sleeping for ${SLEEP_INTERVAL}s... ---"
+
+#    log "--- Scan completed. Sleeping for ${SLEEP_INTERVAL}s... ---"
     sleep "$SLEEP_INTERVAL"
 done
