@@ -1,8 +1,13 @@
 #!/bin/bash
 
 # Configuration
-REAL_USER="pi"
-DEST_DIR="/home/pi/arr_scripts"
+CURRENT_HOSTNAME=$(hostname)
+if [[ "$CURRENT_HOSTNAME" == *"pi"* ]]; then
+    REAL_USER="pi"
+else
+    REAL_USER="dan"
+fi
+DEST_DIR="/home/$REAL_USER/arr_scripts"
 FILENAME=$1
 
 cd "$DEST_DIR" || exit
