@@ -89,9 +89,9 @@ while true; do
                 log "  -> WARNING: Metadata file found, but could not extract <meta type=\"name\"> content."
             fi
         else
-            log "  -> No metadata match found in $NZB_DIR"
+#            log "  -> No metadata match found in $NZB_DIR"
         fi
-        log "-------------------------------------"
+#        log "-------------------------------------"
 
     done
 
