@@ -25,8 +25,8 @@ TIMESTAMP=$(date +"%H-%M")
 PRESET_4K="H.265 MKV 2160p60"
 PRESET_1080P="Very Fast 1080p30"
 PRESET_1080P_X265="H.265 MKV 1080p30"
-PRESET_720p="Very Fast 720p30"
-PRESET_576p="Very Fast 576p25"
+PRESET_720P="Very Fast 720p30"
+PRESET_576P="Very Fast 576p25"
 PRESET_SD="Very Fast 480p30"
 
 # File types to process (no variable needed when using -iname)
