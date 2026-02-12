@@ -51,6 +51,7 @@ check_dep "mkvmerge" "mkvtoolnix"
 check_dep "jq" "jq"
 check_dep "mkvpropedit" "mkvtoolnix"
 check_dep "mkvextract" "mkvtoolnix"
+check_dep "rsync" "rsync"
 
 log "--- HandBrake Converter started ---"
 
@@ -60,8 +61,6 @@ while true; do
         log "Polling $SOURCE_DIR for files (age > ${MIN_FILE_AGE}m)..."
     fi
 
-    # Find files and process them one by one
-    # Added -maxdepth 1 to prevent recursing into subdirectories
     find "$SOURCE_DIR" -maxdepth 1 -type f \
         -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.flv" -o -iname "*.webm" \) \
@@ -74,19 +73,27 @@ while true; do
         
         log "✅ Detected video file: $FILENAME"
 
-        # --- 1. Copy to local conversion folder ---
+        # --- 1. Copy to local conversion folder (Using rsync for Code 3 fix) ---
         log "   -> Copying to $CONVERT_DIR..."
-        cp "$SOURCE_FILE" "$CONVERT_DIR/"
+        rsync -a --fsync "$SOURCE_FILE" "$CONVERT_DIR/$FILENAME"
+        sync
         
         FILE_TO_PROCESS="$CONVERT_DIR/$FILENAME"
         OUTPUT_FILE="$WORKING_DIR/$BASE_NAME.mkv"
         
         if [[ ! -f "$FILE_TO_PROCESS" || ! -r "$FILE_TO_PROCESS" ]]; then
-            log "   -> 🛑 FATAL ERROR: Local copy $FILENAME failed or is unreadable. Skipping."
+            log "   -> 🛑 FATAL ERROR: Local copy $FILENAME failed. Skipping."
             continue 
         fi
 
-        # --- 2. Subtitle Extraction (Local only) ---
+        # --- 2. Integrity Check (Specifically for Code 3) ---
+        if ! mkvmerge -i "$FILE_TO_PROCESS" >/dev/null 2>&1; then
+            log "   -> 🛑 ERROR: File $FILENAME is corrupted or incomplete. Skipping."
+            rm -f "$FILE_TO_PROCESS"
+            continue
+        fi
+
+        # --- 3. Subtitle Extraction ---
         HANDBRAKE_SUB_ARGS=""
         SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
         
@@ -106,7 +113,7 @@ while true; do
             fi
         fi
 
-        # --- 3. Determine Preset ---
+        # --- 4. Determine Preset ---
         LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
         
         if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then
@@ -124,45 +131,9 @@ while true; do
         fi
         log "   -> Using preset: $PRESET"
 
-        # --- 4. Conversion ---
+        # --- 5. Conversion ---
         log "   -> Starting HandBrake conversion..."
         HandBrakeCLI \
             --preset "$PRESET" \
             -q 24.0 \
             -i "$FILE_TO_PROCESS" \
-            -o "$OUTPUT_FILE" \
-            --audio-lang-list eng \
-            --aencoder copy --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
-            --audio-fallback aac \
-            --optimize \
-            $HANDBRAKE_SUB_ARGS 
-
-        CONVERSION_EXIT_CODE=$?
-
-        # --- 5. Post-Conversion ---
-        if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
-            log "   -> Conversion complete: $FILENAME"
-            
-            # Set metadata if subtitles were added
-            if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
-                mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
-            fi
-
-            mv "$OUTPUT_FILE" "$COMPLETED_DIR/"
-            rm -f "$FILE_TO_PROCESS"
-            mv "$SOURCE_FILE" "$FINISHED_DIR/${BASE_NAME}-${TIMESTAMP}.${EXTENSION}"
-            log "   -> Success. Files moved to Finished/Completed."
-        else
-            log "   -> 🛑 ERROR: HandBrake failed (Code $CONVERSION_EXIT_CODE) for $FILENAME."
-            rm -f "$OUTPUT_FILE"
-            # We keep FILE_TO_PROCESS and SOURCE_FILE so they can be re-tried or inspected
-        fi
-            
-    done
-    
-    # Cleanup empty local working dirs between cycles
-    rm -f "$CONVERT_DIR"/* 2>/dev/null
-    rm -f "$WORKING_DIR"/* 2>/dev/null
-
-    sleep "$POLL_INTERVAL"
-done
