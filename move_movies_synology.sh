@@ -46,7 +46,7 @@ fi
 
 # === Main Service Loop ===
 while true; do
-    log "Starting folder scan..."
+#    log "Starting folder scan..."
 
     # Loop through each directory in the SYNOLOGY_DIR
     for dest_movie_path in "$SYNOLOGY_DIR"/*/; do
