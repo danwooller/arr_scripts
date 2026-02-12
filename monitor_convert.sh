@@ -182,46 +182,24 @@ while true; do
         if [[ $LOG_LEVEL = "debug" ]]; then
             log "   -> Determining preset based on filename content..."
         fi
-        
-        # Convert filename to lowercase for case-insensitive check
+
+        # --- 4. Determine Preset (Wrapped in quotes to prevent "Very" error) ---
         LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
-        
+
         if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then
             PRESET="$PRESET_4K"
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename contains '2160p'. Using preset: $PRESET_4K"
-            fi
         elif [[ "$LOWER_FILENAME" =~ "1080p.x265" ]]; then
             PRESET="$PRESET_1080P_X265"
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename contains '1080p.x265'. Using preset: $PRESET_1080P_X265"
-            fi
         elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then
             PRESET="$PRESET_1080P"
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename contains '1080p'. Using preset: $PRESET_1080P"
-            fi
         elif [[ "$LOWER_FILENAME" =~ "720p" ]]; then
             PRESET="$PRESET_720P"
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename contains '720p'. Using preset: $PRESET_720P"
-            fi
         elif [[ "$LOWER_FILENAME" =~ "576p" ]]; then
             PRESET="$PRESET_576P"
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename contains '576p'. Using preset: $PRESET_576P"
-            fi
         else
             PRESET="$PRESET_SD"
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Filename does not contain '2160p', '1080p', '720p' or '576p'. Using preset: $PRESET_SD"
-            fi
         fi
-
-        # --- 5. Convert with HandBrakeCLI ---
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "   -> Starting HandBrake conversion with preset: $PRESET..."
-        fi
+        log "   -> Using preset: $PRESET"
 
         HandBrakeCLI \
             --preset "$PRESET" \
