@@ -137,3 +137,36 @@ while true; do
             --preset "$PRESET" \
             -q 24.0 \
             -i "$FILE_TO_PROCESS" \
+            -o "$OUTPUT_FILE" \
+            --audio-lang-list eng \
+            --aencoder copy --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
+            --audio-fallback aac \
+            --optimize \
+            $HANDBRAKE_SUB_ARGS 
+
+        CONVERSION_EXIT_CODE=$?
+
+        # --- 6. Post-Conversion ---
+        if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
+            log "   -> Conversion complete: $FILENAME"
+            
+            if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
+                mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
+            fi
+
+            mv "$OUTPUT_FILE" "$COMPLETED_DIR/"
+            rm -f "$FILE_TO_PROCESS"
+            mv "$SOURCE_FILE" "$FINISHED_DIR/${BASE_NAME}-${TIMESTAMP}.${EXTENSION}"
+            log "   -> Success. Files moved to Finished/Completed."
+        else
+            log "   -> 🛑 ERROR: HandBrake failed (Code $CONVERSION_EXIT_CODE) for $FILENAME."
+            rm -f "$OUTPUT_FILE"
+        fi
+            
+    done
+    
+    rm -f "$CONVERT_DIR"/* 2>/dev/null
+    rm -f "$WORKING_DIR"/* 2>/dev/null
+
+    sleep "$POLL_INTERVAL"
+done
