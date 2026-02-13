@@ -15,7 +15,7 @@ RESTART_COMMAND="$DOCKER_BIN restart plex"
 
 # --- Logging Function ---
 log() {
-    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
 }
 
 while true; do
