@@ -12,8 +12,7 @@ SLEEP_INTERVAL=60 # Seconds to wait between full scans
 
 # --- Logging Function ---
 log() {
-    # Outputs to console (for journalctl) and appends to the log file
-    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
 }
 
 # Function to safely clean up a filename
