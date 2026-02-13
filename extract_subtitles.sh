@@ -20,7 +20,7 @@ MIN_FILE_AGE=5
 
 # --- Logging Function ---
 log() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
 }
 
 log "--- Polling Conversion Monitor Started ---"
