@@ -11,7 +11,7 @@ Group=root
 
 Type=simple
 # Adjust the path below to where you actually saved the .sh file
-ExecStart=/bin/bash /usr/local/bin/conver_mkv.sh
+ExecStart=/bin/bash /usr/local/bin/convert_mkv.sh
 Restart=always
 RestartSec=10
 
