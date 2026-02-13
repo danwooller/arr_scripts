@@ -81,6 +81,7 @@ while true; do
             mkvmerge -o "${OUTPUT_FILE}" "${FULL_PATH}" > /dev/null 2>&1
             
             if [ $? -eq 0 ]; then
+               log "✅ Successfully converted ${FULL_FILE_NAME}""
                 if [[ $LOG_LEVEL = "debug" ]]; then
                     log "Success. Moving original to finished."
                 fi
