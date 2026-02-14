@@ -4,6 +4,9 @@
 # determines whether the file is 1080p or 4K and converts the file using HandBrakeCLI
 # before copying back to the network for further sorting.
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/${HOST}_convert"
@@ -41,19 +44,8 @@ log() {
 # --- Setup Directories ---
 mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_DIR"
 
-check_dep() {
-    if ! command -v "$1" >/dev/null 2>&1; then
-        log "Installing '$1' via apt-get..."
-        sudo apt-get update && sudo apt-get install -y "$2"
-    else
-        log "✅ '$1' is ready."
-    fi
-}
-
-check_dep "HandBrakeCLI" "handbrake-cli"
-check_dep "mkvmerge" "mkvtoolnix"
-check_dep "jq" "jq"
-check_dep "mkvpropedit" "mkvtoolnix"
+# --- Run Dependency Check using the shared function ---
+check_dependencies "HandBrakeCLI" "mkvmerge" "jq" "mkvpropedit"
 
 log "--- HandBrake Converter started ---"
 
