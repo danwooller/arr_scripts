@@ -4,16 +4,22 @@
 HOST=$(hostname -s)
 EXT_VIDEO=("mp4" "m4v")
 EXT_OUT=".mkv"
-SOURCE_DIR="/mnt/media/torrent/${HOST}"
-CONVERTMKV_DIR="${SOURCE_DIR}/convertmkv"
-OUTPUT_DIR="/mnt/media/torrent/completed/"
+
+# Directories to monitor recursively
+WATCH_DIRS=(
+    "/mnt/media/torrent/completed"
+    "/mnt/media/torrent/completed-movies"
+)
+
+OUTPUT_DIR="/mnt/media/torrent/completed"
 FINISHED_DIR="/mnt/media/torrent/finished/"
 LOG_FILE="/mnt/media/torrent/${HOST}.log"
-# LOG_LEVEL="debug" # Uncomment this line to enable verbose logging
+# LOG_LEVEL="debug"
 POLL_INTERVAL=30
 
-mkdir -p "$SOURCE_DIR" "$CONVERTMKV_DIR" "$OUTPUT_DIR" "$FINISHED_DIR"
+mkdir -p "$OUTPUT_DIR" "$FINISHED_DIR"
 
+# --- Logging Function ---
 log() {
     echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
 }
@@ -26,77 +32,74 @@ for dep in "HandBrakeCLI" "mkvmerge" "jq" "mkvpropedit" "rename"; do
     fi
 done
 
-log "$0 started (Processing: ${EXT_VIDEO[*]})"
+log "--- (${0##*/}) started ---"
 
 while true; do
-    # 1. Standardize filenames (spaces to underscores)
-    if [[ $LOG_LEVEL = "debug" ]]; then
-        log "Renaming input files (spaces -> underscores)"
-    fi
-    rename 's/ /_/g' "${CONVERTMKV_DIR}/"* 2>/dev/null
+    for TARGET_DIR in "${WATCH_DIRS[@]}"; do
+        [[ -d "$TARGET_DIR" ]] || continue
 
-    # 2. Loop through files
-    for FULL_PATH in "${CONVERTMKV_DIR}/"*; do
-        [[ -e "$FULL_PATH" ]] || continue
-        [[ -d "$FULL_PATH" ]] && continue 
+        # 1. Standardize filenames recursively (spaces -> underscores)
+        # Using find to catch files in subfolders
+        find "$TARGET_DIR" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
-        FULL_FILE_NAME="${FULL_PATH##*/}"
-        FILE_NAME="${FULL_FILE_NAME%.*}"
-        FILE_EXT="${FULL_FILE_NAME##*.}"
-
-        # 3. Check Extension Match
-        MATCH=false
+        # 2. Find and process matching video files recursively
+        # This builds a list of files matching our extensions in any subfolder
+        FIND_ARGS=()
         for EXT in "${EXT_VIDEO[@]}"; do
-            if [[ "$FILE_EXT" == "$EXT" ]]; then MATCH=true; break; fi
+            FIND_ARGS+=("-name" "*.$EXT" "-o")
         done
+        unset 'FIND_ARGS[${#FIND_ARGS[@]}-1]' # Remove trailing "-o"
 
-        if [ "$MATCH" = true ]; then
-            
-            # --- OVERWRITE CHECK ---
-            # Check if file with spaces or underscores already exists in output
-            CLEAN_NAME=$(echo "$FILE_NAME" | tr '_' ' ')
-            if [[ -f "${OUTPUT_DIR}${FILE_NAME}${EXT_OUT}" ]] || [[ -f "${OUTPUT_DIR}${CLEAN_NAME}${EXT_OUT}" ]]; then
-                log "Skipping $FULL_FILE_NAME: Output file already exists in completed folder."
-                continue
-            fi
+        # Read results into an array
+        mapfile -t FILE_LIST < <(find "$TARGET_DIR" -type f \( "${FIND_ARGS[@]}" \))
 
-            # --- STABILITY CHECK ---
-            SIZE1=$(stat -c%s "$FULL_PATH")
-            sleep 5
-            SIZE2=$(stat -c%s "$FULL_PATH")
+        for FULL_PATH in "${FILE_LIST[@]}"; do
+            [[ -e "$FULL_PATH" ]] || continue
 
-            if [ "$SIZE1" -ne "$SIZE2" ]; then
-                if [[ $LOG_LEVEL = "debug" ]]; then
-                    log "Skipping $FULL_FILE_NAME (File size is changing; still downloading?)"
+            FULL_FILE_NAME=$(basename "$FULL_PATH")
+            FILE_EXT="${FULL_FILE_NAME##*.}"
+            FILE_NAME="${FULL_FILE_NAME%.*}"
+
+            if [ -n "$FILE_NAME" ]; then
+                
+                FINAL_OUTPUT="${OUTPUT_DIR}/${FILE_NAME}${EXT_OUT}"
+                
+                # --- OVERWRITE CHECK ---
+                if [[ -f "$FINAL_OUTPUT" ]]; then
+                    if [[ $LOG_LEVEL = "debug" ]]; then
+                        log "Skipping $FULL_FILE_NAME: Output exists in $OUTPUT_DIR."
+                    fi
+                    continue
                 fi
-                continue
-            fi
 
-            # 4. Conversion Process
-            OUTPUT_FILE="${OUTPUT_DIR}${FILE_NAME}${EXT_OUT}"
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "Processing: ${FULL_FILE_NAME} -> ${EXT_OUT}"
-            fi
-            
-            mkvmerge -o "${OUTPUT_FILE}" "${FULL_PATH}" > /dev/null 2>&1
-            
-            if [ $? -eq 0 ]; then
-               log "✅ Successfully converted ${FULL_FILE_NAME}"
-                if [[ $LOG_LEVEL = "debug" ]]; then
-                    log "Success. Moving original to finished."
+                # --- STABILITY CHECK ---
+                SIZE1=$(stat -c%s "$FULL_PATH")
+                sleep 5
+                SIZE2=$(stat -c%s "$FULL_PATH")
+
+                if [ "$SIZE1" -ne "$SIZE2" ]; then
+                    continue
                 fi
-                mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
-            else
-                log "❌ Error converting ${FULL_FILE_NAME}"
+
+                # 3. Conversion Process
+                log "Converting: ${FULL_FILE_NAME} (from subfolder) -> ${FILE_NAME}${EXT_OUT}"
+                
+                mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}" > /dev/null 2>&1
+                
+                if [ $? -eq 0 ]; then
+                    log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
+                    # Moves original to finished, preserving its name (but loses subfolder structure in finished)
+                    mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
+                else
+                    log "❌ Error converting ${FULL_FILE_NAME}"
+                    rm -f "$FINAL_OUTPUT"
+                fi
             fi
-        fi
+        done
     done
 
-    # 5. Clean up output names (underscores back to spaces)
-    if [[ $LOG_LEVEL = "debug" ]]; then
-         log " Renaming output files (underscores -> spaces)"
-    fi
-    rename 's/_/ /g' "${OUTPUT_DIR}"/*${EXT_OUT} 2>/dev/null
+    # 4. Clean up output names in the central folder
+    rename 's/_/ /g' "${OUTPUT_DIR}/"*${EXT_OUT} 2>/dev/null
 
     sleep "$POLL_INTERVAL"
 done
