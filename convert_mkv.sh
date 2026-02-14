@@ -15,7 +15,7 @@ POLL_INTERVAL=30
 mkdir -p "$SOURCE_DIR" "$CONVERTMKV_DIR" "$OUTPUT_DIR" "$FINISHED_DIR"
 
 log() {
-    echo "$(date +'%H:%M'): ($0) $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
 }
 
 # --- Dependencies ---
