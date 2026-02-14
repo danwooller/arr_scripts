@@ -20,7 +20,6 @@ WORKING_DIR="$HOME_DIR/${HOST}_done"
 SUBTITLE_DIR="/mnt/media/backup/subtitles"
 FINISHED_DIR="/mnt/media/torrent/finished"
 COMPLETED_DIR="/mnt/media/torrent/completed"
-LOG_FILE="/mnt/media/torrent/${HOST}.log"
 #LOG_LEVEL="debug"
 TIMESTAMP=$(date +"%H-%M")
 
