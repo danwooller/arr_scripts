@@ -1,5 +1,5 @@
 [Unit]
-Description=MKV Subtitle Monitor Service
+Description=Move Movies to Synology
 After=network.target
 
 [Service]
