@@ -35,11 +35,6 @@ PRESET_SD="Very Fast 480p30"
 POLL_INTERVAL=30
 MIN_FILE_AGE=5 
 
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
-}
-
 # --- Setup Directories ---
 mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_DIR"
 
