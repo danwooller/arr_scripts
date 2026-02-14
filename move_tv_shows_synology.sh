@@ -1,10 +1,12 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/mnt/media/torrent/common_functions.sh"
+
 # === Configuration ===
 HOST_NAME=$(hostname)
 SYNOLOGY_DIR="/mnt/synology/TV"
 MEDIA_DIR="/mnt/media/TV"
-LOG_FILE="/mnt/media/torrent/${HOST_NAME}.log"
 SLEEP_INTERVAL=60
 
 # Set to "true" for a dry run.
