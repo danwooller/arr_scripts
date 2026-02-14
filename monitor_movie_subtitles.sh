@@ -14,7 +14,7 @@ mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$CONVERT_MKV_DIR"
 
 # --- Logging Function ---
 log() {
-    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
 }
 
 # --- Dependency Check ---
