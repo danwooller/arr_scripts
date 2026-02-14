@@ -3,41 +3,23 @@
 # Moniotor $SOURCE_DIR for mkv files and process the audio and subtitles, keep English subs 
 # for non-English audio and strip non-forced subtitles from English audio.
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/completed-movies"
 DEST_DIR="/mnt/media/torrent/completed"
 FINISHED_DIR="/mnt/media/torrent/finished"
 #CONVERT_MKV_DIR="/mnt/media/torrent/srt/convertmkv"
-LOG_FILE="/mnt/media/torrent/${HOST}.log"
 SLEEP_INTERVAL=120
 
 # Ensure directories exist
 #mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$CONVERT_MKV_DIR"
 mkdir -p "$DEST_DIR" "$FINISHED_DIR"
 
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
-}
-
-# --- Dependency Check ---
-check_and_install_dependencies() {
-    local dependencies=("mkvmerge" "mkvpropedit" "jq" "lsof")
-    local missing_deps=()
-    for cmd in "${dependencies[@]}"; do
-        if ! command -v "$cmd" &> /dev/null; then
-            missing_deps+=("$cmd")
-        fi
-    done
-
-    if [ ${#missing_deps[@]} -ne 0 ]; then
-        log "Missing dependencies detected. Please install mkvtoolnix, jq, and lsof."
-        # Auto-install logic omitted for brevity, but stays in your local version
-    fi
-}
-
-check_and_install_dependencies
+# --- Run Dependency Check using the shared function ---
+check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
 
 #log "Monitoring $SOURCE_DIR for MKV (process) and MP4 (move) every $SLEEP_INTERVALs..."
 log "Monitoring $SOURCE_DIR for MKV (process) every $SLEEP_INTERVAL secs"
