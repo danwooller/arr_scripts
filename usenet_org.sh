@@ -1,19 +1,16 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # --- Configuration ---
 HOST=$(hostname)
 BASE_DIR="/mnt/media/torrent/${HOST}_convert"
 TARGET_DIR="$BASE_DIR"
-LOG_FILE="/mnt/media/torrent/${HOST}.log"
 
 SEARCH_DEPTH_MIN=2
 SEARCH_DEPTH_MAX=3
 SLEEP_INTERVAL=60 # Seconds to wait between full scans
-
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
-}
 
 # Function to safely clean up a filename
 clean_filename() {
