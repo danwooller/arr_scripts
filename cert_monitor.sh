@@ -15,11 +15,6 @@ CHECK_INTERVAL=86400 # 24 hours
 DOCKER_BIN="/opt/docker"
 RESTART_COMMAND="$DOCKER_BIN restart plex"
 
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
-}
-
 while true; do
     if [ ! -d "$CERT_PATH" ]; then
         log "ERROR: Directory $CERT_PATH not found. Retrying in 1 hour..."
