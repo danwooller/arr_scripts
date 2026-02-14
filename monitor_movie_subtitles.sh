@@ -5,12 +5,13 @@ HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/completed-movies"
 DEST_DIR="/mnt/media/torrent/completed"
 FINISHED_DIR="/mnt/media/torrent/finished"
-CONVERT_MKV_DIR="/mnt/media/torrent/srt/convertmkv"
+#CONVERT_MKV_DIR="/mnt/media/torrent/srt/convertmkv"
 LOG_FILE="/mnt/media/torrent/${HOST}.log"
 SLEEP_INTERVAL=120
 
 # Ensure directories exist
-mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$CONVERT_MKV_DIR"
+#mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$CONVERT_MKV_DIR"
+mkdir -p "$DEST_DIR" "$FINISHED_DIR"
 
 # --- Logging Function ---
 log() {
@@ -39,8 +40,8 @@ log "Monitoring $SOURCE_DIR for MKV (process) and MP4 (move) every $SLEEP_INTERV
 
 while true; do
     # Search for both mkv and mp4 recursively
-    find -L "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.mp4" \) -print0 | while IFS= read -r -d $'\0' file; do
-        
+#    find -L "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.mp4" \) -print0 | while IFS= read -r -d $'\0' file; do
+    find -L "$SOURCE_DIR" -type f \( -iname "*.mkv" \) -print0 | while IFS= read -r -d $'\0' file; do        
         filename=$(basename "$file")
         extension="${file##*.}"
 
@@ -51,15 +52,15 @@ while true; do
         fi
 
         # --- BRANCH 1: MP4 Files (Direct Move) ---
-        if [[ "${extension,,}" == "mp4" ]]; then
-            log "MP4 Detected: Moving $filename to convertmkv folder."
-            if mv "$file" "$CONVERT_MKV_DIR/"; then
-                log "Success: Moved $filename"
-            else
-                log "Error: Failed to move $filename"
-            fi
-            continue # Move to next file
-        fi
+#        if [[ "${extension,,}" == "mp4" ]]; then
+#            log "MP4 Detected: Moving $filename to convertmkv folder."
+#            if mv "$file" "$CONVERT_MKV_DIR/"; then
+#                log "Success: Moved $filename"
+#            else
+#                log "Error: Failed to move $filename"
+#            fi
+#            continue # Move to next file
+#        fi
 
         # --- BRANCH 2: MKV Files (Process Metadata) ---
         log "Processing MKV: $filename"
