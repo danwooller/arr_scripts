@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # Configuration
 HOST=$(hostname -s)
 DOMAIN="wooller.com"
@@ -7,7 +10,6 @@ CERT_PATH="/etc/letsencrypt/live/$DOMAIN"
 OUTPUT_FILE="$CERT_PATH/certificate.p12"
 P12_PASSWORD="VoorboorseT7676"
 CHECK_INTERVAL=86400 # 24 hours
-LOG_FILE="/mnt/media/torrent/${HOSTNAME}_cert_p12.log"
 
 # Path to Docker binary and restart command
 DOCKER_BIN="/opt/docker"
@@ -15,7 +17,7 @@ RESTART_COMMAND="$DOCKER_BIN restart plex"
 
 # --- Logging Function ---
 log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
+    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
 }
 
 while true; do
