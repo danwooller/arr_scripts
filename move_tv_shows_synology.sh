@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-source "/mnt/media/torrent/common_functions.sh"
+source "/usr/local/bin/common_functions.sh"
 
 # === Configuration ===
 HOST_NAME=$(hostname)
