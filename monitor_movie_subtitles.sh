@@ -40,7 +40,7 @@ check_and_install_dependencies() {
 check_and_install_dependencies
 
 #log "Monitoring $SOURCE_DIR for MKV (process) and MP4 (move) every $SLEEP_INTERVALs..."
-log "Monitoring $SOURCE_DIR for MKV (process) every $SLEEP_INTERVAL"
+log "Monitoring $SOURCE_DIR for MKV (process) every $SLEEP_INTERVAL secs"
 
 while true; do
     # Search for both mkv and mp4 recursively
