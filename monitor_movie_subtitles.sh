@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Moniotor $SOURCE_DIR for mkv files and process the audio and subtitles, keep English subs 
+# for non-English audio and strip non-forced subtitles from English audio.
+
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/completed-movies"
