@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Monitors the tv shows folder on the secondary server (synology) and
+# Monitors the tv shows folder on the secondary server (synology) and
 # checks the primary (truenas) for duplicate show folders
 # (indicating a REPACK or new episodes) and moves them
 
