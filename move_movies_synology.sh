@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Monitors the movies folder on the secondary server (synology) and
-# checks the primary (treunas) for duplicates (indicating a REPACK) and moves them
+# Monitors the movies folder on the secondary server (synology)
+# and checks the primary (truenas) for duplicates
+# (indicating a REPACK) and moves them
 
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
