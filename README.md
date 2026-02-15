@@ -30,3 +30,71 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 Use this when you've modified a script on your server and want to back it up to your repository.
 ```bash
 ./git_push.sh <filename.sh>
+```
+Metric Standards: Logs and measurements (file sizes, temps) utilize metric units (MB/GB/°C).
+
+Self-Cleaning: If no actual changes are detected, the script resets the index to prevent "dirty" rebase errors.
+
+2. Deploying to System / Updating Services
+Use this to move a script from the repo folder into the system path and restart its background service.
+
+```bash
+sudo ./update_script.sh <filename.sh>
+Service Mapping: Automatically maps script_name.sh to script_name.service.
+```
+
+Lifecycle: Automates cp, chmod, daemon-reload, and systemctl restart.
+
+🛠 Installation & Requirements
+Setup on a New Machine
+
+# 1. Clone the repository
+```bash
+git clone [https://github.com/danwooller/arr_scripts.git](https://github.com/danwooller/arr_scripts.git) ~/arr_scripts
+cd ~/arr_scripts
+```
+# 2. Set permissions
+```bash
+chmod +x *.sh
+```
+# 3. First-time Push (Configures GitHub Auth)
+# When prompted, use your GitHub Username and Personal Access Token (PAT)
+```bash
+./git_push.sh git_push.sh
+```
+System Requirements
+Git:
+```bash
+sudo apt install git -y
+```
+Systemd: Standard on Ubuntu/Debian/Raspbian.
+
+HandBrakeCLI: Required for transcoding scripts.
+
+Permissions: Scripts require sudo for installation to /usr/local/bin and service management.
+
+⚙️ Service Configuration Template
+When creating a new background service, use this logic within your .service files to ensure compatibility with update_script.sh:
+
+Ini, TOML
+```bash
+[Unit]
+Description=Service for %i
+After=network.target
+
+[Service]
+User=dan
+Group=dan
+ExecStart=/usr/local/bin/YOUR_SCRIPT_NAME.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+📝 Troubleshooting
+Logs: View live service output: journalctl -u <service_name> -f
+
+Permissions: If a script fails to run, verify ownership: ls -l /usr/local/bin/
+
+Git Conflicts: If git_push.sh fails due to remote changes, the script is designed to fetch and reset --hard to ensure your local environment stays synced with the "source of truth" on GitHub.
