@@ -62,7 +62,7 @@ cd ~/arr_scripts
 sudo chmod +x *.sh
 ```
 ### 5. First-time Push (Configures GitHub Auth)
-# When prompted, use your GitHub Username and Personal Access Token (PAT)
+When prompted, use your GitHub Username and Personal Access Token (PAT)
 ```bash
 sudo ./git_push.sh git_push.sh
 ```
