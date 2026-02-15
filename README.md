@@ -74,7 +74,7 @@ sudo apt install git -y
 Systemd: Standard on Ubuntu/Debian/Raspbian.
 
 ⚙️ Service Configuration Template
-When creating a new background service, use this logic within your .service files to ensure compatibility with update_script.sh:
+When creating a new background service, use this logic within your .service files to ensure compatibility with git_pull_install.sh:
 
 Ini, TOML
 ```bash
