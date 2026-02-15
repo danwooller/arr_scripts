@@ -35,7 +35,7 @@ Metric Standards: Logs and measurements (file sizes, temps) utilize metric units
 
 Self-Cleaning: If no actual changes are detected, the script resets the index to prevent "dirty" rebase errors.
 
-2. Deploying to System / Updating Services
+### 2. Deploying to System / Updating Services
 Use this to move a script from the repo folder into the system path and restart its background service.
 
 ```bash
@@ -48,16 +48,16 @@ Lifecycle: Automates cp, chmod, daemon-reload, and systemctl restart.
 🛠 Installation & Requirements
 Setup on a New Machine
 
-# 1. Clone the repository
+### 3. Clone the repository
 ```bash
 git clone [https://github.com/danwooller/arr_scripts.git](https://github.com/danwooller/arr_scripts.git) ~/arr_scripts
 cd ~/arr_scripts
 ```
-# 2. Set permissions
+### 4. Set permissions
 ```bash
 chmod +x *.sh
 ```
-# 3. First-time Push (Configures GitHub Auth)
+### 5. First-time Push (Configures GitHub Auth)
 # When prompted, use your GitHub Username and Personal Access Token (PAT)
 ```bash
 ./git_push.sh git_push.sh
