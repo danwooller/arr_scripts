@@ -1,0 +1,19 @@
+[Unit]
+Description=Merge Forced subtitle Service
+After=network.target
+
+[Service]
+# Dynamically determine user based on your HOST logic
+# We use 'dan' as a fallback, but systemd usually runs as a specific User.
+# If you want it to run as root to allow the auto-apt install:
+User=root
+Group=root
+
+Type=simple
+# Adjust the path below to where you actually saved the .sh file
+ExecStart=/bin/bash /usr/local/bin/merge_forced_subtitles
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
