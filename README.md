@@ -8,10 +8,14 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 ## 🛠 Core Media Tools
 | File | Description |
 | :--- | :--- |
-| **monitor_convert.sh** | Monitors folders for unconverted media, detects resolution (1080p/4K), and transcodes via HandBrakeCLI. |
-| **merge_forced_subtitles.sh** | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
-| **convert_mkv.sh** | Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder, determines whether the file is 1080p or 4K and converts the file using HandBrakeCLIbefore copying back to the network for further sorting. |
 | **cert_monitor.sh** | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. |
+| **convert_mkv.sh** | Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder, determines whether the file is 1080p or 4K and converts the file using HandBrakeCLIbefore copying back to the network for further sorting. |
+| **merge_forced_subtitles.sh** | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
+| **monitor_convert.sh** | Monitors folders for unconverted media, detects resolution (1080p/4K), and transcodes via HandBrakeCLI. |
+| **monitor_movie_subtitles.sh** | Moniotor $SOURCE_DIR for mkv files and process the audio and subtitles, keep English subs for non-English audio and strip non-forced subtitles from English audio. |
+| **move_movies_synology.sh** | Monitors the movies folder on the secondary server (synology) and checks the primary (treunas) for duplicates (indicating a REPACK) and moves them. |
+| **move_tv_shows_synology.sh** | Monitors the tv shows folder on the secondary server (synology) and checks the primary (treunas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
+
 
 ### 🔧 System & Maintenance Tools
 | File | Description |
