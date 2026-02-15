@@ -27,6 +27,7 @@ A collection of bash scripts to process my growing stash of Linux ISOs, with Han
 Use this when you have edited a script on your server and want to save it to GitHub.
 ```bash
 ./git_push.sh <filename.sh>
+```
 
 Metric Support: Note that all logs and internal measurements in these scripts are configured to use metric units (e.g., file sizes in MB/GB, temperatures in Celsius) per system preferences.
 
@@ -35,8 +36,9 @@ Automatic Cleanup: If you haven't actually changed the file, the script will aut
 2. Updating & Installing Services
 Use this to deploy a script and its service file to the system.
 
-Bash
+```bash
 ./update_script.sh convert_mkv.sh
+```
 Service Detection: The script automatically strips extensions. If you provide convert_mkv.sh, it looks for convert_mkv.service in the repo.
 
 Auto-Restart: It performs a daemon-reload and systemctl restart automatically.
@@ -44,10 +46,11 @@ Auto-Restart: It performs a daemon-reload and systemctl restart automatically.
 🛠 Installation on a New Machine
 Clone the repo:
 
-Bash
+```bash
 git clone https://github.com/danwooller/arr_scripts.git ~/arr_scripts
 cd ~/arr_scripts
 chmod +x *.sh
+```
 Configure GitHub Identity:
 The first time you run git_push.sh, you will be prompted for your GitHub username and Personal Access Token. The script will store these securely using credential.helper store.
 
