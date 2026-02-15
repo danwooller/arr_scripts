@@ -10,7 +10,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | :--- | :--- |
 | **monitor_convert.sh** | Monitors folders for unconverted media, detects resolution (1080p/4K), and transcodes via HandBrakeCLI. |
 | **merge_forced_subtitles.sh** | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
-| **convert_mkv.sh** | Monitors for `.mp4` and `.m4v` files and remuxes them to `.mkv` containers. |
+| **convert_mkv.sh** | Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder, determines whether the file is 1080p or 4K and converts the file using HandBrakeCLIbefore copying back to the network for further sorting. |
 | **cert_monitor.sh** | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. |
 
 ### 🔧 System & Maintenance Tools
@@ -18,10 +18,11 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | :--- | :--- |
 | **git_push.sh** | Pushes local edits to GitHub. Auto-handles identity, branch naming, and index cleanup. |
 | **update_script.sh** | The primary deployment tool. Installs scripts to `/usr/local/bin` and manages services. |
+| **git_pull.sh** | Pulls $1 from GitHub. Copies to /usr/local/bin and sets permissions. |
 | **git_pull_install.sh** | Specialized installer: Syncs script, sets permissions, and configures the systemd service. |
 | **common_functions.sh** | Global include file for standardized logging and dependency management. |
 | ***.service** | Systemd unit templates for running any of the above as background daemons. |
-
+| **xxx.sh** | xxx. |
 ---
 
 ## 🚀 Key Workflows
