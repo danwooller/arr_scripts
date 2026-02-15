@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Moniotor $SOURCE_DIR for mkv files and process the audio and subtitles, keep English subs 
-# for non-English audio and strip non-forced subtitles from English audio.
+# Moniotor $SOURCE_DIR for mkv files and processes the audio and subtitles,
+# keeping English subs for non-English audio and
+# stripping non-forced subtitles from English audio.
 
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
