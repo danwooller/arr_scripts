@@ -20,11 +20,10 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 ### 🔧 System & Maintenance Tools
 | File | Description |
 | :--- | :--- |
-| **git_push.sh** | Pushes local edits to GitHub. Auto-handles identity, branch naming, and index cleanup. |
-| **update_script.sh** | The primary deployment tool. Installs scripts to `/usr/local/bin` and manages services. |
+| **common_functions.sh** | Global include file for standardised logging and dependency management. |
 | **git_pull.sh** | Pulls $1 from GitHub. Copies to /usr/local/bin and sets permissions. |
 | **git_pull_install.sh** | Specialized installer: Syncs script, sets permissions, and configures the systemd service. |
-| **common_functions.sh** | Global include file for standardised logging and dependency management. |
+| **git_push.sh** | Pushes local edits to GitHub. Auto-handles identity, branch naming, and index cleanup. |
 | ***.service** | Systemd unit templates for running any of the above as background daemons. |
 | **xxx.sh** | xxx. |
 ---
