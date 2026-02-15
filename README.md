@@ -15,7 +15,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | **monitor_movie_subtitles.sh** | Moniotor $SOURCE_DIR for mkv files and process the audio and subtitles, keep English subs for non-English audio and strip non-forced subtitles from English audio. |
 | **move_movies_synology.sh** | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
 | **move_tv_shows_synology.sh** | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
-
+| **monitor_movie_subtitles.sh** | Moniotor $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
 
 ### 🔧 System & Maintenance Tools
 | File | Description |
