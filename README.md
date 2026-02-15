@@ -33,7 +33,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 ### 1. Syncing Local Edits to GitHub
 Use this when you've modified a script on your server and want to back it up to your repository.
 ```bash
-./git_push.sh <filename.sh>
+sudo ./git_push.sh <filename.sh>
 ```
 Metric Standards: Logs and measurements (file sizes, temps) utilize metric units (MB/GB/°C).
 
@@ -43,9 +43,9 @@ Self-Cleaning: If no actual changes are detected, the script resets the index to
 Use this to move a script from the repo folder into the system path and restart its background service.
 
 ```bash
-sudo ./update_script.sh <filename.sh>
-Service Mapping: Automatically maps script_name.sh to script_name.service.
+sudo ./git_pull.sh <filename.sh>
 ```
+Service Mapping: Automatically maps script_name.sh to script_name.service.
 
 Lifecycle: Automates cp, chmod, daemon-reload, and systemctl restart.
 
@@ -59,12 +59,12 @@ cd ~/arr_scripts
 ```
 ### 4. Set permissions
 ```bash
-chmod +x *.sh
+sudo chmod +x *.sh
 ```
 ### 5. First-time Push (Configures GitHub Auth)
 # When prompted, use your GitHub Username and Personal Access Token (PAT)
 ```bash
-./git_push.sh git_push.sh
+sudo ./git_push.sh git_push.sh
 ```
 System Requirements
 Git:
@@ -72,10 +72,6 @@ Git:
 sudo apt install git -y
 ```
 Systemd: Standard on Ubuntu/Debian/Raspbian.
-
-HandBrakeCLI: Required for transcoding scripts.
-
-Permissions: Scripts require sudo for installation to /usr/local/bin and service management.
 
 ⚙️ Service Configuration Template
 When creating a new background service, use this logic within your .service files to ensure compatibility with update_script.sh:
@@ -97,7 +93,7 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 📝 Troubleshooting
-Logs: View live service output: journalctl -u <service_name> -f
+Logs: View live service output: journalctl -xefu <service_name> -f
 
 Permissions: If a script fails to run, verify ownership: ls -l /usr/local/bin/
 
