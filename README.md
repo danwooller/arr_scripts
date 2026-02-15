@@ -6,6 +6,8 @@ A collection of bash scripts to process my growing stash of Linux ISOs, with Han
 
 | File | Description |
 | :--- | :--- |
+| **git_pull.sh** | Pulls $1 from GitHub. Copies to /usr/local/bin and sets permissions. |
+| **git_pull_install.sh** | Pulls $1 from GitHub. Copies to /usr/local/bin, sets permissions then pulls the associated service file, installs if necessary and starts. |
 | **git_push.sh** | Safely pushes local changes to GitHub. Handles identity (user/email), renames branches to `main`, and resolves "unstaged changes" errors during rebasing. |
 | **update_script.sh** | Pulls latest repo changes, installs a specified script to `/usr/local/bin`, and automatically installs/restarts the corresponding systemd service. |
 | **convert_mkv.sh** | Media processing script (e.g., transcoding or file management). |
