@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#Monitors the tv shows folder on the secondary server (synology) and
+# checks the primary (treunas) for duplicate show folders
+# (indicating a REPACK or new episodes) and moves them
+
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
 
