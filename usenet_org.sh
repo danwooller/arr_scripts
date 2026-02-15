@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Looks for media files without readable filenames
+# and attempst to convert them using folder names
+
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
 
