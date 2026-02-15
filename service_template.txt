@@ -1,0 +1,21 @@
+[Unit]
+Description=Service for %i
+After=network.target
+
+[Service]
+# Ensure the service runs as your primary user
+User=dan
+Group=dan
+
+# Path to the script installed by your update_script.sh
+ExecStart=/usr/local/bin/YOUR_SCRIPT_NAME.sh
+
+# Restart logic: auto-restart if the script crashes
+Restart=always
+RestartSec=5
+
+# Environment variables if needed
+# Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
