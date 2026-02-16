@@ -16,10 +16,8 @@ SLEEP_INTERVAL=60
 # Set to "true" for a dry run.
 DRY_RUN=false
 
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
-}
+# --- Run Dependency Check using the shared function ---
+check_dependencies "rsync"
 
 # --- Safety Checks ---
 if [[ ! -d "$SYNOLOGY_DIR" ]]; then
