@@ -29,10 +29,8 @@ if [ ! -d "$MEDIA_DIR" ]; then
     exit 1
 fi
 
-if ! command -v rsync >/dev/null 2>&1; then
-    log "Error: rsync is not installed. Please install it to use this script."
-    exit 1
-fi
+# --- Run Dependency Check using the shared function ---
+check_dependencies "rsync"
 
 log "--- Movie Sync Service Started ---"
 log "Reference/Destination: $SYNOLOGY_DIR"
