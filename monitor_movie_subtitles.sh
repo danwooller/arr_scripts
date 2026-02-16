@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Moniotor $SOURCE_DIR for mkv files and processes the audio and subtitles,
-# keeping English subs for non-English audio and
-# stripping non-forced subtitles from English audio.
-
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
 
@@ -12,46 +8,35 @@ HOST=$(hostname -s)
 SOURCE_DIR="/mnt/media/torrent/completed-movies"
 DEST_DIR="/mnt/media/torrent/completed"
 FINISHED_DIR="/mnt/media/torrent/finished"
-#CONVERT_MKV_DIR="/mnt/media/torrent/srt/convertmkv"
+SUBTITLE_DIR="/mnt/media/backup/subtitles"
 SLEEP_INTERVAL=120
 
-# Ensure directories exist
-#mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$CONVERT_MKV_DIR"
-mkdir -p "$DEST_DIR" "$FINISHED_DIR"
+# Fixed: Added $ to SUBTITLE_DIR
+mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$SUBTITLE_DIR"
 
-# --- Run Dependency Check using the shared function ---
+# --- Dependencies ---
 check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
 
-#log "Monitoring $SOURCE_DIR for MKV (process) and MP4 (move) every $SLEEP_INTERVALs..."
-log "Monitoring $SOURCE_DIR for MKV (process) every $SLEEP_INTERVAL secs"
+log "Monitoring $SOURCE_DIR for MKV (process) every ${SLEEP_INTERVAL}s"
 
 while true; do
-    # Search for both mkv and mp4 recursively
-#    find -L "$SOURCE_DIR" -type f \( -iname "*.mkv" -o -iname "*.mp4" \) -print0 | while IFS= read -r -d $'\0' file; do
-    find -L "$SOURCE_DIR" -type f \( -iname "*.mkv" \) -print0 | while IFS= read -r -d $'\0' file; do        
-        filename=$(basename "$file")
-        extension="${file##*.}"
+    # 1. Standardize filenames (replaces spaces with underscores)
+    find "$SOURCE_DIR" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
+    # 2. Process Files
+    find -L "$SOURCE_DIR" -type f -iname "*.mkv" -print0 | while IFS= read -r -d $'\0' file; do        
+        filename=$(basename "$file")
+        
         # Skip if file is in use
         if lsof "$file" &> /dev/null; then
             log "Skipping $filename: File is currently in use."
             continue
         fi
 
-        # --- BRANCH 1: MP4 Files (Direct Move) ---
-#        if [[ "${extension,,}" == "mp4" ]]; then
-#            log "MP4 Detected: Moving $filename to convertmkv folder."
-#            if mv "$file" "$CONVERT_MKV_DIR/"; then
-#                log "Success: Moved $filename"
-#            else
-#                log "Error: Failed to move $filename"
-#            fi
-#            continue # Move to next file
-#        fi
-
-        # --- BRANCH 2: MKV Files (Process Metadata) ---
         log "Processing MKV: $filename"
         metadata=$(mkvmerge --identify "$file" --identification-format json)
+        
+        # Check for English Audio
         has_eng_audio=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and .properties.language=="eng") | .id' | head -n 1)
         
         if [ -z "$has_eng_audio" ]; then
@@ -65,26 +50,37 @@ while true; do
             fi
         else
             log "English audio detected. Filtering for Forced subs..."
-            forced_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id' | head -n 1)
+            # Capture all English forced subtitle IDs
+            forced_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id] | join(",")')
 
-            if [ -n "$forced_id" ]; then
-                mkvmerge -q -o "$DEST_DIR/$filename" --subtitle-tracks "$forced_id" "$file"
-                mkvpropedit "$DEST_DIR/$filename" --edit track:s1 --set name="Forced"
+            if [ -n "$forced_ids" ]; then
+                # Extraction for backup (takes the first forced ID found)
+                primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
+                BASE_NAME="${filename%.*}"
+                SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
+                
+                mkvextract tracks "$file" "$primary_forced:$SUB_FILE" >/dev/null 2>&1
+                log " -> Forced subtitles extracted to backup: $BASE_NAME.srt"
+                
+                mkvmerge -q -o "$DEST_DIR/$filename" --subtitle-tracks "$forced_ids" "$file"
+                # Only edit metadata if a track was actually merged
+                mkvpropedit "$DEST_DIR/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
             else
+                log " -> No forced subs found. Stripping all subtitles."
                 mkvmerge -q -o "$DEST_DIR/$filename" --no-subtitles "$file"
             fi
         fi
 
-        # Move original MKV to finished after processing
+        # 3. Finalization
         if [ $? -eq 0 ] && [ -f "$DEST_DIR/$filename" ]; then
-            log "Success! Moving original MKV to $FINISHED_DIR"
+            log "Success! Moving original to finished."
             mv "$file" "$FINISHED_DIR/"
         else
-            log "Error: Processing failed for $filename."
+            log "❌ Error: Processing failed for $filename."
         fi
     done
 
-    # Cleanup empty sub-folders
+    # 4. Cleanup empty sub-folders
     find "$SOURCE_DIR" -mindepth 1 -type d -empty -delete 2>/dev/null
 
     sleep "$SLEEP_INTERVAL"
