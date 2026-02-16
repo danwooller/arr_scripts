@@ -16,11 +16,6 @@ SLEEP_INTERVAL=300
 # Set to "true" for a dry run. No files will be moved.
 DRY_RUN=false
 
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
-}
-
 # --- Safety Checks ---
 if [ ! -d "$SYNOLOGY_DIR" ]; then
     log "Error: Synology directory not found: $SYNOLOGY_DIR"
