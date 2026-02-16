@@ -28,7 +28,9 @@ if [ ! -d "$SYNOLOGY_DIR" ]; then
 fi
 
 if [ ! -d "$MEDIA_DIR" ]; then
-    log "Error: Media directory not found: $MEDIA_DIR"
+    if [[ $LOG_LEVEL = "debug" ]]; then
+        log "Error: Media directory not found: $MEDIA_DIR"
+    fi
     exit 1
 fi
 
@@ -46,7 +48,9 @@ if $DRY_RUN; then
     log "DRY RUN ENABLED. No files will be moved."
     RSYNC_OPTS="-avhn" # Removed --progress for cleaner logs in service mode
 else
-    log "PRODUCTION RUN. Files will be moved."
+    if [[ $LOG_LEVEL = "debug" ]]; then
+        log "PRODUCTION RUN. Files will be moved."
+    fi
     RSYNC_OPTS="-avh --remove-source-files"
 fi
 
@@ -63,7 +67,9 @@ while true; do
             
             # Check if matching folder exists in the source MEDIA_DIR
             if [ -d "$source_movie_path" ]; then
-                log "Match found: '$movie_name'. Starting sync..."
+                if [[ $LOG_LEVEL = "debug" ]]; then
+                    log "Match found: '$movie_name'. Starting sync..."
+                fi
                 
                 # Use rsync to "move-and-merge"
                 # Redirecting rsync output to log via the log function can be messy, 
@@ -80,7 +86,9 @@ while true; do
                         # Remove parent if now empty
                         if [ -d "$source_movie_path" ] && [ -z "$(ls -A "$source_movie_path")" ]; then
                             rmdir "$source_movie_path"
-                            log "Removed empty source directory: $movie_name"
+                            if [[ $LOG_LEVEL = "debug" ]]; then
+                                log "Removed empty source directory: $movie_name"
+                            fi
                         fi
                     fi
                 else
