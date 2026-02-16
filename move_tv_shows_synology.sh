@@ -38,7 +38,9 @@ if $DRY_RUN; then
     log "DRY RUN ENABLED."
     RSYNC_OPTS="-avhn"
 else
-    log "PRODUCTION RUN. Moving files..."
+    if [[ $LOG_LEVEL = "debug" ]]; then
+        log "PRODUCTION RUN. Moving files..."
+    fi
     RSYNC_OPTS="-avh --remove-source-files"
 fi
 
@@ -55,13 +57,17 @@ while true; do
             
             # Check if matching show folder exists in the source
             if [[ -d "$source_show_path" ]]; then
-                log "Match found: '$show_name'. Syncing..."
+                if [[ $LOG_LEVEL = "debug" ]]; then
+                    log "Match found: '$show_name'. Syncing..."
+                fi
                 
                 # Execute rsync - capture detailed output to log file
                 rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE" 2>&1
                 
                 if [[ $? -eq 0 ]]; then
-                    log "[SUCCESS] Sync completed for '$show_name'"
+                    if [[ $LOG_LEVEL = "debug" ]]; then
+                        log "[SUCCESS] Sync completed for '$show_name'"
+                    fi
                     
                     if ! $DRY_RUN; then
                         # Clean up empty sub-directories (Seasons, etc.)
@@ -70,7 +76,9 @@ while true; do
                         # Remove the show folder if it's completely empty
                         if [[ -d "$source_show_path" ]] && [[ -z "$(ls -A "$source_show_path")" ]]; then
                             rmdir "$source_show_path"
-                            log "Removed empty source folder: $show_name"
+                            if [[ $LOG_LEVEL = "debug" ]]; then
+                                log "Removed empty source folder: $show_name"
+                            fi
                         fi
                     fi
                 else
