@@ -2,26 +2,16 @@
 
 # Monitors a folder looking for video files and extracts any forced subtitle.
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # --- Configuration ---
 HOST=$(hostname -s)
-#SOURCE_DIR="/mnt/media/torrent/${HOST}_convert"
-SOURCE_DIR="/mnt/media/TV/PLUR1BUS/Season 1/"
-#SOURCE_DIR="/mnt/media/torrent/finished"
-#CONVERT_DIR="/home/pi/convert"
-#WORKING_DIR="/home/pi/${HOST}_done" 
-SUBTITLE_DIR="/mnt/media/backup/subtitles"
-#FINISHED_DIR="/mnt/media/torrent/finished"
-#COMPLETED_DIR="/mnt/media/torrent/completed"
-LOG_FILE="/home/pi/handbrake_subtitles.log"
+SOURCE_DIR="/mnt/media/torrent/${HOST}/subtitles/extract"
 
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
 MIN_FILE_AGE=5 
-
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
-}
 
 log "--- Polling Conversion Monitor Started ---"
 
@@ -49,8 +39,6 @@ while true; do
         SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
         log "   -> Checking for English forced subtitles..."
         TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
-#        SUB_TRACK_ID=$(echo "$TRACK_INFO" | grep -E "Track ID [0-9]+: subtitles.*language:eng.*forced" | head -n 1 | awk '{print $3}' | sed 's/://')
-#        SUB_TRACK_ID=$(echo "$TRACK_INFO" | grep -E "Track ID [0-9]+: subtitles.*language:eng.*forced track" | head -n 1 | awk '{print $3}' | sed 's/://')
         SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         echo "Extracted Forced Track ID: $SUB_TRACK_ID"
 
