@@ -33,8 +33,7 @@ fi
 check_dependencies "rsync"
 
 log "--- Movie Sync Service Started ---"
-log "Reference/Destination: $SYNOLOGY_DIR"
-log "Source: $MEDIA_DIR"
+log "Monitoring: $MEDIA_DIR"
 
 # Configure rsync options once
 if $DRY_RUN; then
