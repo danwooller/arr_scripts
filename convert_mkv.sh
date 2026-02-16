@@ -99,7 +99,7 @@ while true; do
     done
 
     # 4. Clean up output names in the central folder
-    rename 's/_/ /g' "${OUTPUT_DIR}/"*${EXT_OUT} 2>/dev/null
+    #rename 's/_/ /g' "${OUTPUT_DIR}/"*${EXT_OUT} 2>/dev/null
 
     sleep "$POLL_INTERVAL"
 done
