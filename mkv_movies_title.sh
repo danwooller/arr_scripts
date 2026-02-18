@@ -17,7 +17,7 @@ DEFAULT_TARGET_DIR="/mnt/media/Movies"
 #LOG_LEVEL="debug"
 
 # --- Dependencies ---
-check_dependencies "mkvtoolnix"
+check_dependencies "mkvmerge"
 
 # --- Helper Function ---
 
