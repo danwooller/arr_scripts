@@ -25,7 +25,7 @@ mkdir -p "$OUTPUT_DIR" "$FINISHED_DIR"
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "jq" "mkvmerge" "mkvpropedit" "rename"
 
-log "--- (${0##*/}) started ---"
+log "--- Started looking for mp4/m4v ---"
 
 while true; do
     for TARGET_DIR in "${WATCH_DIRS[@]}"; do
