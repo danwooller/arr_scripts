@@ -79,8 +79,8 @@ while true; do
                 
                 #mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}" > /dev/null 2>&1
                 #mkvmerge -o "${FINAL_OUTPUT}" --language a1:eng "${FULL_PATH}"  > /dev/null 2>&1
-                mkvmerge -o "${FINAL_OUTPUT}" -v 0 -a 1 --language 1:eng "${FULL_PATH}"  > /dev/null 2>&1
-                #mkvmerge -o "${FINAL_OUTPUT}" --language a1:eng --track-name a1:"English" "${FULL_PATH}"  > /dev/null 2>&1
+                #mkvmerge -o "${FINAL_OUTPUT}" -v 0 -a 1 --language 1:eng "${FULL_PATH}"  > /dev/null 2>&1
+                mkvmerge -o "${FINAL_OUTPUT}" --language a1:eng --track-name a1:"English" "${FULL_PATH}"  > /dev/null 2>&1
 
                 if [ $? -eq 0 ]; then
                     log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
