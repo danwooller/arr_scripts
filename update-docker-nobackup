@@ -8,20 +8,22 @@ DOCKER_COMPOSE_BIN="/opt/docker-compose"
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
 
-# Update system (Standard Debian/Ubuntu maintenance)
+# 1. Update system (Standard Debian/Ubuntu maintenance)
 sudo apt update
 sudo apt full-upgrade -y
 sudo apt autoremove -y
 
-# Update Docker containers using the specific /opt binary
-# We use the full path to ensure it doesn't default to a missing system version
+# 2. Restart and Update Docker
+log "Updating containers..."
 $DOCKER_COMPOSE_BIN pull
 $DOCKER_COMPOSE_BIN up -d
 
+# 3. Cleanup
+# Removes unused images and volumes to free up disk space
 # Cleanup: Removing unused data to save disk space (measured in GB/MB)
 $DOCKER_BIN image prune -af
 $DOCKER_BIN volume prune -f
 
-# Optional: Stop and remove all containers (currently commented out)
+# 4. Optional: Stop and remove all containers (currently commented out)
 # $DOCKER_BIN stop $($DOCKER_BIN ps --format '{{.Names}}')
 # $DOCKER_BIN rm $($DOCKER_BIN ps --format '{{.Names}}')
