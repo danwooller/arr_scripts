@@ -29,15 +29,14 @@ log "Starting integrity check in $TARGET_DIR..."
 
 # Find video files and execute ffmpeg check
 # Supported extensions: mkv, mp4, avi, mov, m4v
-#find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
-find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -exec bash -c '
+find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
     #echo -n "Checking: $(basename "$file")... "
 
     # Run ffmpeg integrity check
     # -v error: only show actual errors
     # -i: input file
     # -f null -: decode but don't save output
-    if ! ffmpeg -v error -i "$file" -f null - > /dev/null 2>&1; then
+    if ! ffmpeg -v error -n -i "$file" -f null - > /dev/null 2>&1; then
         log "CORRUPT: $file"
     fi
 done
