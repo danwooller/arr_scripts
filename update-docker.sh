@@ -2,8 +2,7 @@
 
 # --- Path Configuration ---
 # Point these to the exact location of your binaries in /opt
-DOCKER_BIN="/opt/docker"
-DOCKER_COMPOSE_BIN="/opt/docker-compose"
+DOCKER="/usr/bin/docker"
 
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
@@ -17,7 +16,7 @@ sudo apt autoremove -y
 # 2. Stop Containers for Backup
 # Using -q (quiet) to get IDs, which is more reliable for stopping
 log "Stopping containers for backup..."
-$DOCKER_BIN stop $($DOCKER ps -q)
+$DOCKER stop $($DOCKER ps -q)
 
 # 3. Sync /opt to Backup Destination
 # -a: archive mode (preserves permissions/symlinks)
@@ -29,13 +28,20 @@ sudo rsync -avh /opt/ "$BACKUP_DEST" --delete
 
 # 4. Restart and Update Docker
 log "Restarting and updating containers..."
-$DOCKER_BIN start $($DOCKER ps -a -q)
-$DOCKER_COMPOSE_BIN pull
-$DOCKER_COMPOSE_BIN up -d
+$DOCKER start $($DOCKER ps -a -q)
+# This loop finds every directory in /opt that contains a docker-compose.yml
+for dir in /opt/*/ ; do
+    if [ -f "${dir}docker-compose.yml" ] || [ -f "${dir}docker-compose.yaml" ]; then
+        log "Updating project in $dir..."
+        cd "$dir"
+        $DOCKER compose pull
+        $DOCKER compose up -d
+    fi
+done
 
 # 5. Cleanup
 # Removes unused images and volumes to free up disk space
-$DOCKER_BIN image prune -af
-$DOCKER_BIN volume prune -f
+$DOCKER image prune -af
+$DOCKER volume prune -f
 
 log "Maintenance complete."
