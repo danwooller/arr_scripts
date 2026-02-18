@@ -14,8 +14,15 @@ sudo apt autoremove -y
 
 # 2. Restart and Update Docker
 log "Updating containers..."
-$DOCKER compose pull
-$DOCKER compose up -d
+# This loop finds every directory in /opt that contains a docker-compose.yml
+for dir in /opt/*/ ; do
+    if [ -f "${dir}docker-compose.yml" ] || [ -f "${dir}docker-compose.yaml" ]; then
+        echo "Updating project in $dir..."
+        cd "$dir"
+        $DOCKER compose pull
+        $DOCKER compose up -d
+    fi
+done
 
 # 3. Cleanup
 # Removes unused images and volumes to free up disk space
