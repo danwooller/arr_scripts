@@ -1,16 +1,27 @@
 #!/bin/bash
 
-#update system
-apt update
-apt full-upgrade -y
-apt autoremove -y
+# --- Path Configuration ---
+# Point these to the exact location of your binaries in /opt
+DOCKER_BIN="/opt/docker"
+DOCKER_COMPOSE_BIN="/opt/docker-compose"
 
-#update docker
-docker compose pull
-docker compose up -d
-docker image prune -af
-docker volume prune -f
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
 
+# Update system (Standard Debian/Ubuntu maintenance)
+sudo apt update
+sudo apt full-upgrade -y
+sudo apt autoremove -y
 
-#docker stop $(docker ps --format '{{.Names}}')
-#docker rm $(docker ps --format '{{.Names}}')
+# Update Docker containers using the specific /opt binary
+# We use the full path to ensure it doesn't default to a missing system version
+$DOCKER_COMPOSE_BIN pull
+$DOCKER_COMPOSE_BIN up -d
+
+# Cleanup: Removing unused data to save disk space (measured in GB/MB)
+$DOCKER_BIN image prune -af
+$DOCKER_BIN volume prune -f
+
+# Optional: Stop and remove all containers (currently commented out)
+# $DOCKER_BIN stop $($DOCKER_BIN ps --format '{{.Names}}')
+# $DOCKER_BIN rm $($DOCKER_BIN ps --format '{{.Names}}')
