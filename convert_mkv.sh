@@ -77,8 +77,8 @@ while true; do
                 # 3. Conversion Process
                 log "Converting: ${FULL_FILE_NAME} (from subfolder) -> ${FILE_NAME}${EXT_OUT}"
                 
-                mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}" > /dev/null 2>&1
-                
+                #mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}" > /dev/null 2>&1
+                mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}"  --language a1:eng > /dev/null 2>&1
                 if [ $? -eq 0 ]; then
                     log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
                     # Moves original to finished, preserving its name (but loses subfolder structure in finished)
