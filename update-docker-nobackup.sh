@@ -17,7 +17,7 @@ log "Updating containers..."
 # This loop finds every directory in /opt that contains a docker-compose.yml
 for dir in /opt/*/ ; do
     if [ -f "${dir}docker-compose.yml" ] || [ -f "${dir}docker-compose.yaml" ]; then
-        echo "Updating project in $dir..."
+        log "Updating project in $dir..."
         cd "$dir"
         $DOCKER compose pull
         $DOCKER compose up -d
