@@ -77,11 +77,11 @@ process_mkv() {
 
         if [ $? -eq 0 ]; then
             #if [[ $LOG_LEVEL = "debug" ]]; then
-                log "SUCCESS: Title updated to \"$desired_title\""
+                log "✅ SUCCESS: Title updated to \"$desired_title\""
             #fi
         else
             #if [[ $LOG_LEVEL = "debug" ]]; then
-                log "ERROR: Failed to update \"$desired_title\" using mkvpropedit."
+                log "❌ ERROR: Failed to update \"$desired_title\" using mkvpropedit."
             #fi
             return 1
         fi
