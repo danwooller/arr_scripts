@@ -24,7 +24,7 @@ if [ ! -d "$TARGET_DIR" ]; then
     exit 1
 fi
 
-#echo "Starting integrity check in $TARGET_DIR..."
+log "Starting integrity check in $TARGET_DIR..."
 #echo "------------------------------------------"
 
 # Find video files and execute ffmpeg check
