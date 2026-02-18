@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#update system
+apt update
+apt full-upgrade -y
+apt autoremove -y
+
+#update docker
+#docker stop $(docker ps --format '{{.Names}}')
+docker stop $(docker ps -q)
+rsync -avh /opt /mnt/media/backup/$HOSTNAME/opt --delete
+#docker start $(docker ps --format '{{.Names}}')
+docker start $(docker ps -a -q)
+docker compose pull
+docker compose up -d
+docker image prune -af
+docker volume prune -f
