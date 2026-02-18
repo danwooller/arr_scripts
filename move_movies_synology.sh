@@ -11,6 +11,7 @@ source "/usr/local/bin/common_functions.sh"
 HOST_NAME=$(hostname)
 SYNOLOGY_DIR="/mnt/synology/Movies"
 MEDIA_DIR="/mnt/media/Movies"
+#LOG_LEVEL="debug"
 SLEEP_INTERVAL=300
 
 # Set to "true" for a dry run. No files will be moved.
