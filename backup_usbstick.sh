@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 prompt="Please select a disk to BACKUP from:"
 PS3="$prompt"
 
@@ -29,8 +32,9 @@ show_menu_host(){
     printf "${menu}|${number} 5.${menu} pi15          | ${normal}\n"
     printf "${menu}|${number} 6.${menu} pi16          | ${normal}\n"
     printf "${menu}|${number} 7.${menu} pi20          | ${normal}\n"
-    printf "${menu}|${number} 8.${menu} ubuntu10      | ${normal}\n"
-    printf "${menu}|${number} 9.${menu} ubuntu24      | ${normal}\n"
+    printf "${menu}|${number} 8.${menu} ubuntu9       | ${normal}\n"
+    printf "${menu}|${number} 9.${menu} ubuntu10      | ${normal}\n"
+    printf "${menu}|${number} 10.${menu} ubuntu24     | ${normal}\n"
     printf "${menu}--------------------${normal}\n"
     printf "Please enter a menu option and enter or ${fgred}x to exit. ${normal}"
     read opt
@@ -82,10 +86,14 @@ while [ $opt != '' ]
             break
         ;;
         8) clear;
-            name=ubuntu10
+            name=ubuntu9
             break
         ;;
         9) clear;
+            name=ubuntu10
+            break
+        ;;
+        10) clear;
             name=ubuntu24
             break
         ;;
@@ -101,4 +109,5 @@ while [ $opt != '' ]
 done
 echo "Backing up "$name" from "$disk" to the network"
 sudo dd if=$disk of=/mnt/media/backup/"$name"/"$name"_$(date -d "today" +"%Y%m%d%H%M").img bs=4M status=progress
+log "Backing up $name to the network"
 #echo " sudo dd if=$disk of=/mnt/media/backup/"$name"/"$name"_$(date -d "today" +"%Y%m%d%H%M").img bs=4M status=progress"
