@@ -29,7 +29,8 @@ log "Starting integrity check in $TARGET_DIR..."
 
 # Find video files and execute ffmpeg check
 # Supported extensions: mkv, mp4, avi, mov, m4v
-find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
+#find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
+find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -exec bash -c '
     #echo -n "Checking: $(basename "$file")... "
 
     # Run ffmpeg integrity check
