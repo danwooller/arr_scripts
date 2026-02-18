@@ -78,9 +78,13 @@ while true; do
                 log "Converting: ${FULL_FILE_NAME} (from subfolder) -> ${FILE_NAME}${EXT_OUT}"
                 
                 #mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}" > /dev/null 2>&1
-                #mkvmerge -o "${FINAL_OUTPUT}" --language a1:eng "${FULL_PATH}"  > /dev/null 2>&1
-                #mkvmerge -o "${FINAL_OUTPUT}" -v 0 -a 1 --language 1:eng "${FULL_PATH}"  > /dev/null 2>&1
-                mkvmerge -o "${FINAL_OUTPUT}" --language a1:eng --track-name a1:"English" "${FULL_PATH}"  > /dev/null 2>&1
+                # Use '--language 1:eng' which is the standard ID for the first audio track in most MP4s
+                # We also set the video track (usually 0) to 'und' (undetermined) or 'eng' to be clean
+                mkvmerge -o "${FINAL_OUTPUT}" \
+                    --language 0:und \
+                    --language 1:eng \
+                    --track-name 1:"English" \
+                    "${FULL_PATH}" > /dev/null 2>&1
 
                 if [ $? -eq 0 ]; then
                     log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
