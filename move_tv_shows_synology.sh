@@ -11,6 +11,7 @@ source "/usr/local/bin/common_functions.sh"
 HOST_NAME=$(hostname)
 SYNOLOGY_DIR="/mnt/synology/TV"
 MEDIA_DIR="/mnt/media/TV"
+#LOG_LEVEL="debug"
 SLEEP_INTERVAL=60
 
 # Set to "true" for a dry run.
