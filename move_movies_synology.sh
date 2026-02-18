@@ -63,11 +63,15 @@ while true; do
                 if [[ $LOG_LEVEL = "debug" ]]; then
                     log "Match found: '$movie_name'. Starting sync..."
                 fi
-                
-                # Use rsync to "move-and-merge"
-                # Redirecting rsync output to log via the log function can be messy, 
-                # so we append it directly to the log file.
-                rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> "$LOG_FILE" 2>&1
+
+                if [[ $LOG_LEVEL = "debug" ]]; then
+                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path"
+                else
+                    # Use rsync to "move-and-merge"
+                    # Redirecting rsync output to log via the log function can be messy, 
+                    # so we append it directly to the log file.
+                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> "$LOG_FILE" 2>&1
+                fi
                 
                 if [ $? -eq 0 ]; then
                     log "[SUCCESS] Sync completed for '$movie_name'"
