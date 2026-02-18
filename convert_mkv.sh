@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # --- Configuration ---
 HOST=$(hostname -s)
 EXT_VIDEO=("mp4" "m4v")
@@ -19,18 +22,8 @@ POLL_INTERVAL=30
 
 mkdir -p "$OUTPUT_DIR" "$FINISHED_DIR"
 
-# --- Logging Function ---
-log() {
-    echo "$(date +'%H:%M'): (${0##*/}) $1" | tee -a "$LOG_FILE"
-}
-
-# --- Dependencies ---
-for dep in "HandBrakeCLI" "mkvmerge" "jq" "mkvpropedit" "rename"; do
-    if ! command -v "$dep" >/dev/null 2>&1; then
-        log "Installing '$dep'..."
-        sudo apt-get update && sudo apt-get install -y "${dep%-*}"
-    fi
-done
+# --- Run Dependency Check using the shared function ---
+check_dependencies "HandBrakeCLI" "jq" "mkvmerge" "mkvpropedit" "rename"
 
 log "--- (${0##*/}) started ---"
 
