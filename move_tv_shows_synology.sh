@@ -63,10 +63,10 @@ while true; do
                 fi
 
                 if [[ $LOG_LEVEL = "debug" ]]; then
-                    rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path"
+                    rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE" 2>&1
                 else
                     # Execute rsync - capture detailed output to log file
-                    rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE" 2>&1
+                    rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path"
                 fi
                 
                 if [[ $? -eq 0 ]]; then
