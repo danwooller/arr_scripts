@@ -37,7 +37,8 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
     # -i: input file
     # -f null -: decode but don't save output
     #if ! ffmpeg -v error -n -i "$file" -f null - > /dev/null 2>&1; then
-    if ! ffmpeg -v fatal -err_detect ignore_err -i "$file" -f null - > /dev/null 2>&1; then
+    #if ! ffmpeg -v fatal -err_detect ignore_err -i "$file" -f null - > /dev/null 2>&1; then
+    if ! ffmpeg -v fatal -n -i "$file" -f null - < /dev/null 2>&1; then
         log "CORRUPT: $file"
     fi
 done
