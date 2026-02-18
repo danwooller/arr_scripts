@@ -36,13 +36,8 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
     # -v error: only show actual errors
     # -i: input file
     # -f null -: decode but don't save output
-    if ffmpeg -v error -i "$file" -f null - > /dev/null 2>&1; then
-        #echo "OK"
-    else
-        echo "CORRUPT"
-        # Optional: Log failures to a text file
-        #echo "$file" >> ./corrupt_files.txt
-        log "$file is corrupt"
+    if ! ffmpeg -v error -i "$file" -f null - > /dev/null 2>&1; then
+        log "CORRUPT: $file"
     fi
 done
 
