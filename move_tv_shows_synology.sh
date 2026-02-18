@@ -62,8 +62,9 @@ while true; do
                     log "Match found: '$show_name'. Syncing..."
                 fi
                 
+                rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE"
                 # Execute rsync - capture detailed output to log file
-                rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE" 2>&1
+                #rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE" 2>&1
                 
                 if [[ $? -eq 0 ]]; then
                     if [[ $LOG_LEVEL = "debug" ]]; then
