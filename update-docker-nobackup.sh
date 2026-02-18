@@ -2,7 +2,7 @@
 
 # --- Path Configuration ---
 # Point these to the exact location of your binaries in /opt
-DOCKER="/opt/docker"
+DOCKER="/usr/bin/docker"
 
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
