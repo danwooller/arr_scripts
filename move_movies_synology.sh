@@ -74,7 +74,7 @@ while true; do
                 fi
                 
                 if [ $? -eq 0 ]; then
-                    log "[SUCCESS] Sync completed for '$movie_name'"
+                    log "✅ Sync completed for '$movie_name'"
                     
                     if ! $DRY_RUN; then
                         # Cleanup empty sub-dirs
