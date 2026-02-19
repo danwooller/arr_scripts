@@ -63,24 +63,22 @@ log "Starting integrity check on $TARGET_DIR..."
 # Find video files and execute ffmpeg check
 # Supported extensions: mkv, mp4, avi, mov, m4v
 find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
-    
-    # Capture the stderr output into a variable named 'error_msg'
-    # We use 2>&1 to redirect stderr to stdout so the variable can grab it
-    error_msg=$(ffmpeg -v fatal -n -i "$file" -f null - < /dev/null 2>&1)
-    
-    if [ $? -ne 0 ]; then
-        log "CORRUPT: $file"
-        
-        # Log the specific error message returned by ffmpeg
-        # If error_msg is empty, we provide a default note
-        log "REASON: ${error_msg:-Unknown bitstream error}"
-        
+    # Capture the full output of ffmpeg
+    # We use -max_muxing_queue_size to prevent buffer issues on network drives
+    error_msg=$(ffmpeg -v error -n -i "$file" -f null - 2>&1 < /dev/null)
+    exit_status=$?
+
+    if [ $exit_status -ne 0 ]; then
+        # Filter out the common "Output file does not contain any stream" noise 
+        # if there's a more relevant error above it.
+        clean_error=$(echo "$error_msg" | grep -v "Output file does not contain any stream" | tail -n 2)
+      
         # 1. Report to Overseerr (includes the error in the message)
         report_overseerr_issue "$file" "$error_msg"
         
         # 2. Record in log
-        log "$file | Error: $error_msg"
-        
+        log "$file | ${clean_error:-$error_msg}"
+
         # 3. Move to Hold
         mv --backup=numbered "$file" "$HOLD_DIR/"
         log "MOVED: $(basename "$file") to $HOLD_DIR"
