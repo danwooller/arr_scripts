@@ -63,20 +63,25 @@ log "Starting integrity check on $TARGET_DIR..."
 # Find video files and execute ffmpeg check
 # Supported extensions: mkv, mp4, avi, mov, m4v
 find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
-    #echo -n "Checking: $(basename "$file")... "
-
-    # Run ffmpeg integrity check
-    # -v error: only show actual errors
-    # -i: input file
-    # -f null -: decode but don't save output
-    #if ! ffmpeg -v error -n -i "$file" -f null - > /dev/null 2>&1; then
-    #if ! ffmpeg -v fatal -err_detect ignore_err -i "$file" -f null - > /dev/null 2>&1; then
-    if ! ffmpeg -v fatal -n -i "$file" -f null - < /dev/null 2>&1; then
-        # 1. Report to Overseerr
-        report_overseerr_issue "$file"
-        # 2. Record in log
+    
+    # Capture the stderr output into a variable named 'error_msg'
+    # We use 2>&1 to redirect stderr to stdout so the variable can grab it
+    error_msg=$(ffmpeg -v fatal -n -i "$file" -f null - < /dev/null 2>&1)
+    
+    if [ $? -ne 0 ]; then
         log "CORRUPT: $file"
-        # 3. Move to Hold (using --backup=numbered in case of duplicate filenames)
+        
+        # Log the specific error message returned by ffmpeg
+        # If error_msg is empty, we provide a default note
+        log "REASON: ${error_msg:-Unknown bitstream error}"
+        
+        # 1. Report to Overseerr (includes the error in the message)
+        report_overseerr_issue "$file" "$error_msg"
+        
+        # 2. Record in text log
+        echo "[$(date)] $file | Error: $error_msg" >> "$TARGET_DIR/corrupt_files.txt"
+        
+        # 3. Move to Hold
         mv --backup=numbered "$file" "$HOLD_DIR/"
         log "MOVED: $(basename "$file") to $HOLD_DIR"
     fi
