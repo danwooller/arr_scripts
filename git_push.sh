@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # 1. Detect the Real User
 if [ -n "$SUDO_USER" ]; then
     REAL_USER="$SUDO_USER"
@@ -82,3 +85,5 @@ else
     sudo -u "$REAL_USER" git pull origin main --rebase
     echo "Local repository is now up to date."
 fi
+
+log "Pushed $FILENAME to GitHub..."
