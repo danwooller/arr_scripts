@@ -43,5 +43,5 @@ if [ -n "$FILENAME" ]; then
     sudo chown root:root "/usr/local/bin/$FILENAME"
 fi
 
-log "Sync complete for $FILENAME"
+log "Pull complete for $FILENAME"
 echo "Sync complete."
