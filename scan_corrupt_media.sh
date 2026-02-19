@@ -10,8 +10,6 @@ check_dependencies "ffmpeg" "find" "curl" "jq"
 # Use the first argument if provided; otherwise, use the default path
 TARGET_DIR="${1:-/mnt/media/Movies}"
 HOLD_DIR="/mnt/media/torrent/hold"
-OVERSEERR_URL="http://wooller.com:5055" # Update with your IP/Port
-OVERSEERR_API_KEY="MTc0MDQ5NzU0MjYyOWRhZjA1MjhmLTg2Y2YtNDZmOS1hODkxLThlMzBlMWNmNzZmOQ=="
 
 # Display help if requested
 if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
