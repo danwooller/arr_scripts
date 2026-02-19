@@ -78,8 +78,8 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         # 1. Report to Overseerr (includes the error in the message)
         report_overseerr_issue "$file" "$error_msg"
         
-        # 2. Record in text log
-        echo "[$(date)] $file | Error: $error_msg" >> "$TARGET_DIR/corrupt_files.txt"
+        # 2. Record in log
+        log "$file | Error: $error_msg"
         
         # 3. Move to Hold
         mv --backup=numbered "$file" "$HOLD_DIR/"
