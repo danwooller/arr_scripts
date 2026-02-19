@@ -24,7 +24,7 @@ if [ ! -d "$TARGET_DIR" ]; then
     exit 1
 fi
 
-log "Starting integrity check in $TARGET_DIR..."
+log "Starting integrity check on $TARGET_DIR..."
 #echo "------------------------------------------"
 
 # Find video files and execute ffmpeg check
@@ -43,5 +43,4 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
     fi
 done
 
-#echo "------------------------------------------"
-#echo "Check complete. Failures logged to corrupt_files.txt (if any)."
+log "Completed integrity check on $TARGET_DIR..."
