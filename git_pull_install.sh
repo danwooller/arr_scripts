@@ -25,8 +25,16 @@ if ! sudo -u "$REAL_USER" git pull origin main; then
     sudo -u "$REAL_USER" git reset --hard origin/main
 fi
 
-# 3. Sync script to system bin
+# 3. Always update common_functions.sh
+if [ -f "$DEST_DIR/common_functions.sh" ]; then
+    echo "Updating /usr/local/bin/common_functions.sh..."
+    sudo cp "$DEST_DIR/common_functions.sh" "/usr/local/bin/"
+    sudo chmod +x "/usr/local/bin/common_functions.sh"
+    sudo chown root:root "/usr/local/bin/common_functions.sh"
+fi
+
 if [ -n "$FILENAME" ]; then
+    # 4. Sync script to system bin
     if [ -f "$DEST_DIR/$FILENAME" ]; then
         echo "Updating /usr/local/bin/$FILENAME..."
         sudo cp "$DEST_DIR/$FILENAME" "/usr/local/bin/"
@@ -36,7 +44,7 @@ if [ -n "$FILENAME" ]; then
         echo "Error: Script $FILENAME not found in $DEST_DIR"
     fi
 
-    # 4. Handle Service File (if exists)
+    # 5. Handle Service File (if exists)
     if [ -f "$DEST_DIR/$SERVICE_FILE" ]; then
         echo "Service file detected: $SERVICE_FILE. Installing/Restarting..."
         
