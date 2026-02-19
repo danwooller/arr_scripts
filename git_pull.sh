@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # Configuration
 CURRENT_HOSTNAME=$(hostname)
 if [[ "$CURRENT_HOSTNAME" == *"pi"* ]]; then
@@ -40,4 +43,5 @@ if [ -n "$FILENAME" ]; then
     sudo chown root:root "/usr/local/bin/$FILENAME"
 fi
 
+log "Sync complete for $FILENAME"
 echo "Sync complete."
