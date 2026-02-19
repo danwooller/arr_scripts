@@ -70,10 +70,7 @@ while true; do
                 fi
                 
                 if [[ $? -eq 0 ]]; then
-                    if [[ $LOG_LEVEL = "debug" ]]; then
-                        log "[SUCCESS] Sync completed for '$show_name'"
-                    fi
-                    
+                    log "[SUCCESS] Sync completed for '$show_name'"
                     if ! $DRY_RUN; then
                         # Clean up empty sub-directories (Seasons, etc.)
                         find "$source_show_path" -mindepth 1 -type d -empty -delete
