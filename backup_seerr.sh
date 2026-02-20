@@ -2,7 +2,7 @@
 
 # --- Setup & Includes ---
 # Ensure this path is correct for your environment
-source "/opt/docker/scripts/common_functions.sh"
+source "//usr/local/bin/common_functions.sh"
 
 # --- Variables ---
 DB_CONTAINER="seerr-db"
