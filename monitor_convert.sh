@@ -113,13 +113,13 @@ while true; do
         # *** Robust Check to prevent HandBrake Exit Code 3 ***
         if [[ ! -f "$FILE_TO_PROCESS" ]]; then
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> 🛑 FATAL ERROR: Local copy file $FILE_TO_PROCESS does not exist after rsync. Skipping."
+                log "   -> ❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS does not exist after rsync. Skipping."
             fi
             continue 
         fi
         if [[ ! -r "$FILE_TO_PROCESS" ]]; then
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> 🛑 FATAL ERROR: Local copy file $FILE_TO_PROCESS is not readable by script user. Skipping."
+                log "   -> ❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS is not readable by script user. Skipping."
             fi
             continue 
         fi
@@ -230,7 +230,7 @@ while true; do
             fi
             
         else
-            log "   -> 🛑 ERROR: HandBrake conversion failed with exit code $CONVERSION_EXIT_CODE for $FILENAME."
+            log "   -> ❌ ERROR: HandBrake conversion failed with exit code $CONVERSION_EXIT_CODE for $FILENAME."
             # Clean up working file if conversion failed
             rm -f "$OUTPUT_FILE"
             if [[ $LOG_LEVEL = "debug" ]]; then
