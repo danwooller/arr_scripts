@@ -4,12 +4,12 @@
 HOST=$(hostname -s)
 LOG_FILE="/mnt/media/torrent/${HOST}.log"
 # --- arr Configuration ---
-OVERSEERR_URL="http://wooller.com:5055" # Update with your IP/Port
-OVERSEERR_API_KEY="MTc0MDQ5NzU0MjYyOWRhZjA1MjhmLTg2Y2YtNDZmOS1hODkxLThlMzBlMWNmNzZmOQ=="
 RADARR__URL="http://wooller.com:7878"
 RADARR_API_KEY="5297e69b26744cd9bdc20cf5dbe7abda"
 RADARR4K__URL="http://wooller.com:7879"
 RADARR4K_API_KEY="6326920d1b4d4959be9bca08b1167c60"
+SEERR_URL="http://wooller.com:5055" # Update with your IP/Port
+SEERR_API_KEY="MTc0MDQ5NzU0MjYyOWRhZjA1MjhmLTg2Y2YtNDZmOS1hODkxLThlMzBlMWNmNzZmOQ=="
 SONARR_URL="http://wooller.com:8989"
 SONARR_API_KEY="61736d7438db43df9a2c514e967f2358"
 SONARR4K_URL="http://wooller.com:8990"
