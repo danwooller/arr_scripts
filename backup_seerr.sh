@@ -7,16 +7,15 @@ source "/usr/local/bin/common_functions.sh"
 DB_CONTAINER="seerr-db"
 DB_NAME="seerr_db"
 USER_SECRET="/opt/docker/secrets/db_user.txt"
+MOUNT_ROOT="/mnt/media"
 BACKUP_DIR="/mnt/media/backup/databases"  # Your CIFS mount point
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/seerr_backup_${TIMESTAMP}.sql"
 
-# --- Safety Check: Ensure CIFS Share is Mounted ---
-# findmnt returns 0 if the path is a mount point, even for CIFS.
-if ! findmnt -M "$BACKUP_DIR" > /dev/null 2>&1; then
-    # Fallback to local system log since TrueNAS log file isn't reachable
-    logger -t backup-seerr "❌ Backup failed: $BACKUP_DIR is not an active mount."
-    echo "❌ Error: $BACKUP_DIR is not mounted. Stopping to protect local disk."
+# --- Safety Check: Check the ROOT mount ---
+if ! findmnt -M "$MOUNT_ROOT" > /dev/null 2>&1; then
+    logger -t backup-seerr "❌ Backup failed: $MOUNT_ROOT is not mounted. TrueNAS down."
+    echo "❌ Error: $MOUNT_ROOT is not mounted."
     exit 1
 fi
 
