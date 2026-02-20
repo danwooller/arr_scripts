@@ -12,12 +12,11 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="${BACKUP_DIR}/seerr_backup_${TIMESTAMP}.sql"
 
 # --- Safety Check: Ensure CIFS Share is Mounted ---
-# This checks if the directory is an active mount point
-if ! mountpoint -q "$BACKUP_DIR"; then
-    # Fallback: Log to the local OS system log because TrueNAS is unreachable
-    logger -t backup-seerr "❌ Backup failed: $BACKUP_DIR not mounted. TrueNAS server down."
-    # Also attempt to print to terminal in case of manual run
-    echo "❌ Backup failed: $BACKUP_DIR not mounted. TrueNAS server down."
+# findmnt returns 0 if the path is a mount point, even for CIFS.
+if ! findmnt -M "$BACKUP_DIR" > /dev/null 2>&1; then
+    # Fallback to local system log since TrueNAS log file isn't reachable
+    logger -t backup-seerr "❌ Backup failed: $BACKUP_DIR is not an active mount."
+    echo "❌ Error: $BACKUP_DIR is not mounted. Stopping to protect local disk."
     exit 1
 fi
 
