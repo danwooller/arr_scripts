@@ -25,8 +25,8 @@ if [ ! -d "$TARGET_DIR" ]; then
     exit 1
 fi
 
-# --- Function to Report Issue to Overseerr ---
-report_overseerr_issue() {
+# --- Function to Report Issue to Seerr ---
+report_seerr_issue() {
     local file_path="$1"
     local error_details="$2"
     local filename=$(basename "$file_path")
@@ -34,25 +34,25 @@ report_overseerr_issue() {
     # Clean filename: remove extension and common year patterns like (2023)
     local search_term=$(echo "$filename" | sed -E 's/\.[^.]*$//; s/\([0-9]{4}\)//g; s/[._]/ /g')
 
-    log "Searching Overseerr for: $search_term"
+    log "Searching Seerr for: $search_term"
 
     # 1. Search with URL encoding
-    local search_results=$(curl -s -X GET "$OVERSEERR_URL/api/v1/search?query=$(echo "$search_term" | jq -rr @uri)" \
-        -H "X-Api-Key: $OVERSEERR_API_KEY")
+    local search_results=$(curl -s -X GET "$SEERR_URL/api/v1/search?query=$(echo "$search_term" | jq -rr @uri)" \
+        -H "X-Api-Key: $SEERR_API_KEY")
 
     # 2. Extract the ID of the first result. 
-    # Note: Overseerr 'issues' usually link to the mediaId (internal DB), 
+    # Note: Seerr 'issues' usually link to the mediaId (internal DB), 
     # but the API often requires the tmdbId or specific mediaId.
     local media_id=$(echo "$search_results" | jq -r '.results[0].mediaInfo.id // empty')
 
     if [ -z "$media_id" ] || [ "$media_id" == "null" ]; then
-        log "WARN: Could not find $filename in Overseerr library (no mediaInfo found)."
+        log "WARN: Could not find $filename in Seerr library (no mediaInfo found)."
         return 1
     fi
 
     # 3. Create Issue
-    local response=$(curl -s -w "%{http_code}" -X POST "$OVERSEERR_URL/api/v1/issue" \
-        -H "X-Api-Key: $OVERSEERR_API_KEY" \
+    local response=$(curl -s -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
+        -H "X-Api-Key: $SEERR_API_KEY" \
         -H "Content-Type: application/json" \
         -d "{
             \"issueType\": 3,
@@ -62,9 +62,9 @@ report_overseerr_issue() {
 
     local http_code="${response: -3}"
     if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
-        log "Overseerr Issue created for $filename (ID: $media_id)"
+        log "Seerr Issue created for $filename (ID: $media_id)"
     else
-        log "ERROR: Overseerr API returned $http_code for $filename"
+        log "ERROR: Seerr API returned $http_code for $filename"
     fi
 }
 
@@ -84,8 +84,8 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         # if there's a more relevant error above it.
         clean_error=$(echo "$error_msg" | grep -v "Output file does not contain any stream" | tail -n 2)
       
-        # 1. Report to Overseerr (includes the error in the message)
-        report_overseerr_issue "$file" "$error_msg"
+        # 1. Report to Seerr (includes the error in the message)
+        report_seerr_issue "$file" "$error_msg"
         
         # 2. Record in log
         log "$file | ${clean_error:-$error_msg}"
