@@ -31,48 +31,55 @@ report_seerr_issue() {
     local error_details="$2"
     local filename=$(basename "$file_path")
     
-    # Clean filename: strip extension, remove (Year), swap dots/underscores for spaces
-    local search_term=$(echo "$filename" | sed -E 's/\.[^.]*$//; s/\([0-9]{4}\)//g; s/[._]/ /g')
+    # 1. Determine Media Type
+    local media_type="movie"
+    local extra_info=""
+    if [[ "$TARGET_DIR" =~ [Tt][Vv] ]]; then
+        media_type="tv"
+        # Extract "1x02" pattern (Season x Episode)
+        if [[ "$filename" =~ ([0-9]+)x([0-9]+) ]]; then
+            local season="${BASH_REMATCH[1]}"
+            local episode="${BASH_REMATCH[2]}"
+            extra_info=" [Season $season, Episode $episode]"
+        fi
+    fi
 
-    log "Searching Seerr for: $search_term"
+    # 2. Clean filename (Keeping year for accuracy)
+    local search_term=$(echo "$filename" | sed -E 's/\.[^.]*$//; s/[._]/ /g')
 
-    # 1. Encode search term safely as a RAW string (-Rr)
+    log "Searching Seerr ($media_type) for: $search_term"
+
+    # 3. Search and Extract ID
     local encoded_query=$(echo "$search_term" | jq -Rr @uri)
-    
-    # 2. Perform Search
     local search_results=$(curl -s -X GET "$SEERR_URL/api/v1/search?query=$encoded_query" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
-    # Validate we got JSON back before parsing
-    if ! echo "$search_results" | jq -e . >/dev/null 2>&1; then
-        log "ERROR: Seerr search returned invalid JSON for $filename"
-        return 1
-    fi
-
-    # 3. Extract Media ID
-    local media_id=$(echo "$search_results" | jq -r '.results[0].mediaInfo.id // empty')
+    local media_id=$(echo "$search_results" | jq -r --arg type "$media_type" \
+        '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
 
     if [ -z "$media_id" ] || [ "$media_id" == "null" ]; then
-        log "WARN: Could not link $filename to a Seerr Media ID (Verify it is in your library)."
+        log "WARN: Could not link $filename to a $media_type in Seerr."
         return 1
     fi
 
-    # 4. Create Issue (Using the safe JSON builder)
+    # 4. Build JSON Payload
+    # We include the extra_info (Season/Episode) in the message string
     local json_payload=$(jq -n \
-    --arg mt "3" \
-    --arg msg "Integrity Check: $filename moved to hold. Error: $error_details" \
-    --arg id "$media_id" \
-    '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
+        --arg mt "3" \
+        --arg msg "Integrity Check: $filename moved to hold.$extra_info Error: $error_details" \
+        --arg id "$media_id" \
+        '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
 
+    # 5. POST to Seerr
     local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
         -H "X-Api-Key: $SEERR_API_KEY" \
         -H "Content-Type: application/json" \
         -d "$json_payload")
 
     if [[ "$response" =~ ^20[0-9]$ ]]; then
-        log "Seerr Issue created for $filename (Media ID: $media_id)"
+        log "Seerr Issue created for $filename$extra_info (ID: $media_id)"
     else
-        log "ERROR: Seerr API Issue creation failed with HTTP $response"
+        log "ERROR: Seerr API returned HTTP $response"
     fi
 }
 
