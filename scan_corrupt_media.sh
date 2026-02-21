@@ -31,18 +31,15 @@ report_seerr_issue() {
     local error_details="$2"
     local filename=$(basename "$file_path")
     
-    # Clean filename: remove extension and common year patterns like (2023)
+    # Clean filename for search
     local search_term=$(echo "$filename" | sed -E 's/\.[^.]*$//; s/\([0-9]{4}\)//g; s/[._]/ /g')
 
     log "Searching Seerr for: $search_term"
 
-    # 1. Search with URL encoding
+    # 1. Search for Media ID
     local search_results=$(curl -s -X GET "$SEERR_URL/api/v1/search?query=$(echo "$search_term" | jq -rr @uri)" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
-    # 2. Extract the ID of the first result. 
-    # Note: Seerr 'issues' usually link to the mediaId (internal DB), 
-    # but the API often requires the tmdbId or specific mediaId.
     local media_id=$(echo "$search_results" | jq -r '.results[0].mediaInfo.id // empty')
 
     if [ -z "$media_id" ] || [ "$media_id" == "null" ]; then
@@ -50,21 +47,24 @@ report_seerr_issue() {
         return 1
     fi
 
+    # 2. Build Safely Escaped JSON
+    # This prevents ffmpeg errors from breaking your JSON string
+    local json_payload=$(jq -n \
+        --arg mt 3 \
+        --arg msg "Automated Integrity Check: Corruption detected. Path: $file_path. Error: $error_details" \
+        --argid mid "$media_id" \
+        '{issueType: ($mt|tonumber), message: $msg, mediaId: ($mid|tonumber)}')
+
     # 3. Create Issue
-    local response=$(curl -s -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
+    local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
         -H "X-Api-Key: $SEERR_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "{
-            \"issueType\": 3,
-            \"message\": \"Automated Integrity Check: Corruption detected. Path: $file_path. Error: $error_details\",
-            \"mediaId\": $media_id
-        }")
+        -d "$json_payload")
 
-    local http_code="${response: -3}"
-    if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+    if [[ "$response" =~ ^20[0-9]$ ]]; then
         log "Seerr Issue created for $filename (ID: $media_id)"
     else
-        log "ERROR: Seerr API returned $http_code for $filename"
+        log "ERROR: Seerr API returned HTTP $response for $filename"
     fi
 }
 
