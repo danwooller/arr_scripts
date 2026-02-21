@@ -37,7 +37,7 @@ report_seerr_issue() {
     log "Searching Seerr for: $search_term"
 
     # 1. Search for Media ID
-    local search_results=$(curl -s -X GET "$SEERR_URL/api/v1/search?query=$(echo "$search_term" | jq -rr @uri)" \
+    local search_results=$(curl -s -X GET "$SEERR_URL/api/v1/search?query=$(echo "$search_term" | jq -r @uri)" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
     local media_id=$(echo "$search_results" | jq -r '.results[0].mediaInfo.id // empty')
