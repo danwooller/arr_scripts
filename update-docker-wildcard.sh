@@ -6,7 +6,7 @@ source "/usr/local/bin/common_functions.sh"
 # --- Path Configuration ---
 # Point these to the exact location of your binaries in /opt
 DOCKER="/usr/bin/docker"
-BACKUP_DEST="/mnt/media/backup/$HOSTNAME/opt"
+BACKUP_DEST="/mnt/media/backup/$HOSTNAME/opt/docker/$1"
 BACKUP_SRC="/opt/docker/$1"
 COMPOSE_DIR="/opt/docker/$1"
 
