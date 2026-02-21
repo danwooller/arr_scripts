@@ -8,6 +8,7 @@ source "/usr/local/bin/common_functions.sh"
 DOCKER="/usr/bin/docker"
 BACKUP_DEST="/mnt/media/backup/$HOSTNAME/opt"
 BACKUP_SRC="/opt/docker/$1"
+COMPOSE_DIR="/opt/docker/$1"
 
 # 1. Stop container
 $DOCKER stop $1
@@ -19,8 +20,9 @@ log "Remove $1 container..."
 sudo rsync -avh "$BACKUP_SRC" "$BACKUP_DEST" --delete
 log "Backup "$BACKUP_SRC" to "$BACKUP_DEST"..."
 # 4. Update containers
-$DOCKER compose pull
-$DOCKER compose up -d
+cd "$COMPOSE_DIR" || { log "Error: Directory $COMPOSE_DIR not found"; exit 1; }
+$DOCKER compose pull "$1"
+$DOCKER compose up -d "$1"
 # 5. Cleanup
 # Removes unused images and volumes to free up disk space
 $DOCKER image prune -af
