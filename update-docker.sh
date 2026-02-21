@@ -1,11 +1,12 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/common_functions.sh"
+
 # --- Path Configuration ---
 # Point these to the exact location of your binaries in /opt
 DOCKER="/usr/bin/docker"
-
-# --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
+BACKUP_DEST="/mnt/media/backup/$HOSTNAME/opt"
 
 # 1. Update System
 # Standard package maintenance
