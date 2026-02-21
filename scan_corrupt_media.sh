@@ -92,7 +92,8 @@ log "Starting integrity check on $TARGET_DIR..."
 find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
     # Capture the full output of ffmpeg
     # We use -max_muxing_queue_size to prevent buffer issues on network drives
-    error_msg=$(ffmpeg -v error -n -i "$file" -f null - 2>&1 < /dev/null)
+    #error_msg=$(ffmpeg -v error -n -i "$file" -f null - 2>&1 < /dev/null)
+    error_msg=$(ffmpeg -v error -n -i "$file" -c copy -f null - 2>&1 < /dev/null)
     exit_status=$?
 
     if [ $exit_status -ne 0 ]; then
