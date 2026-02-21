@@ -14,6 +14,12 @@ sudo apt update
 sudo apt full-upgrade -y
 sudo apt autoremove -y
 
+# Check if the physical drive is mounted to prevent filling the OS drive
+if ! mountpoint -q "$MOUNT_ROOT"; then
+    log "CRITICAL: $MOUNT_ROOT is not mounted! Aborting update/backup."
+    exit 1
+fi
+
 # 2. Stop Containers for Backup
 # Using -q (quiet) to get IDs, which is more reliable for stopping
 log "Stopping containers for backup..."
