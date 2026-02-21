@@ -5,7 +5,6 @@ source "/usr/local/bin/common_functions.sh"
 
 # --- Configuration ---
 DOCKER="/usr/bin/docker"
-MOUNT_ROOT="/mnt/media"
 BACKUP_DEST="$MOUNT_ROOT/backup/$HOSTNAME/opt"
 
 # 1. Update System Packages
