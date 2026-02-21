@@ -74,10 +74,10 @@ while true; do
             if [ "$NEEDS_PROPEDIT" = true ]; then
                 mkvpropedit "$DEST_DIR/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
             fi
-            log "Success! Finalizing..."
+            log "✅ Finishing ${filename%.*}"
             mv "$file" "$FINISHED_DIR/"
         else
-            log "❌ Error: Merge failed."
+            log "❌ Error: Merge failed for ${filename%.*}"
             rm -f "$DEST_DIR/$filename"
         fi
     done
