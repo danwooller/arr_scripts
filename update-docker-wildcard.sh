@@ -7,9 +7,6 @@ source "/usr/local/bin/common_functions.sh"
 DOCKER="/usr/bin/docker"
 SERVICE_NAME=$1
 COMPOSE_DIR="/opt/docker/$SERVICE_NAME"
-
-# The physical mount point to check for safety
-MOUNT_ROOT="/mnt/media"
 # Specific backup path as requested
 BACKUP_DEST="$MOUNT_ROOT/backup/$HOSTNAME/opt/docker/$SERVICE_NAME"
 
