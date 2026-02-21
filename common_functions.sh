@@ -3,6 +3,7 @@
 # --- Shared Configuration ---
 HOST=$(hostname -s)
 LOG_FILE="/mnt/media/torrent/${HOST}.log"
+MOUNT_ROOT="/mnt/media"
 # --- arr Configuration ---
 RADARR__URL="http://wooller.com:7878"
 RADARR_API_KEY="5297e69b26744cd9bdc20cf5dbe7abda"
