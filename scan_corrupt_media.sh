@@ -57,12 +57,12 @@ report_seerr_issue() {
         return 1
     fi
 
-    # 4. Create Issue (Using the safe JSON builder from before)
+    # 4. Create Issue (Using the safe JSON builder)
     local json_payload=$(jq -n \
-        --argmt 3 \
-        --arg msg "Integrity Check: $filename moved to hold. Error: $error_details" \
-        --argid "$media_id" \
-        '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
+    --arg mt "3" \
+    --arg msg "Integrity Check: $filename moved to hold. Error: $error_details" \
+    --arg id "$media_id" \
+    '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
 
     local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
         -H "X-Api-Key: $SEERR_API_KEY" \
