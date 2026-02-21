@@ -31,12 +31,11 @@ report_seerr_issue() {
     local error_details="$2"
     local filename=$(basename "$file_path")
     
-    # 1. Determine Media Type
+# 1. Determine Media Type and Extract 1x02
     local media_type="movie"
     local extra_info=""
     if [[ "$TARGET_DIR" =~ [Tt][Vv] ]]; then
         media_type="tv"
-        # Extract "1x02" pattern (Season x Episode)
         if [[ "$filename" =~ ([0-9]+)x([0-9]+) ]]; then
             local season="${BASH_REMATCH[1]}"
             local episode="${BASH_REMATCH[2]}"
@@ -44,8 +43,10 @@ report_seerr_issue() {
         fi
     fi
 
-    # 2. Clean filename (Keeping year for accuracy)
-    local search_term=$(echo "$filename" | sed -E 's/\.[^.]*$//; s/[._]/ /g')
+    # 2. Optimized Search Term: 
+    # Remove extension, remove the 1x02 pattern, and remove (Year)
+    # This leaves just "The Late Show with Stephen Colbert"
+    local search_term=$(echo "$filename" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
 
     log "Searching Seerr ($media_type) for: $search_term"
 
