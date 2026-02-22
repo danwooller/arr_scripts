@@ -66,7 +66,7 @@ report_seerr_issue() {
     # 4. Build JSON Payload
     # We include the extra_info (Season/Episode) in the message string
     local json_payload=$(jq -n \
-        --arg mt "3" \
+        --arg mt "1" \
         --arg msg "Integrity Check: $filename moved to hold.$extra_info Error: $error_details" \
         --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
