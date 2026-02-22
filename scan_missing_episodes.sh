@@ -16,7 +16,6 @@ report_missing_seerr() {
     
     local search_term=$(echo "$series_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g')
     local encoded_query=$(echo "$search_term" | jq -Rr @uri)
-    
     local search_results=$(curl -s -X GET "$SEERR_URL/api/v1/search?query=$encoded_query" \
         -H "X-Api-Key: $SEERR_API_KEY")
     
@@ -26,6 +25,21 @@ report_missing_seerr() {
         log "WARN: Could not link $series_name to Seerr."
         return 1
     fi
+
+    # --- DEDUPLICATION CHECK ---
+    # Fetch existing issues for this specific mediaId
+    # Status 1 usually means "Open" in Seerr
+    local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=10&filter=open" \
+        -H "X-Api-Key: $SEERR_API_KEY")
+
+    # Check if an issue with this mediaId and type 1 already exists
+    local duplicate=$(echo "$existing_issues" | jq --arg mid "$media_id" -r '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | .id')
+
+    if [ -n "$duplicate" ]; then
+        log "SKIP: Open issue already exists for $series_name (ID: $duplicate)"
+        return 0
+    fi
+    # ---------------------------
 
     local json_payload=$(jq -n \
         --arg mt "1" \
