@@ -29,7 +29,7 @@ report_missing_seerr() {
 
     local json_payload=$(jq -n \
         --arg mt "1" \
-        --arg msg "Missing Episode Gap: $missing_episodes" \
+        --arg msg "Missing Episode(s): $missing_episodes" \
         --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
 
