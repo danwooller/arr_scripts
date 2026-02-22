@@ -80,7 +80,7 @@ report_seerr_issue() {
     if [[ "$response" =~ ^20[0-9]$ ]]; then
         log "Seerr Issue created for $filename$extra_info (ID: $media_id)"
     else
-        log "ERROR: Seerr API returned HTTP $response"
+        log "❌ Seerr API returned HTTP $response"
     fi
 }
 
