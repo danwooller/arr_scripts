@@ -35,38 +35,31 @@ report_missing_seerr() {
         return 1
     fi
 
-    # 2. Advanced Comparison: Compare ONLY the episode numbers
-    local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=50&filter=open" \
+    # 2. Simplified Deduplication: Just check if an issue exists at all
+    local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=100&filter=open" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
-    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
-        '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | "\(.id)|\(.message)"' | head -n 1)
+    # Check if ANY Type 1 issue exists for this media_id
+    local exists=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
+        '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | .id' | head -n 1)
 
-    if [ -n "$existing_data" ]; then
-        local old_issue_id=$(echo "$existing_data" | cut -d'|' -f1)
-        local raw_old_msg=$(echo "$existing_data" | cut -d'|' -f2)
-
-        # Extract only the patterns like '4x02' and sort them to ensure a perfect match
-        local old_eps=$(echo "$raw_old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
-        local new_eps=$(echo "$missing_episodes" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
-
-        if [ "$old_eps" == "$new_eps" ] && [ -n "$old_eps" ]; then
-            log "✅ Issue already exists for $series_name ($old_eps). Skipping."
-            return 0
-        else
-            log "🔄 Change detected for $series_name. Cleaning up #$old_issue_id."
-            curl -s -X DELETE "$SEERR_URL/api/v1/issue/$old_issue_id" -H "X-Api-Key: $SEERR_API_KEY"
-        fi
+    if [ -n "$exists" ]; then
+        log "✅ Issue #$exists already exists for $series_name. Skipping."
+        return 0
     fi
 
-    # 3. Create Issue
+    # 3. Create Issue (Only if none exist)
     local json_payload=$(jq -n --arg mt "1" --arg msg "$new_msg" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
 
-    curl -s -o /dev/null -X POST "$SEERR_URL/api/v1/issue" \
-        -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload"
+    local resp=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
+        -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload")
     
-    log "🚀 Seerr Issue created for $series_name: $missing_episodes"
+    if [[ "$resp" =~ ^20[0-9]$ ]]; then
+        log "🚀 Seerr Issue created for $series_name: $missing_episodes"
+    else
+        log "❌ Error creating issue for $series_name (HTTP $resp)"
+    fi
 }
 
 log "Starting scan in $TARGET_DIR..."
@@ -74,7 +67,6 @@ log "Starting scan in $TARGET_DIR..."
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
-    # Identify gaps in current folder
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
