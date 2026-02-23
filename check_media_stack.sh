@@ -39,7 +39,7 @@ check_service() {
 echo "--- Media Stack Connectivity Diagnostic ---"
 
 # Bazarr (Subtitles)
-check_service "Bazarr ($BAZARR_API_VER)" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/system/status"
+check_service "Bazarr ($BAZARR_API_VER)" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/api/$BAZARR_API_VER/system/status"
 
 # Lidarr (Music)
 check_service "Lidarr ($LIDARR_API_VER)" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
