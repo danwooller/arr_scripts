@@ -6,9 +6,10 @@ source "/usr/local/bin/common_functions.sh"
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
 if [[ -f "$CONFIG_FILE" ]]; then
-    source "$CONFIG_FILE"
+    # Source the file, but strip any trailing Windows CR characters on the fly
+    source <(sed 's/\r$//' "$CONFIG_FILE")
 else
-    log "WARN: Config file $CONFIG_FILE not found. Proceeding with defaults."
+    log "WARN: Config file $CONFIG_FILE not found."
     EXCLUDE_DIRS=()
     declare -A MANUAL_MAPS
 fi
@@ -23,9 +24,9 @@ sync_seerr_status() {
     local missing_episodes="$2"
     local media_id=""
 
-    # 1. Get Seerr Media ID (Manual check first)
-    if [[ -n "${MANUAL_MAPS[$series_name]}" ]]; then
-        media_id="${MANUAL_MAPS[$series_name]}"
+    # 1. Get Seerr Media ID (Quoted check for associative array)
+    if [[ ${MANUAL_MAPS["$series_name"]+_} ]]; then
+        media_id="${MANUAL_MAPS["$series_name"]}"
     else
         local search_term=$(echo "$series_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
@@ -48,8 +49,6 @@ sync_seerr_status() {
     local old_msg=$(echo "$existing_data" | cut -d'|' -f2)
 
     # 3. Decision Matrix
-    
-    # CASE A: Library is complete - Close existing issue
     if [[ -z "$missing_episodes" ]]; then
         if [[ -n "$issue_id" ]]; then
             log "✅ Closing issue #$issue_id for $series_name (Library complete)."
@@ -58,7 +57,6 @@ sync_seerr_status() {
         return 0
     fi
 
-    # CASE B: Gaps exist - Check for updates
     if [[ -n "$issue_id" ]]; then
         local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
         local norm_new=$(echo "$missing_episodes" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
@@ -67,12 +65,11 @@ sync_seerr_status() {
             [[ $LOG_LEVEL == "debug" ]] && log "😴 Issue #$issue_id is already accurate for $series_name."
             return 0
         else
-            log "🔄 Changed detected for $series_name. Refreshing #$issue_id."
+            log "🔄 Change detected for $series_name. Refreshing issue #$issue_id."
             curl -s -X DELETE "$SEERR_URL/api/v1/issue/$issue_id" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
 
-    # CASE C: Create Issue & Trigger Search
     local new_msg="Missing Episode(s): $missing_episodes"
     local json_payload=$(jq -n --arg mt "1" --arg msg "$new_msg" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
@@ -94,7 +91,7 @@ trigger_sonarr_search() {
         local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
         local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
         if [[ "$s_monitored" == "true" ]]; then
-            log "🔍 Triggering Sonarr Search (ID: $s_id) for $series_name..."
+            log "🔍 Triggering Sonarr Search for $series_name..."
             local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
             curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
         fi
@@ -106,12 +103,10 @@ trigger_sonarr_search() {
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
-    # Exclusion check
     for exclude in "${EXCLUDE_DIRS[@]}"; do
         [[ "$series_name" == "$exclude" ]] && continue 2
     done
     
-    # Gap detection
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
