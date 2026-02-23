@@ -91,6 +91,13 @@ sync_seerr_issue() {
         if [[ "$(echo "$r_data" | cut -d'|' -f2)" == "true" ]]; then
             payload=$(jq -n --arg id "$(echo "$r_data" | cut -d'|' -f1)" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
         fi
+    elif [[ "$media_type" == "music" ]]; then
+        # Lidarr API for triggering a search
+        log "🔍 Lidarr: Triggering search for $media_name..."
+        curl -s -o /dev/null -X POST "$LIDARR_API_BASE/command" \
+            -H "X-Api-Key: $LIDARR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "ArtistSearch"}'
     fi
 
     # Execute Search if payload was built
