@@ -2,6 +2,7 @@
 
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/common_seerr_issue.sh"
 
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
