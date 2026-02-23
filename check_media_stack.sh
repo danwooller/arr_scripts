@@ -51,6 +51,7 @@ check_service "Lidarr ($LIDARR_API_VER)" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/
 # Pi-hole
 check_service "Pi-hole (9)" "$PIHOLE9_API_BASE" "$PIHOLE9_API_KEY" "/info/version?password=$PIHOLE9_API_KEY"
 check_service "Pi-hole (9) Ping" "$PIHOLE9_URL" "NONE" "/api/info/hostname"
+check_service "Pi-hole (9)" "$PIHOLE9_API_BASE" "NONE" "/stats/summary"
 check_service "Pi-hole (24)" "$PIHOLE24_API_BASE" "$PIHOLE24_API_KEY" "/info/version?password=$PIHOLE24_API_KEY"
 
 # Prowlarr (Indexers)
