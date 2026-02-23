@@ -44,6 +44,11 @@ check_service "Bazarr ($BAZARR_API_VER)" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/
 # Check Dispatcharr (Checking if the API documentation/spec is reachable)
 check_service "Dispatcharr" "$DISPATCHARR_API_BASE" "NONE" "/openapi.json"
 
+check_service "Dispatcharr (Tuner)" "$DISPATCHARR_URL" "NONE" "/discover.json"
+
+# Alternative: Check the Swagger UI
+check_service "Dispatcharr (Web UI)" "$DISPATCHARR_URL" "NONE" "/swagger"
+
 # Lidarr (Music)
 check_service "Lidarr ($LIDARR_API_VER)" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
 
