@@ -3,20 +3,27 @@
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
 
+# --- Load External Configuration ---
+CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
+if [[ -f "$CONFIG_FILE" ]]; then
+    source "$CONFIG_FILE"
+else
+    log "WARN: Config file $CONFIG_FILE not found. Proceeding with defaults."
+    EXCLUDE_DIRS=()
+    declare -A MANUAL_MAPS
+fi
+
 check_dependencies "curl" "jq" "sed" "grep"
 
 TARGET_DIR="${1:-/mnt/media/TV}"
 LOG_LEVEL="debug"
 
-EXCLUDE_DIRS=("National Theatre at Home" "National Theatre Live")
-declare -A MANUAL_MAPS
-
 sync_seerr_status() {
     local series_name="$1"
-    local missing_episodes="$2" # This will be empty if the series is complete
+    local missing_episodes="$2"
     local media_id=""
 
-    # 1. Get Seerr Media ID
+    # 1. Get Seerr Media ID (Manual check first)
     if [[ -n "${MANUAL_MAPS[$series_name]}" ]]; then
         media_id="${MANUAL_MAPS[$series_name]}"
     else
@@ -27,7 +34,7 @@ sync_seerr_status() {
         media_id=$(echo "$search_results" | jq -r '.results[] | select(.mediaType == "tv").mediaInfo.id // empty' | head -n 1)
     fi
 
-    if [ -z "$media_id" ] || [ "$media_id" == "null" ]; then
+    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         [[ $LOG_LEVEL == "debug" ]] && log "⚠️  Skipping $series_name: Not found in Seerr."
         return 1
     fi
@@ -42,31 +49,30 @@ sync_seerr_status() {
 
     # 3. Decision Matrix
     
-    # CASE A: Series is now complete, but an issue is still open
+    # CASE A: Library is complete - Close existing issue
     if [[ -z "$missing_episodes" ]]; then
         if [[ -n "$issue_id" ]]; then
-            log "✅ Closing Seerr issue #$issue_id for $series_name (Library complete)."
+            log "✅ Closing issue #$issue_id for $series_name (Library complete)."
             curl -s -X DELETE "$SEERR_URL/api/v1/issue/$issue_id" -H "X-Api-Key: $SEERR_API_KEY"
         fi
         return 0
     fi
 
-    # CASE B: Gaps exist, and an issue is already open
+    # CASE B: Gaps exist - Check for updates
     if [[ -n "$issue_id" ]]; then
-        # Check if the episode list has changed (Normalization check)
         local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
         local norm_new=$(echo "$missing_episodes" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
 
         if [[ "$norm_old" == "$norm_new" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "✅ Issue #$issue_id is already accurate for $series_name."
+            [[ $LOG_LEVEL == "debug" ]] && log "😴 Issue #$issue_id is already accurate for $series_name."
             return 0
         else
-            log "🔄 Change detected for $series_name. Refreshing issue."
+            log "🔄 Changed detected for $series_name. Refreshing #$issue_id."
             curl -s -X DELETE "$SEERR_URL/api/v1/issue/$issue_id" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
 
-    # CASE C: Create New Issue (Either none existed, or we just deleted the old one)
+    # CASE C: Create Issue & Trigger Search
     local new_msg="Missing Episode(s): $missing_episodes"
     local json_payload=$(jq -n --arg mt "1" --arg msg "$new_msg" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
@@ -75,8 +81,6 @@ sync_seerr_status() {
         -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload"
     
     log "🚀 Seerr Issue created for $series_name: $missing_episodes"
-
-    # Trigger Sonarr Search only for NEW issues
     trigger_sonarr_search "$series_name"
 }
 
@@ -90,7 +94,7 @@ trigger_sonarr_search() {
         local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
         local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
         if [[ "$s_monitored" == "true" ]]; then
-            log "🔍 Triggering Sonarr Search for $series_name..."
+            log "🔍 Triggering Sonarr Search (ID: $s_id) for $series_name..."
             local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
             curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
         fi
@@ -102,32 +106,30 @@ trigger_sonarr_search() {
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
+    # Exclusion check
     for exclude in "${EXCLUDE_DIRS[@]}"; do
         [[ "$series_name" == "$exclude" ]] && continue 2
     done
     
+    # Gap detection
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
-    # Note: We now process even if ep_list < 2 to check for resolutions
     missing_in_series=""
-    if [ ${#ep_list[@]} -ge 2 ]; then
+    if [[ ${#ep_list[@]} -ge 2 ]]; then
         prev_s=-1; prev_e=-1
         for ep in "${ep_list[@]}"; do
             curr_s=$(echo "$ep" | cut -d'x' -f1)
             range=$(echo "$ep" | cut -d'x' -f2)
             start_e=$(echo "$range" | cut -d'-' -f1 | sed 's/^0//'); end_e=$(echo "$range" | cut -d'-' -f2 | sed 's/^0//')
-            if [ "$curr_s" -eq "$prev_s" ]; then
+            if [[ "$curr_s" -eq "$prev_s" ]]; then
                 expected=$((prev_e + 1))
-                if [ "$start_e" -gt "$expected" ]; then
-                    for ((i=expected; i<start_e; i++)); do missing_in_series+="${curr_s}x$(printf "%02d" $i) "; done
-                fi
+                [[ "$start_e" -gt "$expected" ]] && for ((i=expected; i<start_e; i++)); do missing_in_series+="${curr_s}x$(printf "%02d" $i) "; done
             fi
             prev_s=$curr_s; prev_e=$end_e
         done
     fi
 
-    # ALWAYS run the sync, even if missing_in_series is empty
     sync_seerr_status "$series_name" "${missing_in_series% }"
 done
 
