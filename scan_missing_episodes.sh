@@ -44,13 +44,17 @@ report_missing_seerr() {
 
     if [ -n "$existing_data" ]; then
         local old_issue_id=$(echo "$existing_data" | cut -d'|' -f1)
-        local old_msg=$(echo "$existing_data" | cut -d'|' -f2)
+        # Trim leading/trailing whitespace from the old message
+        local old_msg=$(echo "$existing_data" | cut -d'|' -f2 | xargs)
+        # Trim leading/trailing whitespace from the new message
+        local clean_new_msg=$(echo "$new_msg" | xargs)
 
-        if [ "$old_msg" == "$new_msg" ]; then
+        if [ "$old_msg" == "$clean_new_msg" ]; then
             log "SKIP: Identical open issue already exists for $series_name."
             return 0
         else
             log "CLEANUP: Removing outdated issue #$old_issue_id for $series_name."
+            log "DEBUG: Old: [$old_msg] | New: [$clean_new_msg]" # Temporary debug line
             curl -s -X DELETE "$SEERR_URL/api/v1/issue/$old_issue_id" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
