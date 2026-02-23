@@ -44,16 +44,19 @@ check_service "Lidarr ($LIDARR_API_VER)" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/
 # Prowlarr (Indexers)
 check_service "Prowlarr ($PROWLARR_API_VER)" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/system/status"
 
-# 1. Seerr
+# Seerr
 check_service "Seerr ($SEERR_API_VER)" "$SEERR_API_BASE" "$SEERR_API_KEY" "/status"
 
-# 2. Sonarr Instances
-check_service "Sonarr STD ($SONARR_API_VER)" "$SONARR_API_BASE" "$SONARR_API_KEY" "/system/status"
+# Sonarr Instances
+check_service "Sonarr ($SONARR_API_VER)" "$SONARR_API_BASE" "$SONARR_API_KEY" "/system/status"
 check_service "Sonarr 4K  ($SONARR_API_VER)" "$SONARR4K_API_BASE" "$SONARR4K_API_KEY" "/system/status"
 
-# 3. Radarr Instances
-check_service "Radarr STD ($RADARR_API_VER)" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
+# Radarr Instances
+check_service "Radarr ($RADARR_API_VER)" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
 check_service "Radarr 4K  ($RADARR_API_VER)" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
+
+# Wizarr (Invitation)
+check_service "Lidarr ($WIZARR_API_VER)" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/system/status"
 
 # 4. Config File
 CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
