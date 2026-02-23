@@ -56,7 +56,7 @@ check_service "Radarr ($RADARR_API_VER)" "$RADARR_API_BASE" "$RADARR_API_KEY" "/
 check_service "Radarr 4K  ($RADARR_API_VER)" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
 
 # Wizarr (Invitation)
-check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/v1/about"
+check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/setup/status"
 
 # 4. Config File
 CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
