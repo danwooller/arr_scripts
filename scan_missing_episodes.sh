@@ -50,10 +50,10 @@ report_missing_seerr() {
         local clean_new_msg=$(echo "$new_msg" | xargs)
 
         if [ "$old_msg" == "$clean_new_msg" ]; then
-            log "✅ Identical open issue already exists for $series_name. Skipping."
+            log "✅ Issue already exists for $series_name. Skipping."
             return 0
         else
-            log "🔄 Gap changed for $series_name. Cleaning up outdated issue #$old_issue_id."
+            log "🔄 Change detected for $series_name. Cleaning up #$old_issue_id."
             curl -s -X DELETE "$SEERR_URL/api/v1/issue/$old_issue_id" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
@@ -68,7 +68,7 @@ report_missing_seerr() {
     log "🚀 Seerr Issue created for $series_name: $missing_episodes"
 }
 
-log "Starting Gap Scan in $TARGET_DIR..."
+log "Starting scan in $TARGET_DIR..."
 
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
