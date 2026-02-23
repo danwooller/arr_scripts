@@ -55,21 +55,21 @@ sync_seerr_issue() {
 
     # 6. Trigger Arr Search
     if [[ "$media_type" == "tv" ]]; then
-        local sonarr_series=$(curl -s -X GET "$SONARR_URL/api/v3/series" -H "X-Api-Key: $SONARR_API_KEY")
+        local sonarr_series=$(curl -s -X GET "$SONARR_API_BASE/series" -H "X-Api-Key: $SONARR_API_KEY")
         local s_data=$(echo "$sonarr_series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
         if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
             local s_id=$(echo "$s_data" | cut -d'|' -f1)
             log "🔍 Sonarr: Triggering search for $media_name..."
-            curl -s -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
+            curl -s -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
                 -d "$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')" > /dev/null
         fi
     elif [[ "$media_type" == "movie" ]]; then
-        local radarr_movies=$(curl -s -X GET "$RADARR_URL/api/v3/movie" -H "X-Api-Key: $RADARR_API_KEY")
+        local radarr_movies=$(curl -s -X GET "$RADARR_API_BASE/movie" -H "X-Api-Key: $RADARR_API_KEY")
         local r_data=$(echo "$radarr_movies" | jq -r --arg name "$media_name" '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
         if [[ "$(echo "$r_data" | cut -d'|' -f2)" == "true" ]]; then
             local r_id=$(echo "$r_data" | cut -d'|' -f1)
             log "🔍 Radarr: Triggering search for $media_name..."
-            curl -s -X POST "$RADARR_URL/api/v3/command" -H "X-Api-Key: $RADARR_API_KEY" -H "Content-Type: application/json" \
+            curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -H "Content-Type: application/json" \
                 -d "$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')" > /dev/null
         fi
     fi
