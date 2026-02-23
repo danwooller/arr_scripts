@@ -55,6 +55,9 @@ check_service "Sonarr 4K  ($SONARR_API_VER)" "$SONARR4K_API_BASE" "$SONARR4K_API
 check_service "Radarr ($RADARR_API_VER)" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
 check_service "Radarr 4K  ($RADARR_API_VER)" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
 
+# Check Tautulli (Requires specific cmd parameter)
+check_service "Tautulli" "$TAUTULLI_API_BASE" "$TAUTULLI_API_KEY" "?apikey=$TAUTULLI_API_KEY&cmd=status"
+
 # Wizarr (Invitation)
 check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/users"
 
