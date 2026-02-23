@@ -38,41 +38,47 @@ check_service() {
 
 echo "--- Media Stack Connectivity Diagnostic ---"
 
-# Bazarr (Subtitles)
-check_service "Bazarr ($BAZARR_API_VER)" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/api/$BAZARR_API_VER/system/status"
+# Bazarr
+check_service "Bazarr" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/api/$BAZARR_API_VER/system/status"
+[[ $? -eq 0 ]] && update_ha_status "Bazarr" "online" || update_ha_status "Bazarr" "offline"
 
-# Check Dispatcharr
-check_service "Dispatcharr (Tuner)" "$DISPATCHARR_URL" "NONE" "/discover.json"
-check_service "Dispatcharr (Web UI)" "$DISPATCHARR_URL" "NONE" "/swagger"
+# Dispatcharr
+check_service "Dispatcharr Tuner" "$DISPATCHARR_URL" "NONE" "/discover.json"
+[[ $? -eq 0 ]] && update_ha_status "Dispatcharr Tuner" "online" || update_ha_status "Dispatcharr Tuner" "offline"
 
-# Lidarr (Music)
-check_service "Lidarr ($LIDARR_API_VER)" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
+# Lidarr
+check_service "Lidarr" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && update_ha_status "Lidarr" "online" || update_ha_status "Lidarr" "offline"
 
-# Pi-hole
-#check_service "Pi-hole (9)" "$PIHOLE9_API_BASE" "$PIHOLE9_API_KEY" "/info/version?password=$PIHOLE9_API_KEY"
-#check_service "Pi-hole (9) Ping" "$PIHOLE9_URL" "NONE" "/api/info/hostname"
-#check_service "Pi-hole (9)" "$PIHOLE9_API_BASE" "NONE" "/stats/summary"
-#check_service "Pi-hole (24)" "$PIHOLE24_API_BASE" "$PIHOLE24_API_KEY" "/info/version?password=$PIHOLE24_API_KEY"
-
-# Prowlarr (Indexers)
-check_service "Prowlarr ($PROWLARR_API_VER)" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/system/status"
+# Prowlarr
+check_service "Prowlarr" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && update_ha_status "Prowlarr" "online" || update_ha_status "Prowlarr" "offline"
 
 # Seerr
-check_service "Seerr ($SEERR_API_VER)" "$SEERR_API_BASE" "$SEERR_API_KEY" "/status"
+check_service "Seerr" "$SEERR_API_BASE" "$SEERR_API_KEY" "/status"
+[[ $? -eq 0 ]] && update_ha_status "Seerr" "online" || update_ha_status "Seerr" "offline"
 
-# Sonarr Instances
-check_service "Sonarr ($SONARR_API_VER)" "$SONARR_API_BASE" "$SONARR_API_KEY" "/system/status"
-check_service "Sonarr 4K  ($SONARR_API_VER)" "$SONARR4K_API_BASE" "$SONARR4K_API_KEY" "/system/status"
+# Sonarr & Sonarr 4K
+check_service "Sonarr" "$SONARR_API_BASE" "$SONARR_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && update_ha_status "Sonarr" "online" || update_ha_status "Sonarr" "offline"
 
-# Radarr Instances
-check_service "Radarr ($RADARR_API_VER)" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
-check_service "Radarr 4K  ($RADARR_API_VER)" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
+check_service "Sonarr 4K" "$SONARR4K_API_BASE" "$SONARR4K_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && update_ha_status "Sonarr 4K" "online" || update_ha_status "Sonarr 4K" "offline"
 
-# Check Tautulli (Requires specific cmd parameter)
+# Radarr & Radarr 4K
+check_service "Radarr" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && update_ha_status "Radarr" "online" || update_ha_status "Radarr" "offline"
+
+check_service "Radarr 4K" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && update_ha_status "Radarr 4K" "online" || update_ha_status "Radarr 4K" "offline"
+
+# Tautulli
 check_service "Tautulli" "$TAUTULLI_API_BASE" "$TAUTULLI_API_KEY" "?apikey=$TAUTULLI_API_KEY&cmd=status"
+[[ $? -eq 0 ]] && update_ha_status "Tautulli" "online" || update_ha_status "Tautulli" "offline"
 
-# Wizarr (Invitation)
+# Wizarr
 check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/users"
+[[ $? -eq 0 ]] && update_ha_status "Wizarr" "online" || update_ha_status "Wizarr" "offline"
 
 # 4. Config File
 CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
