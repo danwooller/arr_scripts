@@ -22,7 +22,7 @@ check_service() {
         return 1
     fi
 
-    local status=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Api-Key: $key" "$url$endpoint")
+    local status=$(curl -s -o /dev/null --connect-timeout 5 -w "%{http_code}" -H "X-Api-Key: $key" "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
         echo -e "${GREEN}OK (HTTP 200)${NC}"
@@ -42,7 +42,13 @@ check_service "Sonarr ($SONARR_API_VER)" "$SONARR_API_BASE" "$SONARR_API_KEY" "/
 # 3. Check Radarr
 check_service "Radarr ($RADARR_API_VER)" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
 
-# 4. Check External Config File
+# 4. Check Sonarr
+check_service "Sonarr4K ($SONARR_API_VER)" "$SONARR4K_API_BASE" "$SONARR4K_API_KEY" "/system/status"
+
+# 5. Check Radarr
+check_service "Radarr4K ($RADARR_API_VER)" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
+
+# 6. Check External Config File
 CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
 echo -n "Checking Config File ($CONFIG_FILE)... "
 if [[ -f "$CONFIG_FILE" ]]; then
