@@ -11,7 +11,7 @@ TARGET_DIR="${1:-/mnt/media/TV}"
 
 # --- Configuration ---
 # Folders to skip entirely (Exact folder names)
-EXCLUDE_DIRS=("National Theatre at Home" "Some Other Show")
+EXCLUDE_DIRS=("National Theatre at Home" "National Theatre Live")
 
 # Manual Mappings (Folder Name -> Seerr Media ID)
 declare -A MANUAL_MAPS
