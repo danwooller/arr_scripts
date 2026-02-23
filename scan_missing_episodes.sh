@@ -4,15 +4,13 @@
 source "/usr/local/bin/common_functions.sh"
 
 # Ensure dependencies
-check_dependencies "curl" "jq" "sed"
+check_dependencies "curl" "jq" "sed" "grep"
 
 # Target directory
 TARGET_DIR="${1:-/mnt/media/TV}"
 
 # --- Manual Mappings ---
 declare -A MANUAL_MAPS
-# If 'National Theatre at Home' isn't on Seerr, you can't create an issue.
-# If you find it later, put the ID here.
 MANUAL_MAPS["National Theatre at Home"]="" 
 
 report_missing_seerr() {
@@ -33,11 +31,11 @@ report_missing_seerr() {
     fi
 
     if [ -z "$media_id" ] || [ "$media_id" == "null" ]; then
-        log "⚠️  Skipping $series_name: Not found in Seerr database (Check Sonarr instead)."
+        log "⚠️  Skipping $series_name: Not found in Seerr database."
         return 1
     fi
 
-    # 2. Advanced Deduplication (Normalize all whitespace)
+    # 2. Advanced Comparison: Compare ONLY the episode numbers
     local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=50&filter=open" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
@@ -48,12 +46,12 @@ report_missing_seerr() {
         local old_issue_id=$(echo "$existing_data" | cut -d'|' -f1)
         local raw_old_msg=$(echo "$existing_data" | cut -d'|' -f2)
 
-        # Remove ALL whitespace from both strings for a 100% "data-only" comparison
-        local norm_old=$(echo "$raw_old_msg" | tr -d '[:space:]')
-        local norm_new=$(echo "$new_msg" | tr -d '[:space:]')
+        # Extract only the patterns like '4x02' and sort them to ensure a perfect match
+        local old_eps=$(echo "$raw_old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
+        local new_eps=$(echo "$missing_episodes" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
 
-        if [ "$norm_old" == "$norm_new" ]; then
-            log "✅ Issue already exists for $series_name. Skipping."
+        if [ "$old_eps" == "$new_eps" ] && [ -n "$old_eps" ]; then
+            log "✅ Issue already exists for $series_name ($old_eps). Skipping."
             return 0
         else
             log "🔄 Change detected for $series_name. Cleaning up #$old_issue_id."
@@ -76,6 +74,7 @@ log "Starting scan in $TARGET_DIR..."
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
+    # Identify gaps in current folder
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
