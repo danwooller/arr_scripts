@@ -1,19 +1,27 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
+# Assumes SEERR_URL and SEERR_API_KEY are defined here or exported in environment
 source "/usr/local/bin/common_functions.sh"
 
-# Ensure dependencies
+# Ensure dependencies are available
 check_dependencies "curl" "jq" "sed"
 
-# Use provided argument or default TV path
+# Target directory: Default to /mnt/media/TV but allow override via first argument
 TARGET_DIR="${1:-/mnt/media/TV}"
 
-# --- Function to Report to Seerr ---
+if [ ! -d "$TARGET_DIR" ]; then
+    log "❌ $TARGET_DIR does not exist."
+    exit 1
+fi
+
+# --- Function to Report/Sync with Seerr ---
 report_missing_seerr() {
     local series_name="$1"
     local missing_episodes="$2"
+    local new_msg="Missing Episode(s): $missing_episodes"
     
+    # 1. Search for Series ID in Seerr
     local search_term=$(echo "$series_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g')
     local encoded_query=$(echo "$search_term" | jq -Rr @uri)
     local search_results=$(curl -s -X GET "$SEERR_URL/api/v1/search?query=$encoded_query" \
@@ -22,48 +30,61 @@ report_missing_seerr() {
     local media_id=$(echo "$search_results" | jq -r '.results[] | select(.mediaType == "tv").mediaInfo.id // empty' | head -n 1)
 
     if [ -z "$media_id" ] || [ "$media_id" == "null" ]; then
-        log "WARN: Could not link $series_name to Seerr."
+        log "❌ Could not link $series_name to Seerr."
         return 1
     fi
 
-    # --- DEDUPLICATION CHECK ---
-    # Fetch existing issues for this specific mediaId
-    # Status 1 usually means "Open" in Seerr
-    local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=10&filter=open" \
+    # 2. Check for existing Open issues to deduplicate
+    local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=50&filter=open" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
-    # Check if an issue with this mediaId and type 1 already exists
-    local duplicate=$(echo "$existing_issues" | jq --arg mid "$media_id" -r '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | .id')
+    # Extract ID and Message for this media and Type 1 (Video Issue)
+    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
+        '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | "\(.id)|\(.message)"' | head -n 1)
 
-    if [ -n "$duplicate" ]; then
-        log "SKIP: Open issue already exists for $series_name (ID: $duplicate)"
-        return 0
+    if [ -n "$existing_data" ]; then
+        local old_issue_id=$(echo "$existing_data" | cut -d'|' -f1)
+        local old_msg=$(echo "$existing_data" | cut -d'|' -f2)
+
+        if [ "$old_msg" == "$new_msg" ]; then
+            log "SKIP: Identical open issue already exists for $series_name."
+            return 0
+        else
+            log "CLEANUP: Removing outdated issue #$old_issue_id for $series_name."
+            curl -s -X DELETE "$SEERR_URL/api/v1/issue/$old_issue_id" -H "X-Api-Key: $SEERR_API_KEY"
+        fi
     fi
-    # ---------------------------
 
+    # 3. Create the New/Updated Issue
     local json_payload=$(jq -n \
         --arg mt "1" \
-        --arg msg "Missing Episode(s): $missing_episodes" \
+        --arg msg "$new_msg" \
         --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
 
-    curl -s -o /dev/null -X POST "$SEERR_URL/api/v1/issue" \
+    local response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
         -H "X-Api-Key: $SEERR_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "$json_payload"
+        -d "$json_payload")
     
-    log "Seerr Issue created for $series_name: Missing $missing_episodes"
+    if [[ "$response" =~ ^20[0-9]$ ]]; then
+        log "Seerr Issue created for $series_name: $missing_episodes"
+    else
+        log "❌ Seerr API failed with HTTP $response for $series_name"
+    fi
 }
 
-log "Starting gap scan in $TARGET_DIR..."
+log "Starting Scan in $TARGET_DIR..."
 
+# Iterate through Series folders
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
-    # 1. Capture patterns like 1x01 or 1x01-02
+    # Capture 1x01 or 1x01-02 patterns, excluding Specials/Season 00
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
+    # Need at least 2 episodes to determine a gap
     if [ ${#ep_list[@]} -lt 2 ]; then continue; fi
 
     missing_in_series=""
@@ -71,17 +92,11 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
     prev_e=-1
 
     for ep in "${ep_list[@]}"; do
-        # Extract Season
         curr_s=$(echo "$ep" | cut -d'x' -f1)
-        
-        # Extract Episode Range
-        # If ep is "1x01-02", range is "01-02". If "1x01", range is "01".
         range=$(echo "$ep" | cut -d'x' -f2)
         
-        # Start of the range (e.g., 01)
+        # Parse range (handles 01 as 1-1, and 01-02 as 1-2)
         start_e=$(echo "$range" | cut -d'-' -f1 | sed 's/^0//')
-        
-        # End of the range (e.g., 02 or 01)
         end_e=$(echo "$range" | cut -d'-' -f2 | sed 's/^0//')
 
         if [ "$curr_s" -eq "$prev_s" ]; then
@@ -94,13 +109,13 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
         fi
         
         prev_s=$curr_s
-        # Crucial: set previous episode to the END of the range
         prev_e=$end_e
     done
 
     if [ -n "$missing_in_series" ]; then
-        report_missing_seerr "$series_name" "$missing_in_series"
+        # Trim trailing space and report
+        report_missing_seerr "$series_name" "${missing_in_series% }"
     fi
 done
 
-log "Gap scan complete."
+log "✅ Scan complete."
