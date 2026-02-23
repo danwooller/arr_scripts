@@ -38,11 +38,11 @@ check_service() {
 
 echo "--- Media Stack Connectivity Diagnostic ---"
 
-# 1. Seerr
-check_service "Lidarr ($LIDARR_API_VER)" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/status"
+# Lidarr (Music)
+check_service "Lidarr ($LIDARR_API_VER)" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
 
-# 1. Seerr
-check_service "Prowlarr ($PROWLARR_API_VER)" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/status"
+# Prowlarr (Indexers)
+check_service "Prowlarr ($PROWLARR_API_VER)" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/system/status"
 
 # 1. Seerr
 check_service "Seerr ($SEERR_API_VER)" "$SEERR_API_BASE" "$SEERR_API_KEY" "/status"
