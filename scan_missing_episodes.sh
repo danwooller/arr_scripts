@@ -23,7 +23,7 @@ report_missing_seerr() {
     local new_msg="Missing Episode(s): $missing_episodes"
     local media_id=""
 
-    # 1. Get Media ID
+    # 1. Get Seerr Media ID
     if [[ -n "${MANUAL_MAPS[$series_name]}" ]]; then
         media_id="${MANUAL_MAPS[$series_name]}"
     else
@@ -39,7 +39,7 @@ report_missing_seerr() {
         return 1
     fi
 
-    # 2. Simplified Deduplication: Just check if an issue exists
+    # 2. Seerr Deduplication (Only proceed if no issue exists)
     local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=100&filter=open" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
@@ -51,17 +51,36 @@ report_missing_seerr() {
         return 0
     fi
 
-    # 3. Create Issue
+    # 3. Create Seerr Issue
     local json_payload=$(jq -n --arg mt "1" --arg msg "$new_msg" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
 
-    local resp=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_URL/api/v1/issue" \
-        -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload")
+    curl -s -o /dev/null -X POST "$SEERR_URL/api/v1/issue" \
+        -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload"
     
-    if [[ "$resp" =~ ^20[0-9]$ ]]; then
-        log "🚀 Seerr Issue created for $series_name: $missing_episodes"
+    log "🚀 Seerr Issue created for $series_name."
+
+    # --- 4. Sonarr Search (Monitored Check) ---
+    local sonarr_series=$(curl -s -X GET "$SONARR_URL/api/v3/series" -H "X-Api-Key: $SONARR_API_KEY")
+    
+    # Extract ID and Monitored status
+    local sonarr_data=$(echo "$sonarr_series" | jq -r --arg name "$series_name" \
+        '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
+
+    if [ -n "$sonarr_data" ]; then
+        local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
+        local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
+
+        if [ "$s_monitored" == "true" ]; then
+            log "🔍 Triggering Sonarr Search (ID: $s_id) for $series_name..."
+            local search_payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
+            curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" \
+                -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$search_payload"
+        else
+            log "⏸️  Sonarr match found for $series_name, but it is NOT monitored. Skipping search."
+        fi
     else
-        log "❌ Error creating issue for $series_name (HTTP $resp)"
+        log "⚠️  Could not find matching Series in Sonarr for $series_name."
     fi
 }
 
@@ -70,15 +89,13 @@ log "Starting scan in $TARGET_DIR..."
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
-    # Check if folder is in the exclusion list
     for exclude in "${EXCLUDE_DIRS[@]}"; do
         if [[ "$series_name" == "$exclude" ]]; then
             log "🚫 Skipping excluded directory: $series_name"
-            continue 2 # Skip this directory and move to the next one in the 'find' loop
+            continue 2
         fi
     done
     
-    # Identify gaps in current folder
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
