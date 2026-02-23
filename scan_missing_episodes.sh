@@ -10,9 +10,10 @@ check_dependencies "curl" "jq" "sed"
 TARGET_DIR="${1:-/mnt/media/TV}"
 
 # --- Manual Mappings ---
-# Add problematic shows here: ["FolderName"]="SeerrMediaID"
 declare -A MANUAL_MAPS
-MANUAL_MAPS["National Theatre at Home"]="12345" # <-- Replace 12345 with the actual Seerr Media ID
+# If 'National Theatre at Home' isn't on Seerr, you can't create an issue.
+# If you find it later, put the ID here.
+MANUAL_MAPS["National Theatre at Home"]="" 
 
 report_missing_seerr() {
     local series_name="$1"
@@ -20,7 +21,7 @@ report_missing_seerr() {
     local new_msg="Missing Episode(s): $missing_episodes"
     local media_id=""
 
-    # 1. Check Manual Mapping first, then Search
+    # 1. Get Media ID
     if [[ -n "${MANUAL_MAPS[$series_name]}" ]]; then
         media_id="${MANUAL_MAPS[$series_name]}"
     else
@@ -32,11 +33,11 @@ report_missing_seerr() {
     fi
 
     if [ -z "$media_id" ] || [ "$media_id" == "null" ]; then
-        log "❌ Could not link $series_name to Seerr."
+        log "⚠️  Skipping $series_name: Not found in Seerr database (Check Sonarr instead)."
         return 1
     fi
 
-    # 2. Deduplication check with whitespace trimming
+    # 2. Advanced Deduplication (Normalize all whitespace)
     local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=50&filter=open" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
@@ -45,11 +46,13 @@ report_missing_seerr() {
 
     if [ -n "$existing_data" ]; then
         local old_issue_id=$(echo "$existing_data" | cut -d'|' -f1)
-        # Trim whitespace using xargs for a clean comparison
-        local old_msg=$(echo "$existing_data" | cut -d'|' -f2 | xargs)
-        local clean_new_msg=$(echo "$new_msg" | xargs)
+        local raw_old_msg=$(echo "$existing_data" | cut -d'|' -f2)
 
-        if [ "$old_msg" == "$clean_new_msg" ]; then
+        # Remove ALL whitespace from both strings for a 100% "data-only" comparison
+        local norm_old=$(echo "$raw_old_msg" | tr -d '[:space:]')
+        local norm_new=$(echo "$new_msg" | tr -d '[:space:]')
+
+        if [ "$norm_old" == "$norm_new" ]; then
             log "✅ Issue already exists for $series_name. Skipping."
             return 0
         else
