@@ -9,9 +9,13 @@ check_dependencies "curl" "jq" "sed" "grep"
 # Target directory
 TARGET_DIR="${1:-/mnt/media/TV}"
 
-# --- Manual Mappings ---
+# --- Configuration ---
+# Folders to skip entirely (Exact folder names)
+EXCLUDE_DIRS=("National Theatre at Home" "Some Other Show")
+
+# Manual Mappings (Folder Name -> Seerr Media ID)
 declare -A MANUAL_MAPS
-MANUAL_MAPS["National Theatre at Home"]="" 
+MANUAL_MAPS["Example Show"]="12345"
 
 report_missing_seerr() {
     local series_name="$1"
@@ -35,11 +39,10 @@ report_missing_seerr() {
         return 1
     fi
 
-    # 2. Simplified Deduplication: Just check if an issue exists at all
+    # 2. Simplified Deduplication: Just check if an issue exists
     local existing_issues=$(curl -s -X GET "$SEERR_URL/api/v1/issue?take=100&filter=open" \
         -H "X-Api-Key: $SEERR_API_KEY")
 
-    # Check if ANY Type 1 issue exists for this media_id
     local exists=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
         '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | .id' | head -n 1)
 
@@ -48,7 +51,7 @@ report_missing_seerr() {
         return 0
     fi
 
-    # 3. Create Issue (Only if none exist)
+    # 3. Create Issue
     local json_payload=$(jq -n --arg mt "1" --arg msg "$new_msg" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
 
@@ -67,6 +70,15 @@ log "Starting scan in $TARGET_DIR..."
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
+    # Check if folder is in the exclusion list
+    for exclude in "${EXCLUDE_DIRS[@]}"; do
+        if [[ "$series_name" == "$exclude" ]]; then
+            log "🚫 Skipping excluded directory: $series_name"
+            continue 2 # Skip this directory and move to the next one in the 'find' loop
+        fi
+    done
+    
+    # Identify gaps in current folder
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
