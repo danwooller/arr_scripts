@@ -16,7 +16,7 @@ REQUIRED_SPACE_MB=5000
 
 # 1. System Updates
 if [[ $LOG_LEVEL = "debug" ]]; then
-    log "--- Starting Maintenance Cycle ---"
+    log "Starting update"
 fi
 sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
 
@@ -113,4 +113,4 @@ if [[ $LOG_LEVEL = "debug" ]]; then
 fi
 $DOCKER image prune -f
 
-log "✅ Maintenance cycle complete."
+log "✅ Update complete."
