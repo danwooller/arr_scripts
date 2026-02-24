@@ -17,8 +17,8 @@ check_dependencies "jq" "mkvpropedit" "mkvmerge"
 # Initialize Counters
 total_files=0
 modified_files=0
-audio_fixed=0
-subs_fixed=0
+audio_fixed_total=0
+subs_fixed_total=0
 
 log "STARTING SCAN: $SOURCE_DIR"
 [[ "$DRY_RUN" == "true" ]] && log "MODE: DRY RUN (No changes will be saved)"
@@ -29,40 +29,47 @@ for file in "$SOURCE_DIR"/**/*.mkv; do
 
     filename=$(basename "$file")
     metadata=$(mkvmerge -J "$file")
-    file_was_modified=false
     
-    # 1. Process Audio Tracks
+    # Internal trackers for this specific file
+    audio_to_fix=0
+    subs_to_fix=0
+    
+    # 1. Check Audio Tracks
     audio_idx=0
     while read -r lang; do
         ((audio_idx++))
         if [[ "$lang" == "und" || "$lang" == "null" ]]; then
-            ((audio_fixed++))
-            file_was_modified=true
-            [[ "$LOG_LEVEL" == "debug" ]] && log "FIXING: $filename -> Audio #$audio_idx ($lang -> eng)"
+            ((audio_to_fix++))
+            [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: $filename -> Audio #$audio_idx is '$lang'"
             
-            if [[ "$DRY_RUN" == "false" ]]; then
+            if [[ "$DRY_RUN" != "true" ]]; then
                 mkvpropedit "$file" --edit "track:a$audio_idx" --set language=eng >/dev/null
             fi
         fi
     done < <(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio") | .properties.language // "null"')
 
-    # 2. Process Subtitle Tracks
+    # 2. Check Subtitle Tracks
     sub_idx=0
     while read -r sub_id; do
         ((sub_idx++))
-        ((subs_fixed++))
-        file_was_modified=true
-        [[ "$LOG_LEVEL" == "debug" ]] && log "FIXING: $filename -> Subtitle #$sub_idx to eng"
+        ((subs_to_fix++))
+        [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: $filename -> Subtitle #$sub_idx needs eng"
         
-        if [[ "$DRY_RUN" == "false" ]]; then
+        if [[ "$DRY_RUN" != "true" ]]; then
             mkvpropedit "$file" --edit "track:s$sub_idx" --set language=eng >/dev/null
         fi
     done < <(echo "$metadata" | jq -r '.tracks[] | select(.type=="subtitles") | .id')
 
-    if [[ "$file_was_modified" == "true" ]]; then
+    # Update global counters only if changes were actually attempted/made
+    if (( audio_to_fix > 0 || subs_to_fix > 0 )); then
         ((modified_files++))
+        ((audio_fixed_total += audio_to_fix))
+        ((subs_fixed_total += subs_to_fix))
+        log "MODIFIED: $filename (Audio: $audio_to_fix, Subs: $subs_to_fix)"
     else
-        echo "Skipping: $filename (No changes needed)"
+        # Optional: uncomment for more verbosity in non-debug mode
+        # echo "Skipping: $filename"
+        : 
     fi
 done
 
