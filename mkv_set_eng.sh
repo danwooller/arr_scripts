@@ -4,7 +4,7 @@
 source "/usr/local/bin/common_functions.sh"
 
 # Configuration
-SOURCE_DIR="/mnt/media/Movies/National Theatre Live - This House (2013)"
+SOURCE_DIR="/mnt/media/Movies"
 DRY_RUN=false 
 # LOG_LEVEL="debug"
 
