@@ -1,0 +1,10 @@
+HOST=$(hostname -s)
+LOG_FILE="/mnt/media/torrent/${HOST}.log"
+MOUNT_ROOT="/mnt/media"
+BASE_URL="http://*.com"
+HA_URL="http://192.168.x.x:8123"  # Your HA internal IP
+HA_TOKEN="xxxxxxxxxxx"
+BAZARR_URL="$BASE_URL:6767"
+BAZARR_API_KEY="xxxxxxxxxxx"
+BAZARR_API_VER="v1"
+BAZARR_API_BASE="$BAZARR_URL/api/$BAZARR_API_VER"
