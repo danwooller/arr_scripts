@@ -12,7 +12,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | **convert_mkv.sh** | Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder, determines whether the file is 1080p or 4K and converts the file using HandBrakeCLIbefore copying back to the network for further sorting. |
 | **merge_forced_subtitles.sh** | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
 | **monitor_convert.sh** | Monitors folders for unconverted media, detects resolution (1080p/4K), and transcodes via HandBrakeCLI. |
-| **monitor_movie_subtitles.sh** | Moniotor $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
+| **monitor_movie_subtitles.sh** | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
 | **move_movies_synology.sh** | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
 | **move_tv_shows_synology.sh** | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
 | **usenet_org.sh** | Looks for media files without readable filenames and attempst to convert them using folder names. |
