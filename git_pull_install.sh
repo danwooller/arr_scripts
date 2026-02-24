@@ -32,7 +32,6 @@ fi
 if [ -f "$DEST_DIR/common_functions.sh" ]; then
     echo "Updating /usr/local/bin/common_functions.sh..."
     sudo cp "$DEST_DIR/common_functions.sh" "/usr/local/bin/"
-    sudo cp "$DEST_DIR/common_keys.txt" "/usr/local/bin/"
     sudo chmod +x "/usr/local/bin/common_functions.sh"
     sudo chown root:root "/usr/local/bin/common_functions.sh"
 fi
