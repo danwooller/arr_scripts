@@ -15,11 +15,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | **monitor_movie_subtitles.sh** | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
 | **move_movies_synology.sh** | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
 | **move_tv_shows_synology.sh** | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
-| **update-docker.sh** | Runs a linux update then backs up the containers to the network while updating.
-```bash
-cd && /usr/local/usr && sudo ./update-docker.sh
-```
-|
+| **update-docker.sh** | Runs a linux update then backs up the containers to the network while updating. Includes a --no-backup flag.|
 | **usenet_org.sh** | Looks for media files without readable filenames and attempts to convert them using folder names. |
 
 ### 🔧 System & Maintenance Tools
