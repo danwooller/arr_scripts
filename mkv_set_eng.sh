@@ -4,49 +4,72 @@
 source "/usr/local/bin/common_functions.sh"
 
 # Configuration
-SOURCE_DIR="/mnt/media/TV/"
+SOURCE_DIR="/mnt/media/Movies/National Theatre Live - The Cherry Orchard (2011)"
+DRY_RUN=false 
+# LOG_LEVEL="debug"
 
 # Enable recursive globbing
 shopt -s globstar
 
-check_dependencies "jq"
+# Ensure tools are present
+check_dependencies "jq" "mkvpropedit" "mkvmerge"
+
+# Initialize Counters
+total_files=0
+modified_files=0
+audio_fixed=0
+subs_fixed=0
+
+log "STARTING SCAN: $SOURCE_DIR"
+[[ "$DRY_RUN" == "true" ]] && log "MODE: DRY RUN (No changes will be saved)"
 
 for file in "$SOURCE_DIR"/**/*.mkv; do
     [[ -e "$file" ]] || continue
+    ((total_files++))
+
+    filename=$(basename "$file")
+    metadata=$(mkvmerge -J "$file")
+    file_was_modified=false
     
-    echo "Scanning: $(basename "$file")"
-
-    # Get track info in JSON format
-    json_info=$(mkvmerge -J "$file")
-
-    # Build the mkvpropedit command string
-    cmd_args=()
-
-    # 1. Identify Audio tracks where language is 'und'
-    # '.[0]' refers to the first track type found, etc. 
-    # This loop finds the track ID (not the track number) for mkvpropedit
-    while read -r track_id; do
-        if [[ -n "$track_id" ]]; then
-            cmd_args+=("--edit" "track:=$track_id" "--set" "language=eng")
+    # 1. Process Audio Tracks
+    audio_idx=0
+    while read -r lang; do
+        ((audio_idx++))
+        if [[ "$lang" == "und" || "$lang" == "null" ]]; then
+            ((audio_fixed++))
+            file_was_modified=true
+            [[ "$LOG_LEVEL" == "debug" ]] && log "FIXING: $filename -> Audio #$audio_idx ($lang -> eng)"
+            
+            if [[ "$DRY_RUN" == "false" ]]; then
+                mkvpropedit "$file" --edit "track:a$audio_idx" --set language=eng >/dev/null
+            fi
         fi
-    done < <(echo "$json_info" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="und" or .properties.language==null)) | .id')
+    done < <(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio") | .properties.language // "null"')
 
-    # 2. Identify ALL Subtitle tracks to set to English
-    while read -r track_id; do
-        if [[ -n "$track_id" ]]; then
-            cmd_args+=("--edit" "track:=$track_id" "--set" "language=eng")
+    # 2. Process Subtitle Tracks
+    sub_idx=0
+    while read -r sub_id; do
+        ((sub_idx++))
+        ((subs_fixed++))
+        file_was_modified=true
+        [[ "$LOG_LEVEL" == "debug" ]] && log "FIXING: $filename -> Subtitle #$sub_idx to eng"
+        
+        if [[ "$DRY_RUN" == "false" ]]; then
+            mkvpropedit "$file" --edit "track:s$sub_idx" --set language=eng >/dev/null
         fi
-    done < <(echo "$json_info" | jq -r '.tracks[] | select(.type=="subtitles") | .id')
+    done < <(echo "$metadata" | jq -r '.tracks[] | select(.type=="subtitles") | .id')
 
-    # Execute if we found tracks to update
-    if [ ${#cmd_args[@]} -gt 0 ]; then
-        echo "Updating metadata for tracks: ${cmd_args[*]}"
-        mkvpropedit "$file" "${cmd_args[@]}"
+    if [[ "$file_was_modified" == "true" ]]; then
+        ((modified_files++))
     else
-        echo "No 'und' audio or missing subtitle tags found. Skipping."
+        echo "Skipping: $filename (No changes needed)"
     fi
-
-    echo "---"
 done
 
-echo "Batch processing complete."
+# --- Final Summary ---
+summary_msg="SCAN COMPLETE. Files Processed: $total_files | Modified: $modified_files | Audio Tracks Fixed: $audio_fixed | Subtitles Fixed: $subs_fixed"
+log "$summary_msg"
+
+if [[ "$LOG_LEVEL" == "debug" ]]; then
+    log "FINISHED SCAN."
+fi
