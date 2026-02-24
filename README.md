@@ -15,12 +15,18 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | **monitor_movie_subtitles.sh** | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
 | **move_movies_synology.sh** | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
 | **move_tv_shows_synology.sh** | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
+| **update-docker.sh** | Runs a linux update then backs up the containers to the network while updating.
+```bash
+cd && /usr/local/usr && sudo ./update-docker.sh
+```
+|
 | **usenet_org.sh** | Looks for media files without readable filenames and attempts to convert them using folder names. |
 
 ### 🔧 System & Maintenance Tools
 | File | Description |
 | :--- | :--- |
 | **common_functions.sh** | Global include file for standardised logging and dependency management. |
+| **common_keys.txt** | Sensitive keys and mappings, called by common_functions.sh. |
 | **git_pull.sh** | Pulls $1 from GitHub. Copies to /usr/local/bin and sets permissions. |
 | **git_pull_install.sh** | Specialized installer: Syncs script, sets permissions, and configures the systemd service. |
 | **git_push.sh** | Pushes local edits to GitHub. Auto-handles identity, branch naming, and index cleanup. |
