@@ -4,7 +4,7 @@
 source "/usr/local/bin/common_functions.sh"
 
 # Configuration
-SOURCE_DIR="/mnt/media/Movies"
+SOURCE_DIR="${1:-/mnt/media/Movies}"
 DRY_RUN=false 
 # LOG_LEVEL="debug"
 
