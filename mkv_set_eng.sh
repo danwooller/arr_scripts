@@ -14,11 +14,11 @@ shopt -s globstar
 # Ensure tools are present
 check_dependencies "jq" "mkvpropedit" "mkvmerge"
 
-# Initialize Counters
+# Initialize Counters (Standardized names)
 total_files=0
 modified_files=0
-audio_fixed_total=0
-subs_fixed_total=0
+audio_fixed=0
+subs_fixed=0
 
 log "STARTING SCAN: $SOURCE_DIR"
 [[ "$DRY_RUN" == "true" ]] && log "MODE: DRY RUN (No changes will be saved)"
@@ -30,16 +30,16 @@ for file in "$SOURCE_DIR"/**/*.mkv; do
     filename=$(basename "$file")
     metadata=$(mkvmerge -J "$file")
     
-    # Internal trackers for this specific file
-    audio_to_fix=0
-    subs_to_fix=0
+    # Trackers for this specific file
+    this_file_audio=0
+    this_file_subs=0
     
     # 1. Check Audio Tracks
     audio_idx=0
     while read -r lang; do
         ((audio_idx++))
         if [[ "$lang" == "und" || "$lang" == "null" ]]; then
-            ((audio_to_fix++))
+            ((this_file_audio++))
             [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: $filename -> Audio #$audio_idx is '$lang'"
             
             if [[ "$DRY_RUN" != "true" ]]; then
@@ -52,7 +52,7 @@ for file in "$SOURCE_DIR"/**/*.mkv; do
     sub_idx=0
     while read -r sub_id; do
         ((sub_idx++))
-        ((subs_to_fix++))
+        ((this_file_subs++))
         [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: $filename -> Subtitle #$sub_idx needs eng"
         
         if [[ "$DRY_RUN" != "true" ]]; then
@@ -60,23 +60,16 @@ for file in "$SOURCE_DIR"/**/*.mkv; do
         fi
     done < <(echo "$metadata" | jq -r '.tracks[] | select(.type=="subtitles") | .id')
 
-    # Update global counters only if changes were actually attempted/made
-    if (( audio_to_fix > 0 || subs_to_fix > 0 )); then
+    # Update global counters
+    if (( this_file_audio > 0 || this_file_subs > 0 )); then
         ((modified_files++))
-        ((audio_fixed_total += audio_to_fix))
-        ((subs_fixed_total += subs_to_fix))
-        log "MODIFIED: $filename (Audio: $audio_to_fix, Subs: $subs_to_fix)"
-    else
-        # Optional: uncomment for more verbosity in non-debug mode
-        # echo "Skipping: $filename"
-        : 
+        ((audio_fixed += this_file_audio))
+        ((subs_fixed += this_file_subs))
+        log "MODIFIED: $filename (Audio: $this_file_audio, Subs: $this_file_subs)"
     fi
 done
 
 # --- Final Summary ---
+# Using the exact variable names initialized at the top
 summary_msg="SCAN COMPLETE. Files Processed: $total_files | Modified: $modified_files | Audio Tracks Fixed: $audio_fixed | Subtitles Fixed: $subs_fixed"
 log "$summary_msg"
-
-if [[ "$LOG_LEVEL" == "debug" ]]; then
-    log "FINISHED SCAN."
-fi
