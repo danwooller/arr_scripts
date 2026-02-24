@@ -43,7 +43,7 @@ Self-Cleaning: If no actual changes are detected, the script resets the index to
 Use this to move a script from the repo folder into the system path and restart its background service.
 
 ```bash
-sudo ./git_pull.sh <filename.sh>
+sudo ./git_pull_install.sh <filename.sh>
 ```
 Service Mapping: Automatically maps script_name.sh to script_name.service.
 
