@@ -5,8 +5,8 @@ source "/usr/local/bin/common_functions.sh"
 
 # Configuration
 SOURCE_DIR="${1:-/mnt/media/Movies}"
-DRY_RUN=true 
-# LOG_LEVEL="debug"
+#DRY_RUN=true 
+#LOG_LEVEL="debug"
 
 # Enable recursive globbing
 shopt -s globstar
