@@ -8,13 +8,16 @@ SOURCE_DIR="${1:-/mnt/media/Movies}"
 DRY_RUN=${DRY_RUN:-false}        # Defaults to false if not set/exported
 LOG_LEVEL=${LOG_LEVEL:-"info"}   # Defaults to info if not set
 
+# Reset the internal timer
+SECONDS=0
+
 # Enable recursive globbing
 shopt -s globstar
 
 # Ensure tools are present
 check_dependencies "jq" "mkvpropedit" "mkvmerge"
 
-# Initialize Counters (Standardized names)
+# Initialize Counters
 total_files=0
 modified_files=0
 audio_fixed=0
@@ -30,7 +33,6 @@ for file in "$SOURCE_DIR"/**/*.mkv; do
     filename=$(basename "$file")
     metadata=$(mkvmerge -J "$file")
     
-    # Trackers for this specific file
     this_file_audio=0
     this_file_subs=0
     
@@ -69,7 +71,11 @@ for file in "$SOURCE_DIR"/**/*.mkv; do
     fi
 done
 
+# Calculate time elapsed
+duration=$SECONDS
+minutes=$((duration / 60))
+seconds=$((duration % 60))
+
 # --- Final Summary ---
-# Using the exact variable names initialized at the top
-summary_msg="SCAN COMPLETE. Files Processed: $total_files | Modified: $modified_files | Audio Tracks Fixed: $audio_fixed | Subtitles Fixed: $subs_fixed"
+summary_msg="SCAN COMPLETE. Files: $total_files | Modified: $modified_files | Audio Fixed: $audio_fixed | Subs Fixed: $subs_fixed | Time: ${minutes}m ${seconds}s"
 log "$summary_msg"
