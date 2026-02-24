@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- Setup & Includes ---
-# source "/usr/local/bin/common_functions.sh" # Ensure this file exists or comment out
+source "/usr/local/bin/common_functions.sh"
 
 # Configuration
 SOURCE_DIR="/mnt/media/TV/"
