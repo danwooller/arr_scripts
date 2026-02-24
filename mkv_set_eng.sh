@@ -4,7 +4,7 @@
 source "/usr/local/bin/common_functions.sh"
 
 # Configuration
-SOURCE_DIR="/mnt/media/Movies/National Theatre Live - The Cherry Orchard (2011)"
+SOURCE_DIR="/mnt/media/Movies/National Theatre Live - This House (2013)"
 DRY_RUN=false 
 # LOG_LEVEL="debug"
 
