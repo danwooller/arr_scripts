@@ -45,6 +45,11 @@ Use this to move a script from the repo folder into the system path and restart 
 ```bash
 sudo ./git_pull_install.sh <filename.sh>
 ```
+Use this to move a script from the repo folder into the system path (for scripts that run manually or in cron).
+
+```bash
+sudo ./git_pull.sh <filename.sh>
+```
 Service Mapping: Automatically maps script_name.sh to script_name.service.
 
 Lifecycle: Automates cp, chmod, daemon-reload, and systemctl restart.
