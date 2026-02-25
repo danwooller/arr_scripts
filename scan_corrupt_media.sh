@@ -38,14 +38,20 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
     error_msg=$(ffmpeg -v error -n -i "$file" -c copy -f null - 2>&1 < /dev/null)
     exit_status=$?
 
+    media_type="movie"; [[ "$TARGET_DIR" =~ [Tt][Vv] ]] && media_type="tv"
+
     if [ $exit_status -ne 0 ]; then
-        media_type="movie"; [[ "$TARGET_DIR" =~ [Tt][Vv] ]] && media_type="tv"
         issue_msg="Integrity Check: $(basename "$file") moved to hold. Error: $error_msg"
         
         # Report, Clean up Seerr, and Search for replacement
         sync_seerr_issue "$(basename "$file")" "$media_type" "$issue_msg"
         
         mv --backup=numbered "$file" "$HOLD_DIR/"
+    else
+        # If sync_seerr_issue is designed to handle resolutions when the message is empty 
+        # or if you have a resolve function in common_seerr_issue.sh:
+        sync_seerr_issue "$(basename "$file")" "$media_type" ""
+        log "HEALTHY: $(basename "$file") integrity verified."
     fi
 done
 
