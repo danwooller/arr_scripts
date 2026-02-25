@@ -36,20 +36,17 @@ sync_seerr_issue() {
 
     # 4. Change Detection (Episode-Only Comparison)
     if [[ -n "$issue_id" ]]; then
-        # Extract and sort episode codes (e.g., 2x08, 10x12)
-        # We use -u to remove duplicates and xargs to flatten to a single line
-        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs)
-        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs)
+        # Extract, sort, and VAPORIZE all invisible characters/newlines/returns
+        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs | tr -d '\r\n')
+        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs | tr -d '\r\n')
 
-        # DEBUG: Uncomment the next line if it keeps flapping to see why
-        # log "DEBUG: Old: [$norm_old] vs New: [$norm_new]"
+        # DEBUG: Let's see exactly what the script is comparing
+        log "DEBUG: Old: [${norm_old}] vs New: [${norm_new}]"
 
-        # If BOTH are empty, they are technically the same (no episodes found)
-        # If they match exactly, we stop here.
         if [[ "$norm_old" == "$norm_new" ]]; then
+            # log "ℹ️  No change in missing episodes for $media_name. Skipping."
             return 0 
         else
-            # Only resolve if the episode list actually changed
             log "🔄 Change detected for $media_name. Updating Seerr issue..."
             curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
