@@ -59,7 +59,16 @@ fi
 # --- 3. Process Each Series ---
 for series_path in "${targets[@]}"; do
     series_name=$(basename "$series_path")
-    
+
+    if [[ " ${EXCLUDE_DIRS[@]} " =~ " ${series_name} " ]]; then
+        log "Exclusion: Skipping '$series_name' (listed in EXCLUDE_DIRS)."
+        
+        # Try to resolve any existing Seerr issue before skipping
+        # status 3 = Resolved/Closed in Seerr
+        sync_seerr_issue "$series_name" "tv" "Added to exclusion list" "" "3"
+        continue
+    fi
+
     # Skip items in EXCLUDE_DIRS
     for exclude in "${EXCLUDE_DIRS[@]}"; do
         [[ "$series_name" == "$exclude" ]] && continue 2
