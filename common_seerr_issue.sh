@@ -6,9 +6,6 @@ sync_seerr_issue() {
     local message="$3"      # Error details or missing ep list
     local media_id="$4"     # Optional Manual Map ID
 
-#    local search_api="${SEERR_API_SEARCH:-http://wooller.com:5055/api/v3}"
-#    local issue_api="${SEERR_API_ISSUES:-http://wooller.com:5055/api/v1}"
-#    local api_key="${SEERR_API_KEY}" 
     # ---------------------------------------------
 
     # 1. Get Seerr Media ID if not provided
@@ -33,7 +30,25 @@ sync_seerr_issue() {
         [[ "$media_id" == "null" ]] && media_id=""
     fi
 
-    # 2. Deduplication Check
+	# 2. Check for existing issue
+	local existing_issue=$(curl -s -X GET "${SEERR_API_ISSUES}/issue?mediaId=${media_id}&status=open" \
+        -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.results[0].id // empty')
+
+    if [[ -n "$existing_issue" ]]; then
+        if [[ "$target_status" == "3" ]]; then
+            # Resolve the issue with the exclusion comment
+            curl -s -X POST "${SEERR_API_ISSUES}/issue/$existing_issue/comment" \
+                -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" \
+                -d "{\"message\": \"$issue_msg\"}"
+                
+            curl -s -X POST "${SEERR_API_ISSUES}/issue/$existing_issue/resolved" \
+                -H "X-Api-Key: $SEERR_API_KEY"
+            
+            log "✅ RESOLVED: Closed Seerr issue #$existing_issue for $media_name ($issue_msg)."
+        fi
+    fi
+
+    # 3. Deduplication Check
     local existing_issues=$(curl -s -X GET "$SEERR_API_ISSUES/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
     local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
         '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | "\(.id)|\(.message)"' | head -n 1)
