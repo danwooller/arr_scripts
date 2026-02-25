@@ -5,23 +5,26 @@ sync_seerr_issue() {
     local media_id="$4"     # Optional Manual Map ID
 
     # 1. Get Seerr Media ID (or TMDB ID fallback)
-    local tmdb_id=""
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        # Clean title: Keep year for movies, remove "Unrated/REPACK", replace dots with spaces
-        local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/(Unrated|REPACK|Directors\.Cut|PROPER)//gi; s/[._]/ /g; s/ +/ /g')
-        local encoded_query=$(echo "$search_term" | jq -Rr @uri)
+        # Clean the title: remove brackets, remove common tags, keep the year number
+        local clean_name=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[()]//g; s/(Unrated|REPACK|Directors\.Cut|PROPER)//gi; s/[._]/ /g; s/ +/ /g')
+        local year=$(echo "$media_name" | grep -oE '[0-9]{4}' | head -n 1)
+        local encoded_query=$(echo "$clean_name" | jq -Rr @uri)
+        
         local search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
         
-        # IMPROVED: Look through all results for the one that has mediaInfo
-        media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '
+        # IMPROVED EXTRACTION: Match by type AND year
+        media_id=$(echo "$search_results" | jq -r --arg type "$media_type" --arg yr "$year" '
             .results[] | 
             select(.mediaType == $type) | 
+            select(.releaseDate | contains($yr)) | 
             .mediaInfo.id // empty' | head -n 1)
             
-        # Fallback to TMDB ID for Radarr search
-        tmdb_id=$(echo "$search_results" | jq -r --arg type "$media_type" '
+        # Backup TMDB ID if mediaInfo is still missing (helps Radarr trigger)
+        tmdb_id=$(echo "$search_results" | jq -r --arg type "$media_type" --arg yr "$year" '
             .results[] | 
             select(.mediaType == $type) | 
+            select(.releaseDate | contains($yr)) | 
             .id // empty' | head -n 1)
     fi
 
