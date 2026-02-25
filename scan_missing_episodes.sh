@@ -22,10 +22,12 @@ LOG_LEVEL="debug"
 [[ $LOG_LEVEL == "debug" ]] && log "Starting scan in $TARGET_DIR..."
 
 # --- 1. Identify Target Folders ---
-# Detect if targeting a specific show folder vs a root directory
-if [[ -d "$TARGET_DIR/Season 1" ]] || [[ -d "$TARGET_DIR/Season 01" ]]; then
+# Check if the TARGET_DIR contains ANY "Season" folder
+if ls "$TARGET_DIR" | grep -qi "^Season "; then
+    # It's a single series folder
     targets=("$TARGET_DIR")
 else
+    # It's a parent directory (like /mnt/media/TV)
     mapfile -t targets < <(find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d)
 fi
 
