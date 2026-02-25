@@ -16,25 +16,26 @@ sync_seerr_issue() {
         local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
         
-        # Scrub and FORCE use the IP if you haven't already updated common_keys
         local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
-        # This removes any trailing slashes from the base URL to prevent //api
         local s_base=$(echo "${SEERR_URL%/}" | tr -d '\r\n[:space:]')
         local full_url="$s_base/api/v3/search?query=${encoded_query}"
 
-        # Perform the Search with strict headers
-        local search_results=$(curl -s -f -X GET "$full_url" \
-            -H "X-Api-Key: $s_key" \
-            -H "Accept: application/json" \
-            -H "Content-Type: application/json")
+        # --- THE FINAL TEST ---
+        # We define the header as a separate variable to ensure no quoting issues
+        local header_str="X-Api-Key: $s_key"
 
-        if [[ -z "$search_results" ]]; then
-            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
-            log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code). URL used: $full_url"
+        # Run search with explicit headers and no redirection following (to catch the 307)
+        local search_results=$(curl -s -X GET "$full_url" -H "$header_str" -H "Accept: application/json")
+
+        if [[ -z "$search_results" || "$search_results" == *"<html>"* ]]; then
+            # If we see HTML or nothing, we check the code
+            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "$header_str")
+            
+            # This is the "Nuclear Debug": it prints the exact command you can copy-paste
+            log "⚠️ Seerr Fail (HTTP $http_code). Try this manually: curl -v -H \"$header_str\" \"$full_url\""
             return 1
         fi
         
-        # Extract ID (Added a safeguard for the jq parse)
         media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' 2>/dev/null | head -n 1)
     fi
 
