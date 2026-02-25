@@ -31,7 +31,7 @@ sync_seerr_issue() {
         if [[ -n "$issue_id" ]]; then
             log "✅ RESOLVED: Marking Seerr issue #$issue_id for $media_name as resolved."
             # Changed from DELETE to POST and updated the URL endpoint
-            curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+            curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
         return 0
     fi
@@ -45,7 +45,7 @@ sync_seerr_issue() {
             return 0 # No change in episode list
         else
             # Changed from DELETE to POST/resolved
-            curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+            curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
 
