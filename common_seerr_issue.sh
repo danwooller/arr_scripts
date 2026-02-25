@@ -13,26 +13,33 @@ sync_seerr_issue() {
 
     # 3. Get ID if missing
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        # Clean the name for searching
-        local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | xargs)
-        
-        # Proper URL encoding without hidden newlines
+        local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
         
-        # Build the final URL
+        # Scrub the globals
+        local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
+        local s_url=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n[:space:]')
         local full_url="${s_url%/}/search?query=${encoded_query}"
 
-        # Perform the search
-        local search_results=$(curl -s -f -X GET "$full_url" -H "X-Api-Key: $s_key")
-
-        if [[ -z "$search_results" ]]; then
-            # This will tell us if it's a connection error or auth error
-            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
-            log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code). URL: $full_url"
-            return 1
+        # --- LOG THE SKELETON OF THE KEY ---
+        if [[ -z "$s_key" ]]; then
+            log "❌ ERROR: SEERR_API_KEY is empty inside the function!"
+        else
+            # This prints the first 4 and last 4 chars of what the script THINKS the key is
+            log "DEBUG: Key Check: [${s_key:0:4}...${s_key: -4}] (Length: ${#s_key})"
         fi
 
-        # Extract ID
+        # Perform the Search with a User-Agent just in case
+        local search_results=$(curl -s -f -X GET "$full_url" \
+            -H "X-Api-Key: $s_key" \
+            -H "User-Agent: ShellScript/1.0")
+
+        if [[ -z "$search_results" ]]; then
+            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
+            log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code)."
+            return 1
+        fi
+        
         media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
     fi
 
