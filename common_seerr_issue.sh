@@ -4,20 +4,26 @@ sync_seerr_issue() {
     local message="$3"      # Error details or missing ep list
     local media_id="$4"     # Optional Manual Map ID
 
-    # 1. Get Seerr Media ID with Fallback
+    # 1. Get Seerr Media ID (or TMDB ID fallback)
+    local tmdb_id=""
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        # Try 1: Clean search (No year, no dots)
-        local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
+        local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
         local search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
         
+        # Try to get Internal Seerr ID
         media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
+        
+        # Backup: Get TMDB ID if Seerr Internal ID is missing
+        tmdb_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).id // empty' | head -n 1)
+    fi
 
-        # Try 2: Fallback to exact folder name if Clean Search failed
-        if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-            local raw_query=$(echo "$media_name" | jq -Rr @uri)
-            search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$raw_query" -H "X-Api-Key: $SEERR_API_KEY")
-            media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
+    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        if [[ -n "$tmdb_id" ]]; then
+            log "ℹ️  Seerr: No internal record for '$media_name', but found TMDB ID: $tmdb_id. Proceeding to search Radarr directly."
+        else
+            log "⚠️  Seerr: Could not find any record for '$media_name' on TMDB or Seerr."
+            return 1
         fi
     fi
 
