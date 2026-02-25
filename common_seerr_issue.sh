@@ -52,7 +52,7 @@ sync_seerr_issue() {
     # 5. Create New Issue
     local json_payload=$(jq -n --arg mt "1" --arg msg "$message" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
-    curl -s -X POST "$SEERR_API_BASE/issue" -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload" > /dev/null
+    curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue" -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload"
     log "🚀 Seerr Issue created for $media_name."
 
     # 6. Trigger Arr Search (Smart Instance Detection)
