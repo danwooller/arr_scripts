@@ -5,7 +5,7 @@ source "/usr/local/bin/common_functions.sh"
 source "/usr/local/bin/common_seerr_issue.sh"
 
 # --- Load External Configuration ---
-CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
+CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
 if [[ -f "$CONFIG_FILE" ]]; then
     # Source the file, but strip any trailing Windows CR characters on the fly
     source <(sed 's/\r$//' "$CONFIG_FILE")
