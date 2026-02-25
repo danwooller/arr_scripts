@@ -36,13 +36,17 @@ sync_seerr_issue() {
 
     # 4. Change Detection (Episode-Only Comparison)
     if [[ -n "$issue_id" ]]; then
-        # Extract episode codes (e.g., 2x08, 10x12) and normalize them
-        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -u | xargs)
-        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort -u | xargs)
+        # Extract and sort episode codes (e.g., 2x08, 10x12)
+        # We use -u to remove duplicates and xargs to flatten to a single line
+        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs)
+        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs)
 
-        # If the list of missing episodes hasn't changed, exit quietly
-        if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
-            # log "ℹ️  No change in missing episodes for $media_name. Skipping."
+        # DEBUG: Uncomment the next line if it keeps flapping to see why
+        # log "DEBUG: Old: [$norm_old] vs New: [$norm_new]"
+
+        # If BOTH are empty, they are technically the same (no episodes found)
+        # If they match exactly, we stop here.
+        if [[ "$norm_old" == "$norm_new" ]]; then
             return 0 
         else
             # Only resolve if the episode list actually changed
