@@ -1,10 +1,40 @@
 # --- Consolidated Seerr Sync & Search Function ---
 sync_seerr_issue() {
+    # 1. Capture arguments
     local media_name="$1"
     local media_type="$2"
-    local issue_msg="$3"    # This is the message passed from the script
+    local issue_msg="$3"
     local media_id="$4"
-    local target_status="${5:-1}" # Default to 1 (Open) if not specified
+    local target_status="${5:-1}"
+
+    # 2. Hard-scrub the keys to ensure no hidden \r or \n (The most common script-only fail)
+    local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n ' )
+    local s_url=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n ' )
+
+    # 3. Get ID if missing
+    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        # Clean the name for searching
+        local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | xargs)
+        
+        # Proper URL encoding without hidden newlines
+        local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
+        
+        # Build the final URL
+        local full_url="${s_url%/}/search?query=${encoded_query}"
+
+        # Perform the search
+        local search_results=$(curl -s -f -X GET "$full_url" -H "X-Api-Key: $s_key")
+
+        if [[ -z "$search_results" ]]; then
+            # This will tell us if it's a connection error or auth error
+            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
+            log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code). URL: $full_url"
+            return 1
+        fi
+
+        # Extract ID
+        media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
+    fi
 
     # 1. Get Seerr Media ID if not provided
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
