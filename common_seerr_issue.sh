@@ -29,8 +29,9 @@ sync_seerr_issue() {
     # 3. Resolution Logic
     if [[ -z "$message" ]]; then
         if [[ -n "$issue_id" ]]; then
-            log "✅ RESOLVED: Closing Seerr issue #$issue_id for $media_name."
-            curl -s -X DELETE "$SEERR_API_BASE/issue/$issue_id" -H "X-Api-Key: $SEERR_API_KEY"
+            log "✅ RESOLVED: Marking Seerr issue #$issue_id for $media_name as resolved."
+            # Changed from DELETE to POST and updated the URL endpoint
+            curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
         return 0
     fi
