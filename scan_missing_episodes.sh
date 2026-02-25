@@ -31,7 +31,17 @@ else
     mapfile -t targets < <(find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d)
 fi
 
-# --- 2. Process Each Series ---
+# --- 2. Clean up issues for Excluded Directories ---
+if [[ ${#EXCLUDE_DIRS[@]} -gt 0 ]]; then
+    log "Checking for open Seerr issues in EXCLUDE_DIRS..."
+    for excluded_name in "${EXCLUDE_DIRS[@]}"; do
+        # Call sync_seerr_issue with an empty message to trigger the resolution logic
+        # This will find any open ticket for the excluded show and close it.
+        sync_seerr_issue "$excluded_name" "tv" "" "${MANUAL_MAPS[$excluded_name]}"
+    done
+fi
+
+# --- 3. Process Each Series ---
 for series_path in "${targets[@]}"; do
     series_name=$(basename "$series_path")
     
@@ -74,7 +84,7 @@ for series_path in "${targets[@]}"; do
         done
     fi
 
-    # --- 3. Sync & Trigger ---
+    # --- 4. Sync & Trigger ---
     if [[ -n "$missing_in_series" ]]; then
         # sync_seerr_issue now handles Sonarr/Radarr search internally
         sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
