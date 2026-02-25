@@ -130,7 +130,10 @@ sync_seerr_issue() {
             
             # Find the ID by matching the title or the end of the path
             #local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
-            local folder_name=$(basename "${TARGET_DIR%/}")
+            # Sanitize the media_name (treat it as the folder name)
+            local folder_name=$(basename "${media_name%/}")
+
+            # Get Series List and match based on the folder name in the path
             local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
                 .[] | 
                 # Get the base folder name from Sonarrs path (stripping trailing slash first)
@@ -141,6 +144,7 @@ sync_seerr_issue() {
                 "\(.id)|\(.monitored)"
             ' | head -n 1)
 
+            # Trigger search if monitored
             if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
                 local s_id=$(echo "$s_data" | cut -d'|' -f1)
                 payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
