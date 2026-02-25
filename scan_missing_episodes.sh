@@ -5,9 +5,9 @@ source "/usr/local/bin/common_functions.sh"
 source "/usr/local/bin/common_seerr_issue.sh"
 
 # Seerr API configuration
-export SEERR_API_SEARCH="http://wooller.com:5055/api/v3"
-export SEERR_API_ISSUES="http://wooller.com:5055/api/v1"
-export SEERR_API_KEY="MTc0MDQ5NzU0MjYyOWRhZjA1MjhmLTg2Y2YtNDZmOS1hODkxLThlMzBlMWNmNzZmOQ=="
+#export SEERR_API_SEARCH="http://wooller.com:5055/api/v3"
+#export SEERR_API_ISSUES="http://wooller.com:5055/api/v1"
+#export SEERR_API_KEY="MTc0MDQ5NzU0MjYyOWRhZjA1MjhmLTg2Y2YtNDZmOS1hODkxLThlMzBlMWNmNzZmOQ=="
 
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
@@ -83,7 +83,7 @@ for series_path in "${targets[@]}"; do
 
     # --- 3. Sync & Trigger Search ---
     if [[ -n "$missing_in_series" ]]; then
-        sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
+        sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}" ""
     else
         sync_seerr_issue "$series_name" "tv" "" "${MANUAL_MAPS[$series_name]}"
     fi
