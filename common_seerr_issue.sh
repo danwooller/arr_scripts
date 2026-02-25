@@ -27,11 +27,6 @@ sync_seerr_issue() {
         fi
     fi
 
-    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        log "⚠️  Seerr: Could not link '$media_name' to an ID."
-        return 1
-    fi
-
     # 2. Deduplication Check
     local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
     local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
