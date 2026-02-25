@@ -11,61 +11,62 @@ sync_seerr_issue() {
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
         local search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
         
-        # Try to get Internal Seerr ID
         media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
-        
-        # Backup: Get TMDB ID if Seerr Internal ID is missing
         tmdb_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).id // empty' | head -n 1)
     fi
 
+    # 2. Flow Control
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        if [[ -n "$tmdb_id" ]]; then
-            log "ℹ️  Seerr: No internal record for '$media_name', but found TMDB ID: $tmdb_id. Proceeding to search Radarr directly."
+        if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
+            log "ℹ️  Seerr: No internal record for '$media_name', but using TMDB ID: $tmdb_id for Radarr search."
+            # We skip Seerr Issue logic (3, 4, 5) and jump to 6
         else
             log "⚠️  Seerr: Could not find any record for '$media_name' on TMDB or Seerr."
             return 1
         fi
-    fi
+    else
 
-    # 2. Deduplication Check
-    local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
-    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
-        '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | "\(.id)|\(.message)"' | head -n 1)
+        # 2. Deduplication Check
+        local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
+        local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
+            '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | "\(.id)|\(.message)"' | head -n 1)
+        
+        local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
+        local old_msg=$(echo "$existing_data" | cut -d'|' -f2)
     
-    local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
-    local old_msg=$(echo "$existing_data" | cut -d'|' -f2)
-
-    # 3. Resolution Logic
-    if [[ -z "$message" ]]; then
+        # 3. Resolution Logic
+        if [[ -z "$message" ]]; then
+            if [[ -n "$issue_id" ]]; then
+                log "✅ RESOLVED: Marking Seerr issue #$issue_id for $media_name as resolved."
+                curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+            fi
+            return 0
+        fi
+    
+        # 4. Change Detection
         if [[ -n "$issue_id" ]]; then
-            log "✅ RESOLVED: Marking Seerr issue #$issue_id for $media_name as resolved."
+            local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
+            local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
+    
+            if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
+                return 0 
+            fi
+            # Resolve old if message changed
             curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
-        return 0
-    fi
-
-    # 4. Change Detection
-    if [[ -n "$issue_id" ]]; then
-        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
-        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
-
-        if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
-            return 0 
-        fi
-        # Resolve old if message changed
-        curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
-    fi
-
-    # 5. Create New Issue (Crucial: Capture http_status)
-    local json_payload=$(jq -n --arg mt "1" --arg msg "$message" --arg id "$media_id" \
-        '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
     
-    local http_status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_API_BASE/issue" \
-        -H "X-Api-Key: $SEERR_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d "$json_payload")
-    
-    log "🚀 Seerr Issue created for $media_name."
+        # 5. Create New Issue (Crucial: Capture http_status)
+        local json_payload=$(jq -n --arg mt "1" --arg msg "$message" --arg id "$media_id" \
+            '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
+        
+        local http_status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SEERR_API_BASE/issue" \
+            -H "X-Api-Key: $SEERR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$json_payload")
+        
+        log "🚀 Seerr Issue created for $media_name."
+
+    fi
 
     # 6. Trigger Arr Search
     # This now only runs once, using the robust path-matching logic
