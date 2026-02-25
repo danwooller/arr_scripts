@@ -7,12 +7,26 @@ sync_seerr_issue() {
 
     # 1. Get Seerr Media ID
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        # Ensure we have a search URL (Fallback to standard if variable is missing)
+        local search_url="${SEERR_API_SEARCH:-${SEERR_API_BASE%/v1}/v3}"
+        
         local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
-        local search_results=$(curl -s -X GET "$SEERR_API_SEARCH/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
-        #media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
-        # Robust JQ: Grab mediaInfo.id if it exists, otherwise grab the TMDB id
+        
+        # Perform the Search
+        local search_results=$(curl -s -X GET "$search_url/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
+        
+        # Debugging (Uncomment the next line if it still fails to see the raw response)
+        # echo "DEBUG: Search URL: $search_url/search?query=$encoded_query" >&2
+
+        # Extract ID (Media ID first, then TMDB ID)
         media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
+    fi
+
+    # Final Catch: If media_id is still empty, we can't proceed
+    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        log "⚠️  Seerr: Could not link '$media_name' to an ID via $search_url."
+        return 1
     fi
 
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
