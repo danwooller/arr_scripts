@@ -130,16 +130,22 @@ sync_seerr_issue() {
             
             # Find the ID by matching the title or the end of the path
             #local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
-            # Optimized search for Sonarr
             local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '
+                # 1. Prepare variations of the search name
+                ($name | ascii_downcase) as $dn |
+                ($name | gsub(" \\([0-9]{4}\\)"; "") | ascii_downcase) as $clean_dn |
+                
                 .[] | 
-                # Remove year in brackets from media_name for a cleaner search
-                ($name | gsub(" \\([0-9]{4}\\)"; "")) as $clean_name |
+                # 2. Prepare variations of the Sonarr entry
+                (.title | ascii_downcase) as $st |
+                (.path | ascii_downcase) as $sp |
+                
+                # 3. Check for matches
                 select(
-                    .title == $name or 
-                    .title == $clean_name or 
-                    (.path | endswith($name)) or 
-                    (.path | endswith($clean_name))
+                    $st == $dn or 
+                    $st == $clean_dn or 
+                    ($sp | endswith($dn)) or 
+                    ($sp | endswith($clean_dn))
                 ) | "\(.id)|\(.monitored)"' | head -n 1)
 
             if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
