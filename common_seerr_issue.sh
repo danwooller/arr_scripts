@@ -1,10 +1,11 @@
 # --- Consolidated Seerr Sync & Search Function ---
 sync_seerr_issue() {
 
-    local media_name="$1"
-    local media_type="$2"   # "tv" or "movie"
-    local message="$3"      # Error details or missing ep list
-    local media_id="$4"     # Optional Manual Map ID
+	local media_name="$1"
+    local media_type="$2"
+    local issue_msg="$3"
+    local media_id="$4"
+    local target_status="${5:-1}" # Default to 1 (Open) if not specified
 
     # ---------------------------------------------
 
