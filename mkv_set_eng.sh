@@ -6,6 +6,7 @@ source "/usr/local/bin/common_functions.sh"
 # Configuration
 SOURCE_DIR="${1:-/mnt/media/Movies}"
 DRY_RUN=${DRY_RUN:-false}        # Defaults to false if not set/exported
+#LOG_LEVEL="debug"
 LOG_LEVEL=${LOG_LEVEL:-"info"}   # Defaults to info if not set
 
 # Reset the internal timer
