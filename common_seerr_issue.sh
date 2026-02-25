@@ -20,7 +20,14 @@ sync_seerr_issue() {
         # echo "DEBUG: Search URL: $search_url/search?query=$encoded_query" >&2
 
         # Extract ID (Media ID first, then TMDB ID)
-        media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
+        #media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
+        media_id=$(echo "$search_results" | jq -r '
+            .results // [] | 
+            .[] | 
+            select(.mediaType | ascii_downcase == "tv") | 
+            (.mediaInfo.id // .id) 
+        ' | head -n 1)
+        [[ "$media_id" == "null" ]] && media_id=""
     fi
 
     # Final Catch: If media_id is still empty, we can't proceed
