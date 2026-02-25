@@ -9,7 +9,7 @@ sync_seerr_issue() {
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
-        local search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
+        local search_results=$(curl -s -X GET "$SEERR_API_SEARCH/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
         media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
     fi
 
@@ -19,7 +19,7 @@ sync_seerr_issue() {
     fi
 
     # 2. Deduplication Check
-    local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
+    local existing_issues=$(curl -s -X GET "$SEERR_API_ISSUES/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
     local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
         '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | "\(.id)|\(.message)"' | head -n 1)
     
@@ -31,7 +31,7 @@ sync_seerr_issue() {
         if [[ -n "$issue_id" ]]; then
             log "✅ RESOLVED: Marking Seerr issue #$issue_id for $media_name as resolved."
             # Changed from DELETE to POST and updated the URL endpoint
-            curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+            curl -s -o /dev/null -X POST "$SEERR_API_ISSUES/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
         return 0
     fi
@@ -52,7 +52,7 @@ sync_seerr_issue() {
     # 5. Create New Issue
     local json_payload=$(jq -n --arg mt "1" --arg msg "$message" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
-    curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue" -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload"
+    curl -s -o /dev/null -X POST "$SEERR_API_ISSUES/issue" -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload"
     log "🚀 Seerr Issue created for $media_name."
 
     # 6. Trigger Arr Search (Smart Instance Detection)
