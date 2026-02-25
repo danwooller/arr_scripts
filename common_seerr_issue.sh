@@ -6,9 +6,8 @@ sync_seerr_issue() {
     local media_id="$4"
     local target_status="${5:-1}"
 
-    # Use the exported variables directly (ensuring no hidden junk)
-    local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
-    local s_search_api=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n[:space:]')
+    local s_key="1740497542629daf0528f-86cf-46f9-a891-8e30e1cf76f9"
+    local full_base="http://192.168.0.24:5055"
 
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
