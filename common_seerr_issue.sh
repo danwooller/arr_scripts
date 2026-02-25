@@ -57,7 +57,7 @@ sync_seerr_issue() {
     local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
     local old_msg=$(echo "$existing_data" | cut -d'|' -f2)
 
-    # 3. Resolution Logic
+    # 4. Resolution Logic
     if [[ -z "$message" ]]; then
         if [[ -n "$issue_id" ]]; then
             log "✅ RESOLVED: Marking Seerr issue #$issue_id for $media_name as resolved."
@@ -67,7 +67,7 @@ sync_seerr_issue() {
         return 0
     fi
 
-    # 4. Change Detection
+    # 5. Change Detection
     if [[ -n "$issue_id" ]]; then
         local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
         local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
@@ -80,7 +80,7 @@ sync_seerr_issue() {
         fi
     fi
 
-    # 5. Create New Issue
+    # 6. Create New Issue
     local json_payload=$(jq -n --arg mt "1" --arg msg "$message" --arg id "$media_id" \
         '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
     curl -s -o /dev/null -X POST "$SEERR_API_ISSUES/issue" -H "X-Api-Key: $SEERR_API_KEY" -H "Content-Type: application/json" -d "$json_payload"
