@@ -41,10 +41,11 @@ sync_seerr_issue() {
         local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
         local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
 
-        if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
+    if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
             return 0 # No change in episode list
         else
-            curl -s -X DELETE "$SEERR_API_BASE/issue/$issue_id" -H "X-Api-Key: $SEERR_API_KEY"
+            # Changed from DELETE to POST/resolved
+            curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
 
