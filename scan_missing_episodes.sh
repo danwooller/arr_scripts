@@ -39,9 +39,18 @@ trigger_sonarr_search() {
 
 [[ $LOG_LEVEL == "debug" ]] && log "Starting scan in $TARGET_DIR..."
 
-find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
+if [[ -d "$TARGET_DIR/Season 1" ]] || [[ -d "$TARGET_DIR/Season 01" ]]; then
+    # It's a single series folder
+    targets=("$TARGET_DIR")
+else
+    # It's a parent directory (like /mnt/media/TV)
+    mapfile -t targets < <(find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d)
+fi
+
+for series_path in "${targets[@]}"; do
     series_name=$(basename "$series_path")
     
+    # Skip if in exclude list
     for exclude in "${EXCLUDE_DIRS[@]}"; do
         [[ "$series_name" == "$exclude" ]] && continue 2
     done
