@@ -4,12 +4,21 @@ sync_seerr_issue() {
     local message="$3"      # Error details or missing ep list
     local media_id="$4"     # Optional Manual Map ID
 
-    # 1. Get Seerr Media ID
+    # 1. Get Seerr Media ID with Fallback
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        # Try 1: Clean search (No year, no dots)
         local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
         local search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
+        
         media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
+
+        # Try 2: Fallback to exact folder name if Clean Search failed
+        if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+            local raw_query=$(echo "$media_name" | jq -Rr @uri)
+            search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$raw_query" -H "X-Api-Key: $SEERR_API_KEY")
+            media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
+        fi
     fi
 
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
