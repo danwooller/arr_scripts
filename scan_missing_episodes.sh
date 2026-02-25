@@ -32,14 +32,22 @@ else
 fi
 
 # --- 2. Clean up issues for Excluded Directories ---
-if [[ ${#EXCLUDE_DIRS[@]} -gt 0 ]]; then
-    [[ $LOG_LEVEL == "debug" ]] && log "Cleaning up Seerr issues for EXCLUDE_DIRS..."
-    for excluded_name in "${EXCLUDE_DIRS[@]}"; do
-        # We redirect stderr to /dev/null to suppress "Could not link to ID" 
-        # for items we know aren't in Seerr anyway.
-        sync_seerr_issue "$excluded_name" "tv" "" "${MANUAL_MAPS[$excluded_name]}" 2>/dev/null
-    done
-fi
+for excluded_name in "${EXCLUDE_DIRS[@]}"; do
+    # 1. Check if we have a Manual Map first
+    local media_id="${MANUAL_MAPS[$excluded_name]}"
+    
+    # 2. If no Manual Map, do a quick silent search to see if it even exists in Seerr
+    if [[ -z "$media_id" ]]; then
+        local search_term=$(echo "$excluded_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
+        local encoded_query=$(echo "$search_term" | jq -Rr @uri)
+        media_id=$(curl -s -X GET "$SEERR_API_BASE/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.results[] | select(.mediaType == "tv").mediaInfo.id // empty' | head -n 1)
+    fi
+
+    # 3. Only call sync if we actually found a valid ID to resolve
+    if [[ -n "$media_id" && "$media_id" != "null" ]]; then
+        sync_seerr_issue "$excluded_name" "tv" "" "$media_id"
+    fi
+done
 
 # --- 3. Process Each Series ---
 for series_path in "${targets[@]}"; do
