@@ -129,8 +129,19 @@ sync_seerr_issue() {
             fi
             
             # Find the ID by matching the title or the end of the path
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
-            
+            #local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
+            # Optimized search for Sonarr
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '
+                .[] | 
+                # Remove year in brackets from media_name for a cleaner search
+                ($name | gsub(" \\([0-9]{4}\\)"; "")) as $clean_name |
+                select(
+                    .title == $name or 
+                    .title == $clean_name or 
+                    (.path | endswith($name)) or 
+                    (.path | endswith($clean_name))
+                ) | "\(.id)|\(.monitored)"' | head -n 1)
+
             if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
                 local s_id=$(echo "$s_data" | cut -d'|' -f1)
                 payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
