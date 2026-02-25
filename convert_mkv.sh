@@ -18,7 +18,6 @@ OUTPUT_DIR="/mnt/media/torrent/completed"
 FINISHED_DIR="/mnt/media/torrent/finished/"
 LOG_FILE="/mnt/media/torrent/${HOST}.log"
 #LOG_LEVEL="debug"
-LOG_LEVEL=${LOG_LEVEL:-"info"}   # Defaults to info if not set
 POLL_INTERVAL=30
 
 mkdir -p "$OUTPUT_DIR" "$FINISHED_DIR"
