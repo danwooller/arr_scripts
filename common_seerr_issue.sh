@@ -6,64 +6,35 @@ sync_seerr_issue() {
     local media_id="$4"
     local target_status="${5:-1}"
 
-    # 1. FORCE LOAD AND CLEAN RIGHT HERE
-    # We use grep and sed to pull the raw value directly from the file, 
-    # bypassing any shell environment issues.
-    local s_key=$(grep "SEERR_API_KEY" /usr/local/bin/common_keys.txt | cut -d'"' -f2 | tr -d '\r\n[:space:]')
-    local s_url=$(grep "SEERR_URL" /usr/local/bin/common_keys.txt | cut -d'"' -f2 | head -n 1 | tr -d '\r\n[:space:]')
+    # 1. Robust Variable Recovery
+    # We pull the Key and the URL directly, stripping quotes and spaces.
+    local s_key=$(grep "SEERR_API_KEY" /usr/local/bin/common_keys.txt | head -n 1 | cut -d'"' -f2 | tr -d '\r\n[:space:]')
     
-    # Fallback if the grep fails
-    [[ -z "$s_key" ]] && s_key="$SEERR_API_KEY"
-    [[ -z "$s_base" ]] && s_base="${SEERR_URL%/}"
-
+    # We look for the SEERR_URL specifically (e.g., http://192.168.0.24:5055)
+    local s_base=$(grep "SEERR_URL=" /usr/local/bin/common_keys.txt | head -n 1 | cut -d'"' -f2 | tr -d '\r\n[:space:]')
+    
+    # Remove any trailing slash and build the search path manually
+    local full_base="${s_base%/}"
+    
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        # Clean the search term
         local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
-        local full_url="${s_url%/}/api/v3/search?query=${encoded_query}"
+        
+        # Manually construct the URL to ensure it is perfect
+        local full_url="$full_base/api/v3/search?query=${encoded_query}"
 
-        # 2. Use the forced local variable
+        # 2. The Search
         local search_results=$(curl -s -X GET "$full_url" -H "X-Api-Key: $s_key" -H "Accept: application/json")
 
         if [[ -z "$search_results" || "$search_results" == *"<html>"* ]]; then
             local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
-            log "⚠️ Seerr Fail (HTTP $http_code) for '$media_name'."
+            # If it still fails, we log the URL so we can see what the script "made"
+            log "⚠️ Seerr Fail (HTTP $http_code) for '$media_name'. Path: $full_url"
             return 1
         fi
         
         media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' 2>/dev/null | head -n 1)
-    fi
-
-    # 1. Get Seerr Media ID if not provided
-    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        # 1. Aggressive cleaning of the search term (No xargs to avoid quote crashes)
-        local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-        
-        # 2. Encode query
-        local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
-        
-        # 3. Force-scrub the Key and URL right before use
-        local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
-        local s_url=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n[:space:]')
-        local full_url="${s_url%/}/search?query=${encoded_query}"
-
-        # 4. Perform the search
-        local search_results=$(curl -s -f -X GET "$full_url" -H "X-Api-Key: $s_key")
-
-        if [[ -z "$search_results" ]]; then
-            # GET THE ACTUAL HTTP CODE
-            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
-            
-            # DEBUG: This will tell us if the key is empty
-            if [[ -z "$s_key" ]]; then
-                log "❌ CRITICAL: SEERR_API_KEY is EMPTY inside the function!"
-            else
-                log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code)."
-            fi
-            return 1
-        fi
-        
-        # 5. Extract ID
-        media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
     fi
 
     # If we still don't have a media_id, we can't do anything else
