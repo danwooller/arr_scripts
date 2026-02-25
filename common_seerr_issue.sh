@@ -1,38 +1,32 @@
 # --- Consolidated Seerr Sync & Search Function ---
 sync_seerr_issue() {
-    # 1. Capture arguments
     local media_name="$1"
     local media_type="$2"
     local issue_msg="$3"
     local media_id="$4"
     local target_status="${5:-1}"
 
-    # 2. Hard-scrub the keys to ensure no hidden \r or \n (The most common script-only fail)
-    local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n ' )
-    local s_url=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n ' )
+    # 1. FORCE LOAD AND CLEAN RIGHT HERE
+    # We use grep and sed to pull the raw value directly from the file, 
+    # bypassing any shell environment issues.
+    local s_key=$(grep "SEERR_API_KEY" /usr/local/bin/common_keys.txt | cut -d'"' -f2 | tr -d '\r\n[:space:]')
+    local s_url=$(grep "SEERR_URL" /usr/local/bin/common_keys.txt | cut -d'"' -f2 | head -n 1 | tr -d '\r\n[:space:]')
+    
+    # Fallback if the grep fails
+    [[ -z "$s_key" ]] && s_key="$SEERR_API_KEY"
+    [[ -z "$s_base" ]] && s_base="${SEERR_URL%/}"
 
-    # 3. Get ID if missing
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
-        
-        local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
-        local s_base=$(echo "${SEERR_URL%/}" | tr -d '\r\n[:space:]')
-        local full_url="$s_base/api/v3/search?query=${encoded_query}"
+        local full_url="${s_url%/}/api/v3/search?query=${encoded_query}"
 
-        # --- THE FINAL TEST ---
-        # We define the header as a separate variable to ensure no quoting issues
-        local header_str="X-Api-Key: $s_key"
-
-        # Run search with explicit headers and no redirection following (to catch the 307)
-        local search_results=$(curl -s -X GET "$full_url" -H "$header_str" -H "Accept: application/json")
+        # 2. Use the forced local variable
+        local search_results=$(curl -s -X GET "$full_url" -H "X-Api-Key: $s_key" -H "Accept: application/json")
 
         if [[ -z "$search_results" || "$search_results" == *"<html>"* ]]; then
-            # If we see HTML or nothing, we check the code
-            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "$header_str")
-            
-            # This is the "Nuclear Debug": it prints the exact command you can copy-paste
-            log "⚠️ Seerr Fail (HTTP $http_code). Try this manually: curl -v -H \"$header_str\" \"$full_url\""
+            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
+            log "⚠️ Seerr Fail (HTTP $http_code) for '$media_name'."
             return 1
         fi
         
