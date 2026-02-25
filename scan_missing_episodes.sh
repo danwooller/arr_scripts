@@ -7,6 +7,7 @@ source "/usr/local/bin/common_seerr_issue.sh"
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
 if [[ -f "$CONFIG_FILE" ]]; then
+    # Source the file, but strip any trailing Windows CR characters on the fly
     source <(sed 's/\r$//' "$CONFIG_FILE")
 else
     log "WARN: Config file $CONFIG_FILE not found."
@@ -19,69 +20,57 @@ check_dependencies "curl" "jq" "sed" "grep"
 TARGET_DIR="${1:-/mnt/media/TV}"
 LOG_LEVEL="debug"
 
+trigger_sonarr_search() {
+    local series_name="$1"
+    local sonarr_series=$(curl -s -X GET "$SONARR_URL/api/v3/series" -H "X-Api-Key: $SONARR_API_KEY")
+    local sonarr_data=$(echo "$sonarr_series" | jq -r --arg name "$series_name" \
+        '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
+
+    if [[ -n "$sonarr_data" ]]; then
+        local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
+        local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
+        if [[ "$s_monitored" == "true" ]]; then
+            log "🔍 Triggering Sonarr Search for $series_name..."
+            local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
+            curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
+        fi
+    fi
+}
+
 [[ $LOG_LEVEL == "debug" ]] && log "Starting scan in $TARGET_DIR..."
 
-# --- 1. Identify Target Folders ---
-# Check if the TARGET_DIR contains ANY "Season" folder
-if ls "$TARGET_DIR" | grep -qi "^Season "; then
-    # It's a single series folder
-    targets=("$TARGET_DIR")
-else
-    # It's a parent directory (like /mnt/media/TV)
-    mapfile -t targets < <(find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d)
-fi
-
-# --- 2. Process Each Series ---
-for series_path in "${targets[@]}"; do
+find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
     
     for exclude in "${EXCLUDE_DIRS[@]}"; do
         [[ "$series_name" == "$exclude" ]] && continue 2
     done
     
-    # Build list of existing episodes
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
     missing_in_series=""
-    if [[ ${#ep_list[@]} -ge 1 ]]; then
+    if [[ ${#ep_list[@]} -ge 2 ]]; then
         prev_s=-1; prev_e=-1
-        
         for ep in "${ep_list[@]}"; do
-            curr_s=$(echo "$ep" | cut -d'x' -f1 | sed 's/^0//')
+            curr_s=$(echo "$ep" | cut -d'x' -f1)
             range=$(echo "$ep" | cut -d'x' -f2)
-            start_e=$(echo "$range" | cut -d'-' -f1 | sed 's/^0//')
-            end_e=$(echo "$range" | cut -d'-' -f2 | sed 's/^0//')
-
-            # --- Detect Gap at Start of Season (Episode 01 missing) ---
-            if [[ "$curr_s" -ne "$prev_s" ]]; then
-                if [[ "$start_e" -gt 1 ]]; then
-                    for ((i=1; i<start_e; i++)); do 
-                        missing_in_series+="${curr_s}x$(printf "%02d" $i) "
-                    done
-                fi
-            # --- Detect Gap Between Episodes ---
-            elif [[ "$curr_s" -eq "$prev_s" ]]; then
+            start_e=$(echo "$range" | cut -d'-' -f1 | sed 's/^0//'); end_e=$(echo "$range" | cut -d'-' -f2 | sed 's/^0//')
+            if [[ "$curr_s" -eq "$prev_s" ]]; then
                 expected=$((prev_e + 1))
-                if [[ "$start_e" -gt "$expected" ]]; then
-                    for ((i=expected; i<start_e; i++)); do 
-                        missing_in_series+="${curr_s}x$(printf "%02d" $i) "
-                    done
-                fi
+                [[ "$start_e" -gt "$expected" ]] && for ((i=expected; i<start_e; i++)); do missing_in_series+="${curr_s}x$(printf "%02d" $i) "; done
             fi
-            
             prev_s=$curr_s; prev_e=$end_e
         done
     fi
 
-    # --- 3. Sync & Trigger ---
     if [[ -n "$missing_in_series" ]]; then
-        # sync_seerr_issue now handles Sonarr/Radarr search internally
         sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
     else
-        # Auto-resolve Seerr issue if list is empty
+        # Passing empty string triggers the AUTO-CLOSE logic
         sync_seerr_issue "$series_name" "tv" "" "${MANUAL_MAPS[$series_name]}"
     fi
+
 done
 
 [[ $LOG_LEVEL == "debug" ]] && log "✅ Scan complete."
