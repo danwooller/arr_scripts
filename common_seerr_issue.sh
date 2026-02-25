@@ -6,30 +6,22 @@ sync_seerr_issue() {
     local media_id="$4"
     local target_status="${5:-1}"
 
-    # 1. Robust Variable Recovery
-    # We pull the Key and the URL directly, stripping quotes and spaces.
-    local s_key=$(grep "SEERR_API_KEY" /usr/local/bin/common_keys.txt | head -n 1 | cut -d'"' -f2 | tr -d '\r\n[:space:]')
-    
-    # We look for the SEERR_URL specifically (e.g., http://192.168.0.24:5055)
-    local s_base=$(grep "SEERR_URL=" /usr/local/bin/common_keys.txt | head -n 1 | cut -d'"' -f2 | tr -d '\r\n[:space:]')
-    
-    # Remove any trailing slash and build the search path manually
-    local full_base="${s_base%/}"
-    
+    # Use the exported variables directly (ensuring no hidden junk)
+    local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
+    local s_search_api=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n[:space:]')
+
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        # Clean the search term
         local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
         
-        # Manually construct the URL to ensure it is perfect
-        local full_url="$full_base/api/v3/search?query=${encoded_query}"
+        # Build URL using the scrubbed search API variable
+        local full_url="${s_search_api%/}/search?query=${encoded_query}"
 
-        # 2. The Search
+        # Perform Search
         local search_results=$(curl -s -X GET "$full_url" -H "X-Api-Key: $s_key" -H "Accept: application/json")
 
         if [[ -z "$search_results" || "$search_results" == *"<html>"* ]]; then
             local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
-            # If it still fails, we log the URL so we can see what the script "made"
             log "⚠️ Seerr Fail (HTTP $http_code) for '$media_name'. Path: $full_url"
             return 1
         fi
