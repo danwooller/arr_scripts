@@ -110,4 +110,59 @@ sync_seerr_issue() {
     elif [[ -n "$instance_name" ]]; then
         log "⚠️  $instance_name: Could not find monitored entry for '$media_name' to trigger search."
     fi
+
+    # 6. Trigger Arr Search (Smart Instance Detection)
+    # Only trigger search if we actually just created a new issue
+    if [[ -n "$message" && ("$http_status" == "201" || "$http_status" == "200") ]]; then
+        local target_url=""
+        local target_key=""
+        local payload=""
+
+        if [[ "$media_type" == "tv" ]]; then
+            if [[ "$message" =~ "4K" || "$TARGET_DIR" =~ "4K" ]]; then
+                target_url="$SONARR4K_API_BASE"
+                target_key="$SONARR4K_API_KEY"
+                log "📡 Routing search to Sonarr 4K..."
+            else
+                target_url="$SONARR_API_BASE"
+                target_key="$SONARR_API_KEY"
+            fi
+            
+            # Find the ID by matching the title or the end of the path
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
+            
+            if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
+                local s_id=$(echo "$s_data" | cut -d'|' -f1)
+                payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
+                log "🔍 Sonarr: Triggering search for $media_name (ID: $s_id)..."
+            fi
+
+        elif [[ "$media_type" == "movie" ]]; then
+            if [[ "$message" =~ "4K" || "$TARGET_DIR" =~ "4K" ]]; then
+                target_url="$RADARR4K_API_BASE"
+                target_key="$RADARR4K_API_KEY"
+                log "📡 Routing search to Radarr 4K..."
+            else
+                target_url="$RADARR_API_BASE"
+                target_key="$RADARR_API_KEY"
+            fi
+            
+            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
+            
+            if [[ "$(echo "$r_data" | cut -d'|' -f2)" == "true" ]]; then
+                local r_id=$(echo "$r_data" | cut -d'|' -f1)
+                payload=$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
+                log "🔍 Radarr: Triggering search for $media_name (ID: $r_id)..."
+            fi
+
+        elif [[ "$media_type" == "music" ]]; then
+            log "🔍 Lidarr: Triggering search for $media_name..."
+            curl -s -o /dev/null -X POST "$LIDARR_API_BASE/command" -H "X-Api-Key: $LIDARR_API_KEY" -H "Content-Type: application/json" -d '{"name": "ArtistSearch"}'
+        fi
+
+        # Execute Search if payload was built
+        if [[ -n "$payload" ]]; then
+            curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "$payload"
+        fi
+    fi
 }
