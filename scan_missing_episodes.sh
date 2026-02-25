@@ -19,51 +19,49 @@ check_dependencies "curl" "jq" "sed" "grep"
 TARGET_DIR="${1:-/mnt/media/TV}"
 LOG_LEVEL="debug"
 
-[[ $LOG_LEVEL == "debug" ]] && log "Starting scan in $TARGET_DIR..."
-
-# --- 1. Identify Target Folders ---
-# Check if the TARGET_DIR contains ANY "Season" folder
-if ls "$TARGET_DIR" | grep -qi "^Season "; then
-    # It's a single series folder
-    targets=("$TARGET_DIR")
-else
-    # It's a parent directory (like /mnt/media/TV)
-    mapfile -t targets < <(find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d)
-fi
-
-# --- 2. Clean up issues for Excluded Directories ---
+# --- 1. Cleanup Excluded Directories (Silent) ---
+# This resolves issues for shows you've decided to ignore
 for excluded_name in "${EXCLUDE_DIRS[@]}"; do
-    # 1. Check if we have a Manual Map first
-    media_id="${MANUAL_MAPS[$excluded_name]}"
+    # Check MANUAL_MAPS first (highest priority)
+    ex_id="${MANUAL_MAPS[$excluded_name]}"
     
-    # 2. If no Manual Map, do a quick silent search
-    if [[ -z "$media_id" ]]; then
-        search_term=$(echo "$excluded_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
-        encoded_query=$(echo "$search_term" | jq -Rr @uri)
+    # Fallback to a silent Seerr search if no manual ID exists
+    if [[ -z "$ex_id" || "$ex_id" == "null" ]]; then
+        ex_search=$(echo "$excluded_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
+        ex_query=$(echo "$ex_search" | jq -Rr @uri)
         
-        # Capture raw results first to check for null/empty
-        search_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
+        # We use SEERR_API_BASE (ensure this is set in your common functions)
+        ex_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$ex_query" -H "X-Api-Key: $SEERR_API_KEY")
         
-        if [[ -n "$search_results" && "$search_results" != "null" ]]; then
-            media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv").mediaInfo.id // empty' | head -n 1)
-        fi
+        # Robust JQ: handles null results and missing mediaInfo gracefully
+        ex_id=$(echo "$ex_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv").mediaInfo.id // empty' | head -n 1)
     fi
 
-    # 3. Only call sync if we actually found a valid ID
-    if [[ -n "$media_id" && "$media_id" != "null" ]]; then
-        sync_seerr_issue "$excluded_name" "tv" "" "$media_id"
+    # Only attempt resolution if we actually found a valid ID
+    if [[ -n "$ex_id" && "$ex_id" != "null" ]]; then
+        sync_seerr_issue "$excluded_name" "tv" "" "$ex_id"
     fi
 done
+
+[[ $LOG_LEVEL == "debug" ]] && log "Starting scan in $TARGET_DIR..."
+
+# --- 2. Identify Target Folders ---
+if ls "$TARGET_DIR" | grep -qi "^Season "; then
+    targets=("$TARGET_DIR")
+else
+    mapfile -t targets < <(find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d)
+fi
 
 # --- 3. Process Each Series ---
 for series_path in "${targets[@]}"; do
     series_name=$(basename "$series_path")
     
+    # Skip items in EXCLUDE_DIRS
     for exclude in "${EXCLUDE_DIRS[@]}"; do
         [[ "$series_name" == "$exclude" ]] && continue 2
     done
     
-    # Build list of existing episodes
+    # Get existing episodes
     mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
@@ -77,14 +75,14 @@ for series_path in "${targets[@]}"; do
             start_e=$(echo "$range" | cut -d'-' -f1 | sed 's/^0//')
             end_e=$(echo "$range" | cut -d'-' -f2 | sed 's/^0//')
 
-            # --- Detect Gap at Start of Season (Episode 01 missing) ---
+            # Detect Gap at Start of Season
             if [[ "$curr_s" -ne "$prev_s" ]]; then
                 if [[ "$start_e" -gt 1 ]]; then
                     for ((i=1; i<start_e; i++)); do 
                         missing_in_series+="${curr_s}x$(printf "%02d" $i) "
                     done
                 fi
-            # --- Detect Gap Between Episodes ---
+            # Detect Gap Between Episodes
             elif [[ "$curr_s" -eq "$prev_s" ]]; then
                 expected=$((prev_e + 1))
                 if [[ "$start_e" -gt "$expected" ]]; then
@@ -98,12 +96,11 @@ for series_path in "${targets[@]}"; do
         done
     fi
 
-    # --- 4. Sync & Trigger ---
+    # --- 4. Sync & Trigger Search ---
+    # Passing the manual map ID here ensures Seerr finds the right show even if naming is tricky
     if [[ -n "$missing_in_series" ]]; then
-        # sync_seerr_issue now handles Sonarr/Radarr search internally
         sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
     else
-        # Auto-resolve Seerr issue if list is empty
         sync_seerr_issue "$series_name" "tv" "" "${MANUAL_MAPS[$series_name]}"
     fi
 done
