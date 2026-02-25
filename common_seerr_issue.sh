@@ -16,29 +16,26 @@ sync_seerr_issue() {
         local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
         
-        # Scrub the globals
+        # Scrub and FORCE use the IP if you haven't already updated common_keys
         local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
-        local s_url=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n[:space:]')
-        local full_url="${s_url%/}/search?query=${encoded_query}"
+        # This removes any trailing slashes from the base URL to prevent //api
+        local s_base=$(echo "${SEERR_URL%/}" | tr -d '\r\n[:space:]')
+        local full_url="$s_base/api/v3/search?query=${encoded_query}"
 
-        # --- LOG THE SKELETON OF THE KEY ---
-        if [[ -z "$s_key" ]]; then
-            log "❌ ERROR: SEERR_API_KEY is empty inside the function!"
-        else
-            # This prints the first 4 and last 4 chars of what the script THINKS the key is
-            log "DEBUG: Key Check: [${s_key:0:4}...${s_key: -4}] (Length: ${#s_key})"
-        fi
-
-        # Perform the Search with a User-Agent just in case
-        local search_results=$(curl -s -f -L -X GET "$full_url" -H "X-Api-Key: $s_key")
+        # Perform the Search with strict headers
+        local search_results=$(curl -s -f -X GET "$full_url" \
+            -H "X-Api-Key: $s_key" \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json")
 
         if [[ -z "$search_results" ]]; then
             local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
-            log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code)."
+            log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code). URL used: $full_url"
             return 1
         fi
         
-        media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
+        # Extract ID (Added a safeguard for the jq parse)
+        media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' 2>/dev/null | head -n 1)
     fi
 
     # 1. Get Seerr Media ID if not provided
