@@ -34,16 +34,21 @@ sync_seerr_issue() {
         return 0
     fi
 
-    # 4. Change Detection
+    # 4. Change Detection (Episode-Only Comparison)
     if [[ -n "$issue_id" ]]; then
-        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
-        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort | xargs)
+        # Extract episode codes (e.g., 2x08, 10x12) and normalize them
+        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -u | xargs)
+        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort -u | xargs)
 
+        # If the list of missing episodes hasn't changed, exit quietly
         if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
+            # log "ℹ️  No change in missing episodes for $media_name. Skipping."
             return 0 
+        else
+            # Only resolve if the episode list actually changed
+            log "🔄 Change detected for $media_name. Updating Seerr issue..."
+            curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
-        # Resolve old if message changed
-        curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
     fi
 
     # 5. Create New Issue (Crucial: Capture http_status)
