@@ -7,37 +7,30 @@ sync_seerr_issue() {
 
     # 1. Get Seerr Media ID
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        # Ensure we have a search URL (Fallback to standard if variable is missing)
-        local search_url="${SEERR_API_SEARCH:-${SEERR_API_BASE%/v1}/v3}"
-        
-        local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
+        # Clean the name: Remove (Year), remove S01, etc.
+        local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/Season [0-9]+//gi; s/[._]/ /g; s/ +/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
         
-        # Perform the Search
-        local search_results=$(curl -s -X GET "$search_url/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
-        
-        # Debugging (Uncomment the next line if it still fails to see the raw response)
-        # echo "DEBUG: Search URL: $search_url/search?query=$encoded_query" >&2
+        # Ensure the URL is clean (No trailing slashes, adds /search)
+        local base_url="${SEERR_API_SEARCH%/}"
+        local full_search_url="${base_url}/search?query=${encoded_query}"
 
-        # Extract ID (Media ID first, then TMDB ID)
-        #media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
+        local search_results=$(curl -s -X GET "$full_search_url" -H "X-Api-Key: $SEERR_API_KEY")
+        
+        # Robust ID Grabber
+        # 1. Tries to find the item already in your library (.mediaInfo.id)
+        # 2. Falls back to the global ID (.id)
         media_id=$(echo "$search_results" | jq -r '
             .results // [] | 
             .[] | 
-            select(.mediaType | ascii_downcase == "tv") | 
-            (.mediaInfo.id // .id) 
+            select(.mediaType == "tv") | 
+            (.mediaInfo.id // .id)
         ' | head -n 1)
-        [[ "$media_id" == "null" ]] && media_id=""
     fi
 
     # Final Catch: If media_id is still empty, we can't proceed
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         log "⚠️  Seerr: Could not link '$media_name' to an ID via $search_url."
-        return 1
-    fi
-
-    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        log "⚠️  Seerr: Could not link '$media_name' to an ID."
         return 1
     fi
 
