@@ -38,20 +38,36 @@ sync_seerr_issue() {
 
     # 1. Get Seerr Media ID if not provided
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
-        local encoded_query=$(echo "$search_term" | jq -Rr @uri)
+        # 1. Aggressive cleaning of the search term (No xargs to avoid quote crashes)
+        local search_term=$(echo "$media_name" | sed -E 's/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         
-        # Build the URL using the exported global from common_keys.txt
-        local full_url="${SEERR_API_SEARCH%/}/search?query=${encoded_query}"
+        # 2. Encode query
+        local encoded_query=$(echo -n "$search_term" | jq -sRr @uri | tr -d '\r\n')
+        
+        # 3. Force-scrub the Key and URL right before use
+        local s_key=$(echo "$SEERR_API_KEY" | tr -d '\r\n[:space:]')
+        local s_url=$(echo "$SEERR_API_SEARCH" | tr -d '\r\n[:space:]')
+        local full_url="${s_url%/}/search?query=${encoded_query}"
 
-        # Perform the Search using the global API Key
-        local search_results=$(curl -s -X GET "$full_url" -H "X-Api-Key: $SEERR_API_KEY")
-        
-        # Safeguard: If search_results is empty, stop here to avoid jq errors
+        # 4. Perform the search
+        local search_results=$(curl -s -f -X GET "$full_url" -H "X-Api-Key: $s_key")
+
         if [[ -z "$search_results" ]]; then
-            log "⚠️ Seerr: API search returned nothing for '$media_name'."
+            # GET THE ACTUAL HTTP CODE
+            local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
+            
+            # DEBUG: This will tell us if the key is empty
+            if [[ -z "$s_key" ]]; then
+                log "❌ CRITICAL: SEERR_API_KEY is EMPTY inside the function!"
+            else
+                log "⚠️ Seerr: API failed for '$media_name' (HTTP: $http_code)."
+            fi
             return 1
         fi
+        
+        # 5. Extract ID
+        media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
+    fi
 
         # Robust Extraction
         media_id=$(echo "$search_results" | jq -r '
