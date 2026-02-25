@@ -6,9 +6,9 @@ sync_seerr_issue() {
     local message="$3"      # Error details or missing ep list
     local media_id="$4"     # Optional Manual Map ID
 
-    local search_api="${SEERR_API_SEARCH:-http://wooller.com:5055/api/v3}"
-    local issue_api="${SEERR_API_ISSUES:-http://wooller.com:5055/api/v1}"
-    local api_key="${SEERR_API_KEY}" 
+#    local search_api="${SEERR_API_SEARCH:-http://wooller.com:5055/api/v3}"
+#    local issue_api="${SEERR_API_ISSUES:-http://wooller.com:5055/api/v1}"
+#    local api_key="${SEERR_API_KEY}" 
     # ---------------------------------------------
 
     # 1. Get Seerr Media ID if not provided
