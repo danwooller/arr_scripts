@@ -30,9 +30,7 @@ sync_seerr_issue() {
         fi
 
         # Perform the Search with a User-Agent just in case
-        local search_results=$(curl -s -f -X GET "$full_url" \
-            -H "X-Api-Key: $s_key" \
-            -H "User-Agent: ShellScript/1.0")
+        local search_results=$(curl -s -f -L -X GET "$full_url" -H "X-Api-Key: $s_key")
 
         if [[ -z "$search_results" ]]; then
             local http_code=$(curl -s -o /dev/null -w "%{http_code}" -X GET "$full_url" -H "X-Api-Key: $s_key")
