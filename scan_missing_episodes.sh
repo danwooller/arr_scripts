@@ -23,7 +23,6 @@ check_dependencies "curl" "jq" "sed" "grep"
 
 TARGET_DIR="${1:-/mnt/media/TV}"
 #LOG_LEVEL="debug"
-LOG_LEVEL=${LOG_LEVEL:-"info"}   # Defaults to info if not set
 
 # --- 1. Cleanup Excluded Directories (Silent & Prioritized) ---
 for excluded_name in "${EXCLUDE_DIRS[@]}"; do
