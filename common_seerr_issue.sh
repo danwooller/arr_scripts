@@ -10,7 +10,9 @@ sync_seerr_issue() {
         local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
         local search_results=$(curl -s -X GET "$SEERR_API_SEARCH/search?query=$encoded_query" -H "X-Api-Key: $SEERR_API_KEY")
-        media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
+        #media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
+        # Robust JQ: Grab mediaInfo.id if it exists, otherwise grab the TMDB id
+        media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
     fi
 
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
