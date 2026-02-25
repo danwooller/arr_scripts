@@ -4,6 +4,11 @@
 source "/usr/local/bin/common_functions.sh"
 source "/usr/local/bin/common_seerr_issue.sh"
 
+# Update your declarations to look like this:
+export SEERR_API_SEARCH="http://wooller.com:5055/api/v3"
+export SEERR_API_ISSUES="http://wooller.com:5055/api/v1"
+export SEERR_API_KEY="MTc0MDQ5NzU0MjYyOWRhZjA1MjhmLTg2Y2YtNDZmOS1hODkxLThlMzBlMWNmNzZmOQ=="
+
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
 if [[ -f "$CONFIG_FILE" ]]; then
@@ -18,7 +23,7 @@ check_dependencies "curl" "jq" "sed" "grep"
 
 TARGET_DIR="${1:-/mnt/media/TV}"
 LOG_LEVEL="debug"
-
+echo ">>>>>>>>>>>$SEERR_API_SEARCH"
 # --- 1. Cleanup Excluded Directories (Silent & Prioritized) ---
 for excluded_name in "${EXCLUDE_DIRS[@]}"; do
     ex_id=""
