@@ -15,6 +15,7 @@ MKV_EXTENSION=".mkv"
 # This default is used if the user doesn't specify a directory or files.
 DEFAULT_TARGET_DIR="/mnt/media/TV"
 #LOG_LEVEL="debug"
+LOG_LEVEL=${LOG_LEVEL:-"info"}   # Defaults to info if not set
 
 # --- Dependencies ---
 check_dependencies "mkvmerge"
