@@ -69,17 +69,6 @@ sync_seerr_issue() {
         media_id=$(echo "$search_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv") | (.mediaInfo.id // .id) // empty' | head -n 1)
     fi
 
-        # Robust Extraction
-        media_id=$(echo "$search_results" | jq -r '
-            .results | .[] | 
-            select(.mediaType | test("tv|series"; "i")) | 
-            (.mediaInfo.id // .id)
-        ' | head -n 1)
-
-        # Cleanup: Ensure we don't return the string "null"
-        [[ "$media_id" == "null" || -z "$media_id" ]] && media_id=""
-    fi
-
     # If we still don't have a media_id, we can't do anything else
     if [[ -z "$media_id" ]]; then
         log "⚠️ Seerr: Could not link '$media_name' to an ID."
