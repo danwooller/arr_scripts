@@ -130,22 +130,20 @@ sync_seerr_issue() {
             
             # Find the ID by matching the title or the end of the path
             #local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '
-                # 1. Prepare variations of the search name
-                ($name | ascii_downcase) as $dn |
-                ($name | gsub(" \\([0-9]{4}\\)"; "") | ascii_downcase) as $clean_dn |
-                
+            # 1. Clean the name (remove year and convert to lowercase)
+            local clean_name=$(echo "$media_name" | sed -E 's/ \([0-9]{4}\)//g' | tr '[:upper:]' '[:lower:]')
+    
+            # 2. Get Series List and find the match
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg clean "$clean_name" '
                 .[] | 
-                # 2. Prepare variations of the Sonarr entry
+                # Lowercase the title and path for comparison
                 (.title | ascii_downcase) as $st |
                 (.path | ascii_downcase) as $sp |
                 
-                # 3. Check for matches
+                # Match if the title matches OR if the path contains our clean name
                 select(
-                    $st == $dn or 
-                    $st == $clean_dn or 
-                    ($sp | endswith($dn)) or 
-                    ($sp | endswith($clean_dn))
+                    $st == $clean or 
+                    ($sp | contains($clean))
                 ) | "\(.id)|\(.monitored)"' | head -n 1)
 
             if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
