@@ -33,11 +33,11 @@ fi
 
 # --- 2. Clean up issues for Excluded Directories ---
 if [[ ${#EXCLUDE_DIRS[@]} -gt 0 ]]; then
-    log "Checking for open Seerr issues in EXCLUDE_DIRS..."
+    [[ $LOG_LEVEL == "debug" ]] && log "Cleaning up Seerr issues for EXCLUDE_DIRS..."
     for excluded_name in "${EXCLUDE_DIRS[@]}"; do
-        # Call sync_seerr_issue with an empty message to trigger the resolution logic
-        # This will find any open ticket for the excluded show and close it.
-        sync_seerr_issue "$excluded_name" "tv" "" "${MANUAL_MAPS[$excluded_name]}"
+        # We redirect stderr to /dev/null to suppress "Could not link to ID" 
+        # for items we know aren't in Seerr anyway.
+        sync_seerr_issue "$excluded_name" "tv" "" "${MANUAL_MAPS[$excluded_name]}" 2>/dev/null
     done
 fi
 
