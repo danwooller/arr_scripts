@@ -130,17 +130,15 @@ sync_seerr_issue() {
             
             # Find the ID by matching the title or the end of the path
             #local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
-            # 1. Get the absolute path of the target directory and strip trailing slash
-            local absolute_target=$(readlink -f "$TARGET_DIR" | sed 's:/*$::')
-    
-            # 2. Get Series List and match by Path (Sanitized)
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg target "$absolute_target" '
+            local folder_name=$(basename "${TARGET_DIR%/}")
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
                 .[] | 
-                # Sanitize Sonarr path: remove trailing slash and convert to lowercase
-                (.path | sub("/*$"; "") | ascii_downcase) as $sp |
-                ($target | ascii_downcase) as $tp |
+                # Get the base folder name from Sonarrs path (stripping trailing slash first)
+                ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
                 
-                select($sp == $tp) | "\(.id)|\(.monitored)"
+                # Compare lowercase folder names
+                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                "\(.id)|\(.monitored)"
             ' | head -n 1)
 
             if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
