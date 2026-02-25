@@ -19,26 +19,25 @@ check_dependencies "curl" "jq" "sed" "grep"
 TARGET_DIR="${1:-/mnt/media/TV}"
 LOG_LEVEL="debug"
 
-# --- 1. Cleanup Excluded Directories (Silent) ---
-# This resolves issues for shows you've decided to ignore
+# --- 1. Cleanup Excluded Directories (Silent & Prioritized) ---
 for excluded_name in "${EXCLUDE_DIRS[@]}"; do
-    # Check MANUAL_MAPS first (highest priority)
-    ex_id="${MANUAL_MAPS[$excluded_name]}"
-    
-    # Fallback to a silent Seerr search if no manual ID exists
-    if [[ -z "$ex_id" || "$ex_id" == "null" ]]; then
+    ex_id=""
+
+    # Check Manual Maps first
+    if [[ -n "${MANUAL_MAPS[$excluded_name]}" ]]; then
+        ex_id="${MANUAL_MAPS[$excluded_name]}"
+        [[ $LOG_LEVEL == "debug" ]] && log "Exclusion: Using Manual Map ID $ex_id for '$excluded_name'"
+    else
+        # Fallback to search only if no manual map exists
         ex_search=$(echo "$excluded_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
         ex_query=$(echo "$ex_search" | jq -Rr @uri)
-        
-        # We use SEERR_API_BASE (ensure this is set in your common functions)
         ex_results=$(curl -s -X GET "$SEERR_API_BASE/search?query=$ex_query" -H "X-Api-Key: $SEERR_API_KEY")
-        
-        # Robust JQ: handles null results and missing mediaInfo gracefully
         ex_id=$(echo "$ex_results" | jq -r '.results // [] | .[] | select(.mediaType == "tv").mediaInfo.id // empty' | head -n 1)
     fi
 
-    # Only attempt resolution if we actually found a valid ID
+    # Only attempt resolution if we have a valid ID
     if [[ -n "$ex_id" && "$ex_id" != "null" ]]; then
+        # Force resolution by passing an empty message
         sync_seerr_issue "$excluded_name" "tv" "" "$ex_id"
     fi
 done
