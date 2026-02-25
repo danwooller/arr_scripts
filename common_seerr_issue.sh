@@ -130,22 +130,18 @@ sync_seerr_issue() {
             
             # Find the ID by matching the title or the end of the path
             #local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or (.path | endswith($name))) | "\(.id)|\(.monitored)"' | head -n 1)
-            # 1. Sanitize the input: remove trailing slashes and lowercase it
-            local clean_input=$(echo "$media_name" | sed 's:/*$::' | tr '[:upper:]' '[:lower:]')
+            # 1. Get the absolute path of the target directory and strip trailing slash
+            local absolute_target=$(readlink -f "$TARGET_DIR" | sed 's:/*$::')
     
-            # 2. Match against Sonarr (Sanitizing the Sonarr path as well)
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg input "$clean_input" '
+            # 2. Get Series List and match by Path (Sanitized)
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg target "$absolute_target" '
                 .[] | 
-                # Remove trailing slash from Sonarr path and lowercase both
+                # Sanitize Sonarr path: remove trailing slash and convert to lowercase
                 (.path | sub("/*$"; "") | ascii_downcase) as $sp |
-                (.title | ascii_downcase) as $st |
-                ($input | ascii_downcase) as $in |
+                ($target | ascii_downcase) as $tp |
                 
-                select(
-                    $sp == $in or 
-                    ($sp | endswith($in)) or 
-                    $st == $in
-                ) | "\(.id)|\(.monitored)"' | head -n 1)
+                select($sp == $tp) | "\(.id)|\(.monitored)"
+            ' | head -n 1)
 
             if [[ "$(echo "$s_data" | cut -d'|' -f2)" == "true" ]]; then
                 local s_id=$(echo "$s_data" | cut -d'|' -f1)
