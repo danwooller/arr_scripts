@@ -12,7 +12,7 @@ sync_seerr_issue() {
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
         
         # Build the URL using the exported global from common_keys.txt
-        local full_url="${SEERR_API_SEARCH}/search?query=${encoded_query}"
+        local full_url="${SEERR_API_SEARCH%/}/search?query=${encoded_query}"
 
         # Perform the Search using the global API Key
         local search_results=$(curl -s -X GET "$full_url" -H "X-Api-Key: $SEERR_API_KEY")
