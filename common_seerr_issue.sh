@@ -76,7 +76,7 @@ sync_seerr_issue() {
             return 0 # No change in episode list
         else
             # Changed from DELETE to POST/resolved
-            curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+            curl -s -o /dev/null -X POST "$SEERR_API_ISSUES/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
 
