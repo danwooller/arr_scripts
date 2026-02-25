@@ -93,6 +93,62 @@ sync_seerr_issue() {
         -d "$json_payload"
     log "🚀 Seerr Issue created for $media_name."
 
-    # 7. Trigger Arr Search Logic... (The rest of your existing Sonarr/Radarr logic)
-    # Ensure you use $media_name and $issue_msg here
+# 7. Trigger Arr Search (Smart Instance Detection)
+    local target_url=""
+    local target_key=""
+    local instance_name=""
+    local payload=""
+
+    if [[ "$media_type" == "tv" ]]; then
+        # Check if it's a 4K show based on path or message
+        if [[ "$issue_msg" =~ "4K" || "$TARGET_DIR" =~ "4K" ]]; then
+            target_url="$SONARR4K_API_BASE"
+            target_key="$SONARR4K_API_KEY"
+            instance_name="Sonarr 4K"
+        else
+            target_url="$SONARR_API_BASE"
+            target_key="$SONARR_API_KEY"
+            instance_name="Sonarr"
+        fi
+        
+        # Verify show is monitored in Sonarr before searching
+        local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg name "$media_name" '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
+        local s_id=$(echo "$s_data" | cut -d'|' -f1)
+        local s_mon=$(echo "$s_data" | cut -d'|' -f2)
+
+        if [[ -n "$s_id" && "$s_mon" == "true" ]]; then
+            payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
+        fi
+
+    elif [[ "$media_type" == "movie" ]]; then
+        if [[ "$issue_msg" =~ "4K" || "$TARGET_DIR" =~ "4K" ]]; then
+            target_url="$RADARR4K_API_BASE"
+            target_key="$RADARR4K_API_KEY"
+            instance_name="Radarr 4K"
+        else
+            target_url="$RADARR_API_BASE"
+            target_key="$RADARR_API_KEY"
+            instance_name="Radarr"
+        fi
+        
+        # Verify movie is monitored in Radarr before searching
+        local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg name "$media_name" '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
+        local r_id=$(echo "$r_data" | cut -d'|' -f1)
+        local r_mon=$(echo "$r_data" | cut -d'|' -f2)
+
+        if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
+            payload=$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
+        fi
+    fi
+
+    # Execute the Search Command
+    if [[ -n "$payload" ]]; then
+        log "📡 $instance_name: Triggering search for '$media_name'..."
+        curl -s -o /dev/null -X POST "$target_url/command" \
+            -H "X-Api-Key: $target_key" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+    elif [[ -n "$instance_name" ]]; then
+        log "⚠️  $instance_name: Could not find monitored entry for '$media_name' to trigger search."
+    fi
 }
