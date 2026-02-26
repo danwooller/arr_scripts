@@ -1,15 +1,17 @@
 resolve_seerr_issue() {
     local media_name="$1"
     local media_type="$2"
+    local tmdb_id="$3"  # Pass this in from your scan script
 
-    # 1. Find the Open Issue ID by matching the name/title
-    local issue_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?status=open&limit=100" | \
-        jq -r --arg name "$media_name" '.results?[]? | select(.media.title == $name or .media.name == $name) | .id' | head -n 1)
+    # Fetch open issues
+    local response=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
+    
+    # Match based on TMDB ID (The most accurate way)
+    local issue_id=$(echo "$response" | jq -r --arg tid "$tmdb_id" '
+        .results[]? | select(.media.tmdbId == ($tid|tonumber)) | .id' | head -n 1)
 
-    if [[ -n "$issue_id" ]]; then
-        log "✅ Seerr: Media is now healthy. Resolving Issue #$issue_id for '$media_name'..."
-        
-        # Mark as resolved in Seerr
+    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
+        log "✅ Seerr: Media is healthy. Resolving Issue #$issue_id..."
         curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
             
         # 2. Trigger Arrs to verify the new file is on disk
