@@ -37,20 +37,27 @@ resolve_seerr_issue() {
         local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
 
         if [[ -n "$r_id" ]]; then
-            log "🎬 Radarr: Triggering full Refresh, Rescan, and Import for ID $r_id..."
+            log "🎬 Radarr: Force-updating Movie ID $r_id..."
             
-            # 1. Rescan the disk
-            curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" \
-                 -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}" > /dev/null
-            
-            # 2. Refresh metadata
-            curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" \
+            # 1. Refresh & Rescan (Standard)
+            curl -s -X POST "$RADARR_API_BASE/command" \
+                 -H "X-Api-Key: $RADARR_API_KEY" \
+                 -H "Content-Type: application/json" \
                  -d "{\"name\": \"RefreshMovie\", \"movieId\": $r_id}" > /dev/null
 
-            # 3. Force Import Scan (The "Missing" Killer)
-            # This tells Radarr: "I know you think it's gone, but look again RIGHT NOW."
-            curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" \
-                 -d "{\"name\": \"DownloadedMoviesScan\", \"path\": \"/mnt/synology/Movies/The Order (2024)\", \"importMode\": \"Move\"}" > /dev/null
+            # 2. Force Disk Analysis (The "Missing" Killer)
+            # We use RescanMovie but force it to look at the specific path
+            curl -s -X POST "$RADARR_API_BASE/command" \
+                 -H "X-Api-Key: $RADARR_API_KEY" \
+                 -H "Content-Type: application/json" \
+                 -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}" > /dev/null
+
+            # 3. Trigger a "Manual" check of the folder 
+            # This is the "Force Import" for files already in the folder
+            curl -s -X POST "$RADARR_API_BASE/command" \
+                 -H "X-Api-Key: $RADARR_API_KEY" \
+                 -H "Content-Type: application/json" \
+                 -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}" > /dev/null
         fi
     else
         log "ℹ️ Seerr: No open issues found for TMDB $tmdb_id."
