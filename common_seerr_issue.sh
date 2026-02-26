@@ -34,20 +34,19 @@ sync_seerr_issue() {
         return 0
     fi
 
-    # 4. Change Detection (Episode-Only Comparison)
+    # 4. Change Detection (Handles 11x77 and S11E77)
     if [[ -n "$issue_id" ]]; then
-        # Extract, sort, and VAPORIZE all invisible characters/newlines/returns
-        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs | tr -d '\r\n')
-        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs | tr -d '\r\n')
+        # NEW REGEX: Matches '11x77' OR 'S11E77'
+        # Then we use sed to turn 'S11E77' into '11x77' so they compare perfectly
+        local norm_old=$(echo "$old_msg" | grep -ioE "([0-9]+x[0-9]+|S[0-9]+E[0-9]+)" | sed -E 's/[SEse]/ /g; s/ +/x/g' | sort -V | xargs | tr -d '\r\n')
+        local norm_new=$(echo "$message" | grep -ioE "([0-9]+x[0-9]+|S[0-9]+E[0-9]+)" | sed -E 's/[SEse]/ /g; s/ +/x/g' | sort -V | xargs | tr -d '\r\n')
 
-        # DEBUG: Let's see exactly what the script is comparing
-        log "DEBUG: Old: [${norm_old}] vs New: [${norm_new}]"
+        # log "DEBUG: Old: [${norm_old}] vs New: [${norm_new}]"
 
-        if [[ "$norm_old" == "$norm_new" ]]; then
-            # log "ℹ️  No change in missing episodes for $media_name. Skipping."
+        if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
             return 0 
         else
-            log "🔄 Change detected for $media_name. Updating Seerr issue..."
+            log "🔄 Change detected for $media_name ($norm_old -> $norm_new). Updating Seerr issue..."
             curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
