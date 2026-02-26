@@ -114,30 +114,28 @@ sync_seerr_issue() {
             local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
 
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Telling Radarr the file is gone (ID: $r_id)..."
+                log "📡 Radarr: Forcing 'Missing' status for '$media_name' (ID: $r_id)..."
                 
-                # 1. Trigger Rescan for ONLY this movie
-                local scan_cmd=$(curl -s -X POST "$target_url/command" \
+                # 1. This command specifically refreshes one movie and scans its disk folder
+                local refresh_cmd=$(curl -s -X POST "$target_url/command" \
                     -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                    -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}")
+                    -d "{\"name\": \"RefreshMovie\", \"movieId\": $r_id}")
                 
-                # Get the Command ID to track it
-                local cmd_id=$(echo "$scan_cmd" | jq -r '.id')
+                local cmd_id=$(echo "$refresh_cmd" | jq -r '.id')
 
-                # 2. Poll Radarr until the scan is COMPLETED
-                log "⏳ Waiting for disk scan to finish..."
+                # 2. Wait for Radarr to finish the refresh
                 while true; do
                     local status=$(curl -s -H "X-Api-Key: $target_key" "$target_url/command/$cmd_id" | jq -r '.status')
                     [[ "$status" == "completed" ]] && break
-                    [[ "$status" == "failed" ]] && log "⚠️ Scan failed" && break
-                    sleep 2
+                    [[ "$status" == "failed" ]] && log "⚠️ Refresh failed" && break
+                    sleep 1
                 done
 
-                # 3. Final safety sleep (ensures DB is committed)
+                # 3. Short buffer for DB to settle
                 sleep 2
 
-                # 4. Trigger the Search
-                log "📡 Radarr: Scan complete. Triggering search for replacement..."
+                # 4. Trigger Search (Now it will see it as Missing)
+                log "📡 Radarr: Status is now 'Missing'. Triggering search..."
                 curl -s -o /dev/null -X POST "$target_url/command" \
                      -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                      -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
