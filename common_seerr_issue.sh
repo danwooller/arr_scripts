@@ -5,14 +5,14 @@ resolve_seerr_issue() {
     local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
         jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
 
-    # 2. Get open issues
-    local response=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
-
-    # 3. Match based on the TMDB ID we just verified in the JSON
+    # 2. Get open issues with a safety check on the response
+    local response=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
+    
+    # 3. Match based on TMDB ID (using '[]?' to prevent the null iteration error)
     local issue_id=$(echo "$response" | jq -r --arg tid "$tmdb_id" '
-        .results[] | select(.media.tmdbId == ($tid|tonumber)) | .id' | head -n 1)
+        .results[]? | select(.media.tmdbId == ($tid|tonumber)) | .id' | head -n 1)
 
-    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
+    if [[ -n "$issue_id" && "$issue_id" != "null" && "$issue_id" != "" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
         curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         
