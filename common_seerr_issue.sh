@@ -1,30 +1,28 @@
 resolve_seerr_issue() {
     local media_name="$1"
     
-    # 1. Get the list of ALL open issues
-    local response=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
+    # 1. Get the last 20 open issue IDs
+    local issue_ids=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=20" | jq -r '.results[]?.id')
 
-    # 2. Search for the issue ID by looking for the media_name anywhere in the issue data
-    # We check the title, the name, and even the "media" sub-object
-    local issue_id=$(echo "$response" | jq -r --arg name "$media_name" '
-        .results[]? | 
-        select(
-            (.media.title // "") == $name or 
-            (.media.name // "") == $name or 
-            (.issueItem.title // "") == $name
-        ) | .id' | head -n 1)
-
-    # 3. If we found the Issue ID, kill it!
-    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found Issue #$issue_id for '$media_name'. Resolving..."
-        curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+    for id in $issue_ids; do
+        # 2. Query each issue individually to get the "Full" data (this includes the title!)
+        local detail=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue/$id")
         
-        # Trigger Radarr Refresh
-        local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-        [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
-    else
-        log "ℹ️ Seerr: Could not find an open issue matching '$media_name' in the current list."
-    fi
+        # 3. Check if this issue belongs to our movie
+        local found_name=$(echo "$detail" | jq -r '.media.title // .media.name // ""')
+        
+        if [[ "$found_name" == "$media_name" ]]; then
+            log "✅ Seerr: Found Issue #$id for '$media_name'. Resolving..."
+            curl -s -X POST "$SEERR_API_BASE/issue/$id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+            
+            # Trigger Radarr Rescan
+            local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
+            [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+            return 0
+        fi
+    done
+
+    log "ℹ️ Seerr: No matching open issue found after deep scan for '$media_name'."
 }
 
 sync_seerr_issue() {
