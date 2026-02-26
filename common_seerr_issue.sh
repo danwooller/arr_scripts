@@ -1,41 +1,40 @@
 resolve_seerr_issue() {
     local media_name="$1"
     
-    # 1. Clean the Base URL (remove any trailing slashes)
-    local base_url="${SEERR_API_BASE%/}"
-    # 2. Trim the API Key (remove any accidental whitespace)
-    local api_key=$(echo "$SEERR_API_KEY" | xargs)
+    # 1. Force-clean variables within the function to be 100% safe
+    local base_url=$(echo "$SEERR_API_BASE" | tr -d '\r' | sed 's|/*$||')
+    local api_key=$(echo "$SEERR_API_KEY" | tr -d '\r' | xargs)
 
-    # 3. Get TMDB ID from Radarr
+    # 2. Get TMDB ID
     local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-        jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
+        jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId' | tr -d '\r')
 
-    # 4. Diagnostic Curl to the exact endpoint
+    # 3. Define the URL
+    local full_url="${base_url}/issue?filter=open&limit=100"
+
+    # 4. EXECUTE & CAPTURE ERROR BODY
     local response_file="/tmp/seerr_resp.json"
-    local full_url="$base_url/issue?filter=open&limit=100"
-    
     local http_code=$(curl -s -o "$response_file" -w "%{http_code}" \
+        -H "Accept: application/json" \
         -H "X-Api-Key: $api_key" \
         "$full_url")
 
     if [[ "$http_code" != "200" ]]; then
-        log "❌ Seerr API Error: Received HTTP $http_code at URL: $full_url"
+        local error_msg=$(cat "$response_file")
+        log "❌ Seerr API Error: HTTP $http_code"
+        log "   URL: $full_url"
+        log "   Response Body: $error_msg"
         return 1
     fi
 
-    # 5. Search for the ID
-    local issue_id=$(jq -r --arg tid "$tmdb_id" '
-        .results[]? | select(tostring | contains($tid)) | .id' "$response_file" | head -n 1)
+    # 5. SEARCH
+    local issue_id=$(jq -r --arg tid "$tmdb_id" '.results[]? | select(tostring | contains($tid)) | .id' "$response_file" | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
-        curl -s -X POST "$base_url/issue/$issue_id/resolved" -H "X-Api-Key: $api_key"
-        
-        # Radarr Rescan
-        local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-        [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+        curl -s -X POST "${base_url}/issue/$issue_id/resolved" -H "X-Api-Key: $api_key"
     else
-        log "ℹ️ Seerr: Issue for TMDB $tmdb_id not found in open list."
+        log "ℹ️ Seerr: No open issues found for TMDB $tmdb_id."
     fi
 }
 
