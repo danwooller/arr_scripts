@@ -30,7 +30,7 @@ resolve_seerr_issue() {
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
-        curl -s -X POST "${base_url}/issue/$issue_id/resolved" -H "X-Api-Key: $api_key"
+        curl -s -X POST "${base_url}/issue/$issue_id/resolved" -H "X-Api-Key: $api_key" > /dev/null
         
         # Radarr Rescan
         local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
