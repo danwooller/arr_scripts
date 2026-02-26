@@ -104,28 +104,32 @@ sync_seerr_issue() {
             local target_key="$RADARR_API_KEY"
             [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
 
-            # Use the media_name (The Rip (2026)) to find the ID
+            # Match by folder name to get the ID
             local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
-                .[] | 
-                ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
                 select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
                 "\(.id)|\(.monitored)"' | head -n 1)
 
-            local r_id=$(echo "$r_data" | cut -d'|' -f1)
-            local r_mon=$(echo "$r_data" | cut -d'|' -f2)
+            local r_id=$(echo "$r_data" | cut -d'|' -f1 | tr -d '[:space:]')
+            local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
 
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Refreshing disk scan for '$media_name'..."
-                local rescan_payload=$(jq -n --arg id "$r_id" '{name: "RescanMovie", movieId: ($id|tonumber)}')
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "$rescan_payload"
-                # Give Radarr 2-3 seconds to process the empty folder before searching
-                sleep 3
-                log "📡 Radarr: Triggering replacement search for '$media_name' (ID: $r_id)..."
+                # 1. Force Radarr to realize the file is gone
+                log "📡 Radarr: Refreshing '$media_name' (ID: $r_id)..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$(echo $r_id | tr -d '[:space:]')]}"
+                     -d "{\"name\": \"RefreshMovie\", \"movieId\": $r_id}"
+
+                # 2. Crucial delay for Synology/Radarr sync
+                log "⏳ Waiting 10s for disk state to update..."
+                sleep 10
+
+                # 3. Trigger the search
+                log "📡 Radarr: Triggering search for missing movie..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
             else
                 log "⚠️  Radarr: Could not find monitored entry for '$media_name'."
-            fi            
+            fi  
         fi # End Movie Block
     fi
 }
