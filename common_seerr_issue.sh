@@ -1,35 +1,27 @@
 resolve_seerr_issue() {
     local media_name="$1"
     
-    # 1. Get the TMDB ID from Radarr
+    # 1. Get TMDB ID from Radarr
     local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
         jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
 
-    log "🔍 Target TMDB ID: $tmdb_id"
+    # 2. Get open issues
+    local response=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
 
-    # 2. Get the list of all open issue IDs
-    local issue_ids=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=50" | jq -r '.results[]?.id')
+    # 3. Match based on the TMDB ID we just verified in the JSON
+    local issue_id=$(echo "$response" | jq -r --arg tid "$tmdb_id" '
+        .results[] | select(.media.tmdbId == ($tid|tonumber)) | .id' | head -n 1)
 
-    for id in $issue_ids; do
-        # 3. Pull the full issue detail
-        local detail=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue/$id")
+    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
+        log "✅ Seerr: Found Issue #$issue_id. Resolving..."
+        curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         
-        # 4. Extract TMDB ID using the EXACT path from your previous curl output
-        local s_tmdb=$(echo "$detail" | jq -r '.media.tmdbId // empty')
-
-        # 5. Compare
-        if [[ "$tmdb_id" == "$s_tmdb" ]]; then
-            log "✅ Seerr: Match found! Issue #$id links to TMDB $tmdb_id. Resolving..."
-            curl -s -X POST "$SEERR_API_BASE/issue/$id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
-            
-            # 6. Trigger Radarr Rescan
-            local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-            [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
-            return 0
-        fi
-    done
-
-    log "ℹ️ Seerr: No open issues found linking to TMDB ID $tmdb_id."
+        # 4. Trigger Radarr Rescan
+        local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
+        [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+    else
+        log "ℹ️ Seerr: No open issues found for TMDB $tmdb_id ('$media_name')."
+    fi
 }
 
 sync_seerr_issue() {
