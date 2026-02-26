@@ -1,20 +1,18 @@
 resolve_seerr_issue() {
     local media_name="$1"
     local media_type="$2"
-    local media_id="$3" # The Seerr Media ID
 
-    # 1. Find the Open Issue
+    # 1. Find the Open Issue ID by matching the name/title
     local issue_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?status=open&limit=100" | \
-        jq -r --arg mid "$media_id" '.results[] | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
+        jq -r --arg name "$media_name" '.results[] | select(.media.title == $name or .media.name == $name) | .id' | head -n 1)
 
     if [[ -n "$issue_id" ]]; then
-        log "✅ Seerr: Media is now healthy. Resolving Issue #$issue_id..."
+        log "✅ Seerr: Media is now healthy. Resolving Issue #$issue_id for '$media_name'..."
         
-        # Resolve the issue in Seerr
-        curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" \
-            -H "X-Api-Key: $SEERR_API_KEY"
+        # Mark as resolved in Seerr
+        curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
             
-        # 2. Tell the Arrs to refresh and verify the file
+        # 2. Trigger Arrs to verify the new file is on disk
         if [[ "$media_type" == "movie" ]]; then
             local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
             [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
@@ -22,7 +20,9 @@ resolve_seerr_issue() {
             local s_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
             [[ -n "$s_id" ]] && curl -s -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -d "{\"name\": \"RescanSeries\", \"seriesId\": $s_id}"
         fi
-        log "📡 Arr: Refresh command sent to verify restored file."
+        log "📡 Arr: Refresh command sent to confirm download."
+    else
+        log "ℹ️ Seerr: No open issues found for '$media_name'. Nothing to resolve."
     fi
 }
 
