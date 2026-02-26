@@ -2,20 +2,28 @@ resolve_seerr_issue() {
     local media_name="$1"
     local media_type="$2"
 
-    # 1. Get the Seerr Media ID for this movie/show first
-    # We search Seerr's media library for the folder name
-    local seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/media?take=1&filter=all&search=$media_name" | \
-        jq -r '.results[]? | .id' | head -n 1)
+    # 1. URL Encode the name (Spaces -> %20, etc.)
+    local encoded_name=$(echo "$media_name" | jq -sRr @uri)
+
+    # 2. Get the Seerr Media ID using the Search endpoint
+    # We look for the TMDB/TVDB link to get the internal Media ID
+    local seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/search?query=$encoded_name" | \
+        jq -r '.results[]? | select(.title == $name or .name == $name) | .mediaInfo.id' --arg name "$media_name" | head -n 1)
+
+    # FALLBACK: If .mediaInfo.id is missing, try the direct media lookup
+    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
+        seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/media?take=1&filter=all&search=$encoded_name" | \
+            jq -r '.results[]? | .id' | head -n 1)
+    fi
 
     if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
-        log "⚠️ Seerr: Could not find Media ID for '$media_name'. Skipping resolution."
+        log "⚠️ Seerr: Could not find Media ID for '$media_name' even with encoding."
         return 0
     fi
 
-    # 2. Find any OPEN issue linked to that Media ID
-    local response=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
-    local issue_id=$(echo "$response" | jq -r --arg mid "$seerr_media_id" '
-        .results[]? | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
+    # 3. Find and Resolve the Issue
+    local issue_id=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100" | \
+        jq -r --arg mid "$seerr_media_id" '.results[]? | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Media is healthy. Resolving Issue #$issue_id..."
