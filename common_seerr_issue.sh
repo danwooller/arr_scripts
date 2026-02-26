@@ -1,54 +1,29 @@
 resolve_seerr_issue() {
     local media_name="$1"
-    local media_type="$2"
-
-    log "🔍 Resolving by TMDB lookup for: $media_name"
-
-    # 1. Get TMDB ID from Radarr (Movies) or TVDB ID from Sonarr (TV)
-    local external_id=""
-    if [[ "$media_type" == "movie" ]]; then
-        external_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-            jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
-    else
-        external_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tvdbId')
-    fi
-
-    if [[ -z "$external_id" || "$external_id" == "null" ]]; then
-        log "⚠️ Could not find External ID in Arrs for '$media_name'."
-        return 0
-    fi
-
-    # 2. Ask Seerr for the Media ID using that specific External ID
-    # For movies we use tmdb, for TV we use tvdb
-    local id_type="tmdb"
-    [[ "$media_type" == "tv" ]] && id_type="tvdb"
     
-    local seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/media/$id_type/$external_id" | jq -r '.id')
+    # 1. Get the list of ALL open issues
+    local response=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
 
-    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
-        log "⚠️ Seerr doesn't have a Media record for $id_type:$external_id ($media_name)."
-        return 0
-    fi
+    # 2. Search for the issue ID by looking for the media_name anywhere in the issue data
+    # We check the title, the name, and even the "media" sub-object
+    local issue_id=$(echo "$response" | jq -r --arg name "$media_name" '
+        .results[]? | 
+        select(
+            (.media.title // "") == $name or 
+            (.media.name // "") == $name or 
+            (.issueItem.title // "") == $name
+        ) | .id' | head -n 1)
 
-    # 3. Find the Open Issue for that Media ID and Resolve it
-    local issue_id=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100" | \
-        jq -r --arg mid "$seerr_media_id" '.results[]? | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
-
+    # 3. If we found the Issue ID, kill it!
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Media is healthy. Resolving Issue #$issue_id..."
+        log "✅ Seerr: Found Issue #$issue_id for '$media_name'. Resolving..."
         curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
-            
-        # 2. Trigger Arrs to verify the new file is on disk
-        if [[ "$media_type" == "movie" ]]; then
-            local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-            [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
-        else
-            local s_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-            [[ -n "$s_id" ]] && curl -s -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -d "{\"name\": \"RescanSeries\", \"seriesId\": $s_id}"
-        fi
-        log "📡 Arr: Refresh command sent to confirm download."
+        
+        # Trigger Radarr Refresh
+        local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
+        [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
     else
-        log "ℹ️ Seerr: No matching open issue for Media ID $seerr_media_id ($media_name)."
+        log "ℹ️ Seerr: Could not find an open issue matching '$media_name' in the current list."
     fi
 }
 
