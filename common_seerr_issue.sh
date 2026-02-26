@@ -74,38 +74,42 @@ sync_seerr_issue() {
         if [[ "$media_type" == "tv" ]]; then
             local target_url="$SONARR_API_BASE"
             local target_key="$SONARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
-    
-            # 1. Get Series ID by matching folder name
-            local s_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$(basename "${media_name%/}")" '
+
+            # 1. Get Series Data
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$media_name" '
                 .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
-                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | .id')
+                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                "\(.id)|\(.monitored)"')
 
-            if [[ -n "$s_id" ]]; then
-                log "📡 Sonarr: Found Series ID: $s_id. Identifying missing episodes..."
+            local s_id=$(echo "$s_data" | cut -d'|' -f1)
+            local s_mon=$(echo "$s_data" | cut -d'|' -f2)
 
-                # 2. Find episodes that have a file record but the file is now gone (from your move command)
-                # We fetch episodes for this series and look for those with a movieFileId
+            if [[ "$s_mon" == "true" ]]; then
+                # 2. Get Episode Data
                 local ep_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/episode?seriesId=$s_id")
                 
-                # Get the File ID (to delete) and the Episode ID (to search)
-                # This grabs the first episode it finds with a file assigned
-                local ep_file_id=$(echo "$ep_data" | jq -r '.[] | select(.hasFile == true) | .episodeFileId' | head -n 1)
-                local ep_id=$(echo "$ep_data" | jq -r '.[] | select(.hasFile == true) | .id' | head -n 1)
+                # Match the specific episode by filename (for corruption) or just check monitored status
+                # If we're doing "Missing Episodes", we filter for monitored ones only
+                local target_ep=$(echo "$ep_data" | jq -c 'select(.monitored == true) | .[0]')
+                local ep_id=$(echo "$target_ep" | jq -r '.id // empty')
+                local ep_file_id=$(echo "$target_ep" | jq -r '.episodeFileId // empty')
 
-                if [[ -n "$ep_file_id" ]]; then
-                    log "🗑️  Sonarr: Purging file record (FileID: $ep_file_id)..."
-                    curl -s -X DELETE "$target_url/episodefile/$ep_file_id" -H "X-Api-Key: $target_key"
-                    sleep 2
+                if [[ -n "$ep_id" ]]; then
+                    # 3. Purge if there's a file, then Search
+                    if [[ -n "$ep_file_id" ]]; then
+                        log "🗑️  Sonarr: Purging file record (ID: $ep_file_id)..."
+                        curl -s -X DELETE "$target_url/episodefile/$ep_file_id" -H "X-Api-Key: $target_key"
+                        sleep 2
+                    fi
 
-                    log "📡 Sonarr: Triggering surgical search for Episode ID: $ep_id..."
+                    log "📡 Sonarr: Episode is Monitored. Triggering search for Episode ID: $ep_id..."
                     curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                          -d "{\"name\": \"EpisodeSearch\", \"episodeIds\": [$ep_id]}"
                 else
-                    log "⚠️  Sonarr: No file record found to purge for Series $s_id."
+                    log "🚫 Sonarr: Skipping search. Episode is NOT monitored."
                 fi
             else
-                log "⚠️  Sonarr: Could not match folder '$(basename "${media_name%/}")' to a series."
+                log "🚫 Sonarr: Skipping search. Series '$media_name' is NOT monitored."
             fi
         fi # End TV Block
 
