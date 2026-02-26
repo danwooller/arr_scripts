@@ -120,14 +120,7 @@ sync_seerr_issue() {
                      -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$(echo $r_id | tr -d '[:space:]')]}"
             else
                 log "⚠️  Radarr: Could not find monitored entry for '$media_name'."
-            fi
+            fi            
         fi # End Movie Block
-
-        if [[ -n "$payload" ]]; then
-            log "📡 $instance_name: Triggering search for '$media_name'..."
-            curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "$payload"
-        else
-            log "⚠️  $instance_name: Could not find monitored entry for '$media_name'."
-        fi
     fi
 }
