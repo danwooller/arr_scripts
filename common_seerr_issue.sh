@@ -77,19 +77,30 @@ sync_seerr_issue() {
             [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
     
             # Match by folder name
-            local folder_name=$(basename "${media_name%/}")
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$media_name" '
                 .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
                 select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"' | head -n 1)
-            
-            local s_id=$(echo "$s_data" | cut -d'|' -f1)
-            local s_mon=$(echo "$s_data" | cut -d'|' -f2)
-    
-            if [[ -n "$s_id" && "$s_mon" == "true" ]]; then
-                log "📡 Sonarr: Triggering search for series '$folder_name' (ID: $s_id)..."
+                .id')
+
+            if [[ -n "$s_data" ]]; then
+                log "📡 Sonarr: Found Series ID: $s_data. Searching for corrupt episode file..."
+
+                # 2. Get all episode files for this series and find the one with size 0 (or matching the name)
+                # Since we already moved the file, we look for the record that Sonarr still holds.
+                local ep_file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/episodefile?seriesId=$s_data" | jq -r '.[0].id // empty')
+
+                if [[ -n "$ep_file_id" ]]; then
+                    log "🗑️  Sonarr: Removing episode file record (ID: $ep_file_id)..."
+                    curl -s -X DELETE "$target_url/episodefile/$ep_file_id" -H "X-Api-Key: $target_key"
+                    sleep 2
+                fi
+
+                # 3. Trigger Search for the Series (Sonarr will find all missing episodes)
+                log "📡 Sonarr: Triggering search for missing episodes in '$media_name'..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $(echo $s_id | tr -d '[:space:]')}"
+                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $s_data}"
+            else
+                log "⚠️  Sonarr: Could not find series entry for '$media_name'."
             fi
         fi # End TV Block
 
@@ -125,6 +136,8 @@ sync_seerr_issue() {
                 log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                      -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
+            else
+                log "⚠️  Radarr: Could not find movie entry for '$media_name'."
             fi
         fi # End Movie Block
     fi
