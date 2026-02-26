@@ -1,7 +1,7 @@
 resolve_seerr_issue() {
     local media_name="$1"
     
-    # 1. Force-clean variables within the function to be 100% safe
+    # 1. Clean variables
     local base_url=$(echo "$SEERR_API_BASE" | tr -d '\r' | sed 's|/*$||')
     local api_key=$(echo "$SEERR_API_KEY" | tr -d '\r' | xargs)
 
@@ -9,10 +9,10 @@ resolve_seerr_issue() {
     local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
         jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId' | tr -d '\r')
 
-    # 3. Define the URL
-    local full_url="${base_url}/issue?filter=open&limit=100"
+    # 3. Corrected URL (Removed &limit=100)
+    local full_url="${base_url}/issue?filter=open"
 
-    # 4. EXECUTE & CAPTURE ERROR BODY
+    # 4. Execute
     local response_file="/tmp/seerr_resp.json"
     local http_code=$(curl -s -o "$response_file" -w "%{http_code}" \
         -H "Accept: application/json" \
@@ -20,19 +20,21 @@ resolve_seerr_issue() {
         "$full_url")
 
     if [[ "$http_code" != "200" ]]; then
-        local error_msg=$(cat "$response_file")
         log "❌ Seerr API Error: HTTP $http_code"
-        log "   URL: $full_url"
-        log "   Response Body: $error_msg"
+        log "   Response Body: $(cat "$response_file")"
         return 1
     fi
 
-    # 5. SEARCH
+    # 5. Search for the ID anywhere in the response
     local issue_id=$(jq -r --arg tid "$tmdb_id" '.results[]? | select(tostring | contains($tid)) | .id' "$response_file" | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
         curl -s -X POST "${base_url}/issue/$issue_id/resolved" -H "X-Api-Key: $api_key"
+        
+        # Radarr Rescan
+        local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
+        [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
     else
         log "ℹ️ Seerr: No open issues found for TMDB $tmdb_id."
     fi
