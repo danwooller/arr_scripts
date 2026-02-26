@@ -116,29 +116,33 @@ sync_seerr_issue() {
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
                 log "📡 Radarr: Forcing 'Missing' status for '$media_name' (ID: $r_id)..."
                 
-                # 1. This command specifically refreshes one movie and scans its disk folder
+                # 1. Surgical Refresh: Build JSON with integer ID to avoid global scan
+                local refresh_payload=$(jq -n --arg id "$r_id" '{name: "RefreshMovie", movieId: ($id|tonumber)}')
+                
                 local refresh_cmd=$(curl -s -X POST "$target_url/command" \
                     -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                    -d "{\"name\": \"RefreshMovie\", \"movieId\": $r_id}")
+                    -d "$refresh_payload")
                 
                 local cmd_id=$(echo "$refresh_cmd" | jq -r '.id')
 
-                # 2. Wait for Radarr to finish the refresh
+                # 2. Wait for this specific task to finish
+                log "⏳ Waiting for Radarr to update database..."
                 while true; do
                     local status=$(curl -s -H "X-Api-Key: $target_key" "$target_url/command/$cmd_id" | jq -r '.status')
                     [[ "$status" == "completed" ]] && break
-                    [[ "$status" == "failed" ]] && log "⚠️ Refresh failed" && break
+                    [[ "$status" == "failed" ]] && log "⚠️  Refresh failed" && break
                     sleep 1
                 done
 
-                # 3. Short buffer for DB to settle
+                # 3. Final verification sleep
                 sleep 2
 
-                # 4. Trigger Search (Now it will see it as Missing)
-                log "📡 Radarr: Status is now 'Missing'. Triggering search..."
+                # 4. Search (Now the database definitely says 'Missing')
+                log "📡 Radarr: Triggering replacement search..."
+                local search_payload=$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
                 curl -s -o /dev/null -X POST "$target_url/command" \
                      -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
+                     -d "$search_payload"
             else
                 log "⚠️  Radarr: Could not find monitored entry for '$media_name'."
             fi
