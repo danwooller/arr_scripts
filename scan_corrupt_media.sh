@@ -55,10 +55,6 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         
         # 4. Move to hold
         mv --backup=numbered "$file" "$HOLD_DIR/"
-
-        # 5. TRIGGER ARR SEARCH (Add this function call)
-        #trigger_arr_search "$media_title" "$media_type" "$file"
-        
     else
         # Optional: Resolve if found healthy (though corruption rarely "heals" itself)
         # sync_seerr_issue "$media_title" "$media_type" ""
