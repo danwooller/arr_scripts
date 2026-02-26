@@ -1,14 +1,21 @@
 resolve_seerr_issue() {
     local media_name="$1"
     local media_type="$2"
-    local tmdb_id="$3"  # Pass this in from your scan script
 
-    # Fetch open issues
+    # 1. Get the Seerr Media ID for this movie/show first
+    # We search Seerr's media library for the folder name
+    local seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/media?take=1&filter=all&search=$media_name" | \
+        jq -r '.results[]? | .id' | head -n 1)
+
+    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
+        log "⚠️ Seerr: Could not find Media ID for '$media_name'. Skipping resolution."
+        return 0
+    fi
+
+    # 2. Find any OPEN issue linked to that Media ID
     local response=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
-    
-    # Match based on TMDB ID (The most accurate way)
-    local issue_id=$(echo "$response" | jq -r --arg tid "$tmdb_id" '
-        .results[]? | select(.media.tmdbId == ($tid|tonumber)) | .id' | head -n 1)
+    local issue_id=$(echo "$response" | jq -r --arg mid "$seerr_media_id" '
+        .results[]? | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Media is healthy. Resolving Issue #$issue_id..."
@@ -24,7 +31,7 @@ resolve_seerr_issue() {
         fi
         log "📡 Arr: Refresh command sent to confirm download."
     else
-        log "ℹ️ Seerr: No open issues found for '$media_name'. Nothing to resolve."
+        log "ℹ️ Seerr: No matching open issue for Media ID $seerr_media_id ($media_name)."
     fi
 }
 
