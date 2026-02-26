@@ -5,25 +5,35 @@ resolve_seerr_issue() {
     local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
         jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
 
-    # 2. Get open issues with a safety check on the response
-    local response=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
-    
-    # 3. Match based on TMDB ID (using '[]?' to prevent the null iteration error)
-    local issue_id=$(echo "$response" | jq -r --arg tid "$tmdb_id" '
-        .results[]? | 
-        select(
-            ([.. | select(numbers? or strings?) | tostring] | contains([$tid]))
-        ) | .id' | head -n 1)
+    # 2. Capture the response and the HTTP status code
+    local response_file="/tmp/seerr_resp.json"
+    local http_code=$(curl -s -o "$response_file" -w "%{http_code}" -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
 
-    if [[ -n "$issue_id" && "$issue_id" != "null" && "$issue_id" != "" ]]; then
+    if [[ "$http_code" != "200" ]]; then
+        log "❌ Seerr API Error: Received HTTP $http_code. Check your API Key and Base URL."
+        return 1
+    fi
+
+    # 3. Read the file into a variable and check if it's empty
+    local response=$(cat "$response_file")
+    if [[ -z "$response" || "$response" == "{}" ]]; then
+        log "⚠️ Seerr returned an empty response list."
+        return 1
+    fi
+
+    # 4. Use the most aggressive search possible
+    local issue_id=$(jq -r --arg tid "$tmdb_id" '
+        .results[]? | select(tostring | contains($tid)) | .id' "$response_file" | head -n 1)
+
+    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
         curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         
-        # 4. Trigger Radarr Rescan
+        # Radarr Rescan
         local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
         [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
     else
-        log "ℹ️ Seerr: No open issues found for TMDB $tmdb_id ('$media_name')."
+        log "ℹ️ Seerr: ID $tmdb_id not found in the open issues list (Size: $(stat -c%s "$response_file") bytes)."
     fi
 }
 
