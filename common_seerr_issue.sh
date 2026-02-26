@@ -103,23 +103,23 @@ sync_seerr_issue() {
             local target_url="$RADARR_API_BASE"
             local target_key="$RADARR_API_KEY"
             [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
-    
-            # Match by folder name
-            local folder_name=$(basename "${media_name%/}")
-            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$folder_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
+
+            # Use the media_name (The Rip (2026)) to find the ID
+            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
+                .[] | 
+                ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
                 select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
                 "\(.id)|\(.monitored)"' | head -n 1)
-    
+
             local r_id=$(echo "$r_data" | cut -d'|' -f1)
             local r_mon=$(echo "$r_data" | cut -d'|' -f2)
-    
+
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Triggering search for movie '$folder_name' (ID: $r_id)..."
+                log "📡 Radarr: Triggering replacement search for '$media_name' (ID: $r_id)..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                      -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$(echo $r_id | tr -d '[:space:]')]}"
             else
-                log "⚠️  Radarr: Could not find monitored entry for '$folder_name'."
+                log "⚠️  Radarr: Could not find monitored entry for '$media_name'."
             fi
         fi # End Movie Block
 
