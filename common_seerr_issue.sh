@@ -4,9 +4,46 @@ sync_seerr_issue() {
     local message="$3"      # Error details or missing ep list
     local media_id="$4"     # Optional Manual Map ID
 
+
+    # ==========================================
+    # 1. TRIGGER ARR SEARCH (Independent Block)
+    # ==========================================
+    if [[ -n "$message" ]]; then
+echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+        if [[ "$media_type" == "movie" ]]; then
+            local target_url="$RADARR_API_BASE"
+            local target_key="$RADARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
+
+            # Get ID
+            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
+                select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                "\(.id)|\(.monitored)"' | head -n 1)
+
+            local r_id=$(echo "$r_data" | cut -d'|' -f1 | tr -d '[:space:]')
+            local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
+
+            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
+                log "📡 Radarr: Forcing 'Missing' status for '$media_name' (ID: $r_id)..."
+                # Unmonitor
+                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"movieIds\": [$r_id], \"monitored\": false}"
+                # Rescan
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+                sleep 3
+                # Remonitor
+                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"movieIds\": [$r_id], \"monitored\": true}"
+                # Search
+                log "📡 Radarr: Triggering search for replacement..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
+            fi
+        fi
+    fi
+
     # 6. Trigger Arr Search
     # This now only runs once, using the robust path-matching logic
     if [[ -n "$message" ]]; then
+echo ">>>>>>>>>>>>>>>>>>>>>>>>"
         # --- Sonarr Logic (TV) ---
         if [[ "$media_type" == "tv" ]]; then
             local target_url="$SONARR_API_BASE"
