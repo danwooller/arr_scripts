@@ -1,39 +1,41 @@
 resolve_seerr_issue() {
     local media_name="$1"
     
-    # 1. Get TMDB ID from Radarr
+    # 1. Clean the Base URL (remove any trailing slashes)
+    local base_url="${SEERR_API_BASE%/}"
+    # 2. Trim the API Key (remove any accidental whitespace)
+    local api_key=$(echo "$SEERR_API_KEY" | xargs)
+
+    # 3. Get TMDB ID from Radarr
     local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
         jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
 
-    # 2. Capture the response and the HTTP status code
+    # 4. Diagnostic Curl to the exact endpoint
     local response_file="/tmp/seerr_resp.json"
-    local http_code=$(curl -s -o "$response_file" -w "%{http_code}" -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
+    local full_url="$base_url/issue?filter=open&limit=100"
+    
+    local http_code=$(curl -s -o "$response_file" -w "%{http_code}" \
+        -H "X-Api-Key: $api_key" \
+        "$full_url")
 
     if [[ "$http_code" != "200" ]]; then
-        log "❌ Seerr API Error: Received HTTP $http_code. Check your API Key and Base URL."
+        log "❌ Seerr API Error: Received HTTP $http_code at URL: $full_url"
         return 1
     fi
 
-    # 3. Read the file into a variable and check if it's empty
-    local response=$(cat "$response_file")
-    if [[ -z "$response" || "$response" == "{}" ]]; then
-        log "⚠️ Seerr returned an empty response list."
-        return 1
-    fi
-
-    # 4. Use the most aggressive search possible
+    # 5. Search for the ID
     local issue_id=$(jq -r --arg tid "$tmdb_id" '
         .results[]? | select(tostring | contains($tid)) | .id' "$response_file" | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
-        curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+        curl -s -X POST "$base_url/issue/$issue_id/resolved" -H "X-Api-Key: $api_key"
         
         # Radarr Rescan
         local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
         [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
     else
-        log "ℹ️ Seerr: ID $tmdb_id not found in the open issues list (Size: $(stat -c%s "$response_file") bytes)."
+        log "ℹ️ Seerr: Issue for TMDB $tmdb_id not found in open list."
     fi
 }
 
