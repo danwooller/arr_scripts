@@ -93,22 +93,40 @@ sync_seerr_issue() {
                 payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
             fi
 
-        elif [[ "$media_type" == "movie" ]]; then
-            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" || target_url="$RADARR_API_BASE"
-            [[ "$media_name" =~ "4K" ]] && target_key="$RADARR4K_API_KEY" || target_key="$RADARR_API_KEY"
-            instance_name="Radarr"
-
-            local folder_name=$(basename "${media_name%/}")
-            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$folder_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
-                select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"' | head -n 1)
+            if [[ "$media_type" == "movie" ]]; then
+                # 1. Routing
+                if [[ "$media_path" =~ "4K" ]]; then
+                    target_url="$RADARR4K_API_BASE"
+                    target_key="$RADARR4K_API_KEY"
+                else
+                    target_url="$RADARR_API_BASE"
+                    target_key="$RADARR_API_KEY"
+                fi
+                instance_name="Radarr"
             
-            local r_id=$(echo "$r_data" | cut -d'|' -f1)
-            local r_mon=$(echo "$r_data" | cut -d'|' -f2)
-
-            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                payload=$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
+                # 2. Get the folder name (e.g., "The Matrix (1999)")
+                # If media_path is the file path, use: folder_name=$(basename "$(dirname "$media_path")")
+                # If media_path is the folder, use: folder_name=$(basename "$media_path")
+                local folder_name=$(basename "$media_path")
+            
+                # 3. Match by path in Radarr
+                local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$folder_name" '
+                    .[] | 
+                    ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
+                    select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                    "\(.id)|\(.monitored)"' | head -n 1)
+            
+                local r_id=$(echo "$r_data" | cut -d'|' -f1)
+                local r_mon=$(echo "$r_data" | cut -d'|' -f2)
+            
+                # 4. Trigger the Search
+                if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
+                    payload=$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
+                    log "📡 $instance_name: Corruption detected. Triggering replacement search for '$folder_name'..."
+                    curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "$payload"
+                else
+                    log "⚠️  $instance_name: Found corruption in '$folder_name', but movie is not monitored or not found in Radarr."
+                fi
             fi
         fi
 
