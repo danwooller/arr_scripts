@@ -1,27 +1,34 @@
 resolve_seerr_issue() {
     local media_name="$1"
-    
-    # 1. Clean the name to "The Order" (strip year and parentheses)
+    # Strip the year to be safe, so "The Order (2024)" becomes "The Order"
     local clean_name=$(echo "$media_name" | sed 's/ ([0-9]\{4\})//g')
 
-    # 2. Get the raw JSON of all open issues
-    local raw_issues=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
+    log "🔍 Searching Seerr comments for: $clean_name"
 
-    # 3. Use JQ to search the ENTIRE JSON string of each issue for the name
-    # We use tostring to flatten the object and look for the name anywhere inside it
-    local issue_id=$(echo "$raw_issues" | jq -r --arg n "$clean_name" '
-        .results[]? | select(tostring | contains($n)) | .id' | head -n 1)
+    # 1. Get the last 50 open issues
+    local issue_ids=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=50" | jq -r '.results[]?.id')
 
-    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found Issue #$issue_id by string match ('$clean_name'). Resolving..."
-        curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+    for id in $issue_ids; do
+        # 2. Get the full detail including comments
+        local detail=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue/$id")
         
-        # Trigger Radarr Rescan
-        local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-        [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
-    else
-        log "ℹ️ Seerr: Final attempt failed. No issue containing '$clean_name' found."
-    fi
+        # 3. Check if the movie name exists anywhere in the comments/messages
+        if echo "$detail" | jq -r '.comments[].message' | grep -qi "$clean_name"; then
+            log "✅ Seerr: Found '$clean_name' in Issue #$id comments. Resolving..."
+            
+            # 4. POST the resolution
+            curl -s -X POST "$SEERR_API_BASE/issue/$id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
+            
+            # 5. Refresh Radarr so it sees the new healthy file
+            local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
+            if [[ -n "$r_id" ]]; then
+                curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+            fi
+            return 0
+        fi
+    done
+
+    log "ℹ️ Seerr: No open issues found mentioning '$clean_name' in comments."
 }
 
 sync_seerr_issue() {
