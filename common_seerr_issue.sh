@@ -95,16 +95,30 @@ sync_seerr_issue() {
     fi
 
     # 3. Deduplication Check
-    local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
-    
+    #    local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")   
     # NEW JQ: Extract the first comment's message
-    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
-        .results[] | 
-        select(.media.id == ($mid|tonumber)) | 
-        "\(.id)|\(.comments[0].message // "")"' | head -n 1)
-    
-    local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
-    local old_msg=$(echo "$existing_data" | cut -d'|' -f2-)
+#    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
+#        .results[] | 
+#        select(.media.id == ($mid|tonumber)) | 
+#        "\(.id)|\(.comments[0].message // "")"' | head -n 1)
+#    local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
+#    local old_msg=$(echo "$existing_data" | cut -d'|' -f2-)
+    local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
+    # Check if an issue ID exists for this specific Media ID
+    local issue_id=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
+        .results[] | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
+
+    if [[ -n "$issue_id" ]]; then
+        log "🔄 Seerr: Issue #$issue_id already open for Media ID $media_id. Updating..."
+        
+        # Add the new message as a comment so you have a history of the errors
+        curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/comment" \
+            -H "X-Api-Key: $SEERR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\": \"$message\"}"
+            
+        return 0 # CRITICAL: Exit here so we don't create a second issue!
+    fi
 
     # 4. Resolution Logic
     if [[ -z "$message" ]]; then
