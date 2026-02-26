@@ -115,6 +115,11 @@ sync_seerr_issue() {
             local r_mon=$(echo "$r_data" | cut -d'|' -f2)
 
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
+                log "📡 Radarr: Refreshing disk scan for '$media_name'..."
+                local rescan_payload=$(jq -n --arg id "$r_id" '{name: "RescanMovie", movieId: ($id|tonumber)}')
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "$rescan_payload"
+                # Give Radarr 2-3 seconds to process the empty folder before searching
+                sleep 3
                 log "📡 Radarr: Triggering replacement search for '$media_name' (ID: $r_id)..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                      -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$(echo $r_id | tr -d '[:space:]')]}"
