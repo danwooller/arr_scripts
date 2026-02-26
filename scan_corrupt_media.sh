@@ -74,6 +74,7 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         # Optional: Resolve if found healthy (though corruption rarely "heals" itself)
         # sync_seerr_issue "$media_title" "$media_type" ""
         log "✅ HEALTHY: $file_name"
+        [[ -n "$media_id" ]] && resolve_seerr_issue "$media_name" "$media_type" "$media_id"
     fi
 done
 
