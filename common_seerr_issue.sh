@@ -5,14 +5,18 @@ resolve_seerr_issue() {
     local issue_ids=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=20" | jq -r '.results[]?.id')
 
     for id in $issue_ids; do
-        # 2. Query each issue individually to get the "Full" data (this includes the title!)
         local detail=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue/$id")
         
-        # 3. Check if this issue belongs to our movie
-        local found_name=$(echo "$detail" | jq -r '.media.title // .media.name // ""')
-        
-        if [[ "$found_name" == "$media_name" ]]; then
-            log "✅ Seerr: Found Issue #$id for '$media_name'. Resolving..."
+        # Get all possible names from the issue detail
+        local s_title=$(echo "$detail" | jq -r '.media.title // empty')
+        local s_name=$(echo "$detail" | jq -r '.media.name // empty')
+
+        # FLEXIBLE MATCH: Check if Seerr title is part of our folder name
+        # This handles "The Order" matching "The Order (2024)"
+        if [[ -n "$s_title" && "$media_name" == *"$s_title"* ]] || \
+           [[ -n "$s_name" && "$media_name" == *"$s_name"* ]]; then
+            
+            log "✅ Seerr: Match found! (Seerr: '$s_title' | Folder: '$media_name'). Resolving Issue #$id..."
             curl -s -X POST "$SEERR_API_BASE/issue/$id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
             
             # Trigger Radarr Rescan
