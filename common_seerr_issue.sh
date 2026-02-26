@@ -31,10 +31,22 @@ resolve_seerr_issue() {
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
         curl -s -X POST "${base_url}/issue/$issue_id/resolved" -H "X-Api-Key: $api_key" > /dev/null
-        
+
         # Radarr Rescan
+        # 1. Get the Radarr Internal Movie ID
         local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-        [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+
+        if [[ -n "$r_id" ]]; then
+            log "🎬 Radarr: Triggering full Refresh and Rescan for ID $r_id..."
+            
+            # 2. Rescan the disk for the new file
+            curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" \
+                 -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}" > /dev/null
+            
+            # 3. Refresh metadata and UI status
+            curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" \
+                 -d "{\"name\": \"RefreshMovie\", \"movieId\": $r_id}" > /dev/null
+        fi
     else
         log "ℹ️ Seerr: No open issues found for TMDB $tmdb_id."
     fi
