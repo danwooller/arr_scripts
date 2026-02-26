@@ -44,37 +44,32 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
     # /mnt/media/Movies/The Rip (2026)/The Rip.mkv -> The Rip (2026)
     media_title=$(basename "$(dirname "$file")")
     file_name=$(basename "$file")
+    media_name=$(basename "$1")
+
+    if [[ "$media_type" == "tv" ]]; then
+        if [[ "$media_name" =~ ^Season|^Specials|^S[0-9]+ ]]; then
+            media_name=$(basename "$(dirname "$1")")
+        fi
+    fi
 
     if [ $exit_status -ne 0 ]; then
         log "❌ CORRUPT: $file_name ($error_msg)"
         
-        # 1. Start with the folder we are currently scanning
-        # For Movies: This is "The Rip (2026)"
-        # For TV: This might be "Season 11"
-        media_name=$(basename "$1")
-
-        # 2. ONLY fix it if it's a TV subfolder. 
-        # This is the "Safety Guard" for Radarr.
-        if [[ "$media_type" == "tv" ]]; then
-            if [[ "$media_name" =~ ^Season|^Specials|^S[0-9]+ ]]; then
-                # Climb up to get "The Late Show..."
-                media_name=$(basename "$(dirname "$1")")
-                log "📂 TV Subfolder detected. Using Series Name: $media_name"
-            fi
-        fi
-
-        # 3. Build message and call the sync
         issue_msg="Corruption detected in $file_name. Error: $error_msg"
-        
-        # This remains the same call as our successful Radarr test!
         sync_seerr_issue "$media_name" "$media_type" "$issue_msg"
         
         mv --backup=numbered "$file" "$HOLD_DIR/"
     else
-        # Optional: Resolve if found healthy (though corruption rarely "heals" itself)
-        # sync_seerr_issue "$media_title" "$media_type" ""
         log "✅ HEALTHY: $file_name"
-        [[ -n "$media_id" ]] && resolve_seerr_issue "$media_name" "$media_type" "$media_id"
+        
+        # Now media_name and media_id are available!
+        if [[ -n "$media_id" ]]; then
+            resolve_seerr_issue "$media_name" "$media_type" "$media_id"
+        else
+            # Fallback: if you don't use IDs, you can pass an empty string to sync_seerr_issue 
+            # and let it handle resolution by name
+            log "⚠️ Skipping resolution: No Media ID found for $media_name"
+        fi
     fi
 done
 
