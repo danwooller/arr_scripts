@@ -4,99 +4,6 @@ sync_seerr_issue() {
     local message="$3"      # Error details or missing ep list
     local media_id="$4"     # Optional Manual Map ID
 
-
-    # ==========================================
-    # 1. TRIGGER ARR SEARCH (Independent Block)
-    # ==========================================
-    if [[ -n "$message" ]]; then
-        if [[ "$media_type" == "movie" ]]; then
-            local target_url="$RADARR_API_BASE"
-            local target_key="$RADARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
-
-            # Get ID
-            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
-                select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"' | head -n 1)
-
-            local r_id=$(echo "$r_data" | cut -d'|' -f1 | tr -d '[:space:]')
-            local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
-
-            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
-
-                # 1. Get the File ID from the movie data
-                local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
-
-                # 2. If a file record exists in Radarr, tell Radarr to delete it
-                if [[ -n "$file_id" ]]; then
-                    log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
-                    curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
-                    sleep 2
-                fi
-
-                # 3. Now trigger the search
-                log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
-            fi
-        fi
-    fi
-
-    # 6. Trigger Arr Search
-    # This now only runs once, using the robust path-matching logic
-    if [[ -n "$message" ]]; then
-        # --- Sonarr Logic (TV) ---
-        if [[ "$media_type" == "tv" ]]; then
-            local target_url="$SONARR_API_BASE"
-            local target_key="$SONARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
-    
-            # Match by folder name
-            local folder_name=$(basename "${media_name%/}")
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
-                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"' | head -n 1)
-            
-            local s_id=$(echo "$s_data" | cut -d'|' -f1)
-            local s_mon=$(echo "$s_data" | cut -d'|' -f2)
-    
-            if [[ -n "$s_id" && "$s_mon" == "true" ]]; then
-                log "📡 Sonarr: Triggering search for series '$folder_name' (ID: $s_id)..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $(echo $s_id | tr -d '[:space:]')}"
-            fi
-        fi # End TV Block
-
-        # --- Radarr Logic (Movie) ---
-        if [[ "$media_type" == "movie" ]]; then
-            local target_url="$RADARR_API_BASE"
-            local target_key="$RADARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
-
-            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
-
-                # 1. Get the File ID from the movie data
-                local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
-
-                # 2. If a file record exists in Radarr, tell Radarr to delete it
-                if [[ -n "$file_id" ]]; then
-                    log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
-                    curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
-                    sleep 2
-                fi
-
-                # 3. Now trigger the search
-                log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
-            fi
-        fi # End Movie Block
-    fi
-
     # 1. Get Seerr Media ID
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
@@ -159,4 +66,57 @@ sync_seerr_issue() {
         -d "$json_payload")
     
     log "🚀 Seerr Issue created for $media_name."
+
+    # 6. Trigger Arr Search
+    # This now only runs once, using the robust path-matching logic
+    if [[ -n "$message" ]]; then
+        # --- Sonarr Logic (TV) ---
+        if [[ "$media_type" == "tv" ]]; then
+            local target_url="$SONARR_API_BASE"
+            local target_key="$SONARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
+    
+            # Match by folder name
+            local folder_name=$(basename "${media_name%/}")
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
+                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                "\(.id)|\(.monitored)"' | head -n 1)
+            
+            local s_id=$(echo "$s_data" | cut -d'|' -f1)
+            local s_mon=$(echo "$s_data" | cut -d'|' -f2)
+    
+            if [[ -n "$s_id" && "$s_mon" == "true" ]]; then
+                log "📡 Sonarr: Triggering search for series '$folder_name' (ID: $s_id)..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $(echo $s_id | tr -d '[:space:]')}"
+            fi
+        fi # End TV Block
+
+        # --- Radarr Logic (Movie) ---
+        if [[ "$media_type" == "movie" ]]; then
+            local target_url="$RADARR_API_BASE"
+            local target_key="$RADARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
+
+            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
+                log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
+
+                # 1. Get the File ID from the movie data
+                local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
+
+                # 2. If a file record exists in Radarr, tell Radarr to delete it
+                if [[ -n "$file_id" ]]; then
+                    log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
+                    curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
+                    sleep 2
+                fi
+
+                # 3. Now trigger the search
+                log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
+            fi
+        fi # End Movie Block
+    fi
 }
