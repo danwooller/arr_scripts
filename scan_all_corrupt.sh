@@ -22,9 +22,9 @@ while IFS= read -r -d '' folder; do
     if find "$folder" -maxdepth 1 -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" | grep -q .; then
         # Call the main scanner
         if [[ $LOG_LEVEL = "debug" ]]; then
-            "$SCANNER_SCRIPT" "$folder"
-        else
             echo "Would scan: $folder"
+        else
+            "$SCANNER_SCRIPT" "$folder"
         fi
     else
         log "⚠️ Skipping: No media found in $(basename "$folder")"
