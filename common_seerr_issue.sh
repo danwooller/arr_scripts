@@ -19,11 +19,16 @@ sync_seerr_issue() {
 
     # 2. Deduplication Check
     local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
-    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" \
-        '.results[] | select(.media.id == ($mid|tonumber) and .issueType == 1) | "\(.id)|\(.message)"' | head -n 1)
+    
+    # IMPROVED: Extract ID and Message for the specific media_id
+    # We use (mid|tonumber) to ensure we match numeric IDs correctly
+    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
+        .results[] | 
+        select(.media.id == ($mid|tonumber)) | 
+        "\(.id)|\(.message)"' | head -n 1)
     
     local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
-    local old_msg=$(echo "$existing_data" | cut -d'|' -f2)
+    local old_msg=$(echo "$existing_data" | cut -d'|' -f2-) # Use - to catch the whole message
 
     # 3. Resolution Logic
     if [[ -z "$message" ]]; then
@@ -34,14 +39,15 @@ sync_seerr_issue() {
         return 0
     fi
 
-    # 4. Change Detection (Handles 11x77 and S11E77)
+    # 4. Change Detection
     if [[ -n "$issue_id" ]]; then
-        # NEW REGEX: Matches '11x77' OR 'S11E77'
-        # Then we use sed to turn 'S11E77' into '11x77' so they compare perfectly
-        local norm_old=$(echo "$old_msg" | grep -ioE "([0-9]+x[0-9]+|S[0-9]+E[0-9]+)" | sed -E 's/[SEse]/ /g; s/ +/x/g' | sort -V | xargs | tr -d '\r\n')
-        local norm_new=$(echo "$message" | grep -ioE "([0-9]+x[0-9]+|S[0-9]+E[0-9]+)" | sed -E 's/[SEse]/ /g; s/ +/x/g' | sort -V | xargs | tr -d '\r\n')
+        # If old_msg came back empty from JQ, we need to know
+        if [[ -z "$old_msg" || "$old_msg" == "null" ]]; then
+             log "⚠️  Warning: Found issue #$issue_id but could not read the message from Seerr."
+        fi
 
-        # log "DEBUG: Old: [${norm_old}] vs New: [${norm_new}]"
+        local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs | tr -d '\r\n')
+        local norm_new=$(echo "$message" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs | tr -d '\r\n')
 
         if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
             return 0 
