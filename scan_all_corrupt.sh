@@ -6,6 +6,8 @@ source "/usr/local/bin/common_functions.sh"
 # Configuration
 MOVIE_ROOT="${1:-/mnt/synology/Movies}"
 SCANNER_SCRIPT="/usr/local/bin/scan_corrupt_media.sh"
+LOG_LEVEL=${LOG_LEVEL:-info}
+#LOG_LEVEL="debug"
 
 # Stats counters
 TOTAL=0
