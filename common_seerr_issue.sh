@@ -75,11 +75,13 @@ sync_seerr_issue() {
         local instance_name=""
         local payload=""
 
+        # --- Sonarr Logic (TV) ---
         if [[ "$media_type" == "tv" ]]; then
-            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" || target_url="$SONARR_API_BASE"
-            [[ "$media_name" =~ "4K" ]] && target_key="$SONARR4K_API_KEY" || target_key="$SONARR_API_KEY"
-            instance_name="Sonarr"
-
+            local target_url="$SONARR_API_BASE"
+            local target_key="$SONARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
+    
+            # Match by folder name
             local folder_name=$(basename "${media_name%/}")
             local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
                 .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
@@ -88,47 +90,38 @@ sync_seerr_issue() {
             
             local s_id=$(echo "$s_data" | cut -d'|' -f1)
             local s_mon=$(echo "$s_data" | cut -d'|' -f2)
-
+    
             if [[ -n "$s_id" && "$s_mon" == "true" ]]; then
-                payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
+                log "📡 Sonarr: Triggering search for series '$folder_name' (ID: $s_id)..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $(echo $s_id | tr -d '[:space:]')}"
             fi
-        fi
+        fi # End TV Block
 
+        # --- Radarr Logic (Movie) ---
         if [[ "$media_type" == "movie" ]]; then
-            # 1. Routing
-            if [[ "$media_path" =~ "4K" ]]; then
-                target_url="$RADARR4K_API_BASE"
-                target_key="$RADARR4K_API_KEY"
-            else
-                target_url="$RADARR_API_BASE"
-                target_key="$RADARR_API_KEY"
-            fi
-            instance_name="Radarr"
-        
-            # 2. Get the folder name (e.g., "The Matrix (1999)")
-            # If media_path is the file path, use: folder_name=$(basename "$(dirname "$media_path")")
-            # If media_path is the folder, use: folder_name=$(basename "$media_path")
-            local folder_name=$(basename "$media_path")
-        
-            # 3. Match by path in Radarr
+            local target_url="$RADARR_API_BASE"
+            local target_key="$RADARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
+    
+            # Match by folder name
+            local folder_name=$(basename "${media_name%/}")
             local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$folder_name" '
-                .[] | 
-                ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
                 select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
                 "\(.id)|\(.monitored)"' | head -n 1)
-        
+    
             local r_id=$(echo "$r_data" | cut -d'|' -f1)
             local r_mon=$(echo "$r_data" | cut -d'|' -f2)
-        
-            # 4. Trigger the Search
+    
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                payload=$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
-                log "📡 $instance_name: Corruption detected. Triggering replacement search for '$folder_name'..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "$payload"
+                log "📡 Radarr: Triggering search for movie '$folder_name' (ID: $r_id)..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$(echo $r_id | tr -d '[:space:]')]}"
             else
-                log "⚠️  $instance_name: Found corruption in '$folder_name', but movie is not monitored or not found in Radarr."
+                log "⚠️  Radarr: Could not find monitored entry for '$folder_name'."
             fi
-        fi
+        fi # End Movie Block
 
         if [[ -n "$payload" ]]; then
             log "📡 $instance_name: Triggering search for '$media_name'..."
