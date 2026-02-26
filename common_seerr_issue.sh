@@ -4,7 +4,7 @@ resolve_seerr_issue() {
 
     # 1. Find the Open Issue ID by matching the name/title
     local issue_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?status=open&limit=100" | \
-        jq -r --arg name "$media_name" '.results[] | select(.media.title == $name or .media.name == $name) | .id' | head -n 1)
+        jq -r --arg name "$media_name" '.results?[]? | select(.media.title == $name or .media.name == $name) | .id' | head -n 1)
 
     if [[ -n "$issue_id" ]]; then
         log "✅ Seerr: Media is now healthy. Resolving Issue #$issue_id for '$media_name'..."
