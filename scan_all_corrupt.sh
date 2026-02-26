@@ -35,7 +35,5 @@ done < <(find "$MOVIE_ROOT" -maxdepth 1 -mindepth 1 -type d -print0)
 
 # Final Summary
 PROCESSED=$((TOTAL - SKIPPED))
-log "-------------------------------------------"
-log "✅ Full library sweep complete."
-log "📊 Stats: Total Folders: $TOTAL | Processed: $PROCESSED | Skipped: $SKIPPED"
-log "-------------------------------------------"
+#log "✅ Full library sweep complete."
+log "📊 Total Folders: $TOTAL | Processed: $PROCESSED | Skipped: $SKIPPED"
