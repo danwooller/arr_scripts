@@ -61,15 +61,7 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         mv --backup=numbered "$file" "$HOLD_DIR/"
     else
         log "✅ HEALTHY: $file_name"
-        
-        # Now media_name and media_id are available!
-        if [[ -n "$media_id" ]]; then
-            resolve_seerr_issue "$media_name" "$media_type" "$media_id"
-        else
-            # Fallback: if you don't use IDs, you can pass an empty string to sync_seerr_issue 
-            # and let it handle resolution by name
-            log "⚠️ Skipping resolution: No Media ID found for $media_name"
-        fi
+        resolve_seerr_issue "$media_name" "$media_type"
     fi
 done
 
