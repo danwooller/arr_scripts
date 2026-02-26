@@ -9,7 +9,6 @@ sync_seerr_issue() {
     # 1. TRIGGER ARR SEARCH (Independent Block)
     # ==========================================
     if [[ -n "$message" ]]; then
-echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<"
         if [[ "$media_type" == "movie" ]]; then
             local target_url="$RADARR_API_BASE"
             local target_key="$RADARR_API_KEY"
@@ -25,17 +24,22 @@ echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<"
             local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
 
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Forcing 'Missing' status for '$media_name' (ID: $r_id)..."
-                # Unmonitor
-                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"movieIds\": [$r_id], \"monitored\": false}"
-                # Rescan
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
-                sleep 3
-                # Remonitor
-                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"movieIds\": [$r_id], \"monitored\": true}"
-                # Search
-                log "📡 Radarr: Triggering search for replacement..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
+                log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
+
+                # 1. Get the File ID from the movie data
+                local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
+
+                # 2. If a file record exists in Radarr, tell Radarr to delete it
+                if [[ -n "$file_id" ]]; then
+                    log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
+                    curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
+                    sleep 2
+                fi
+
+                # 3. Now trigger the search
+                log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
             fi
         fi
     fi
@@ -43,7 +47,6 @@ echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<"
     # 6. Trigger Arr Search
     # This now only runs once, using the robust path-matching logic
     if [[ -n "$message" ]]; then
-echo ">>>>>>>>>>>>>>>>>>>>>>>>"
         # --- Sonarr Logic (TV) ---
         if [[ "$media_type" == "tv" ]]; then
             local target_url="$SONARR_API_BASE"
@@ -74,26 +77,20 @@ echo ">>>>>>>>>>>>>>>>>>>>>>>>"
             [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
 
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Forcing database update for '$media_name' (ID: $r_id)..."
+                log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
 
-                # 1. Unmonitor the movie (This is a database-only change)
-                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"movieIds\": [$r_id], \"monitored\": false}"
+                # 1. Get the File ID from the movie data
+                local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
 
-                # 2. Tell Radarr to rescan the folder (Single ID)
-                # Since it is unmonitored, Radarr is less likely to trigger global tasks
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+                # 2. If a file record exists in Radarr, tell Radarr to delete it
+                if [[ -n "$file_id" ]]; then
+                    log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
+                    curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
+                    sleep 2
+                fi
 
-                log "⏳ Waiting 5s for database to drop file entry..."
-                sleep 5
-
-                # 3. Remonitor the movie
-                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"movieIds\": [$r_id], \"monitored\": true}"
-
-                # 4. Search
-                log "📡 Radarr: Triggering search for missing movie..."
+                # 3. Now trigger the search
+                log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                      -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
             fi
