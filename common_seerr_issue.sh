@@ -99,6 +99,15 @@ sync_seerr_issue() {
             local target_key="$RADARR_API_KEY"
             [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
 
+            # Get ID
+            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
+                select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                "\(.id)|\(.monitored)"' | head -n 1)
+
+            local r_id=$(echo "$r_data" | cut -d'|' -f1 | tr -d '[:space:]')
+            local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
+
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
                 log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
 
