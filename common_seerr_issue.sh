@@ -1,29 +1,40 @@
 resolve_seerr_issue() {
     local media_name="$1"
     
-    # 1. Ask Seerr for its internal Media ID for this folder name
-    # This bypasses the need for TMDB IDs or Titles in the Issue list
-    local seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/media?take=1&filter=all&search=$media_name" | jq -r '.results[0].id // empty')
+    # 1. Get the TMDB ID from Radarr as the source of truth
+    local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+        jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
 
-    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
-        log "⚠️ Seerr: Could not find an internal Media ID for '$media_name'."
-        return 0
+    # 2. Get ALL open issues (no filters, just the raw list)
+    local open_issues=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100")
+
+    # 3. Find the ID by checking both the Media object AND the Request Item object
+    # This is the most thorough search possible in Seerr
+    local issue_id=$(echo "$open_issues" | jq -r --arg tid "$tmdb_id" '
+        .results[]? | 
+        select(
+            (.media.tmdbId == ($tid|tonumber)) or 
+            (.issueItem.tmdbId == ($tid|tonumber)) or
+            (.media.title | contains($tid))
+        ) | .id' | head -n 1)
+
+    # 4. If that fails, do a last-ditch "Title contains" check on the list
+    if [[ -z "$issue_id" || "$issue_id" == "null" ]]; then
+        # Strip (2024) to increase match chances
+        local short_name=$(echo "$media_name" | sed 's/ ([0-9]\{4\})//g')
+        issue_id=$(echo "$open_issues" | jq -r --arg n "$short_name" '
+            .results[]? | select(.media.title | contains($n)) | .id' | head -n 1)
     fi
 
-    # 2. Get all open issues and find the one matching that Internal Media ID
-    local issue_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100" | \
-        jq -r --arg mid "$seerr_media_id" '.results[]? | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
-
-    # 3. Resolve it
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found Issue #$issue_id for Media ID $seerr_media_id. Resolving..."
+        log "✅ Seerr: Found Issue #$issue_id. Resolving..."
         curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         
         # Trigger Radarr Rescan
         local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
         [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
     else
-        log "ℹ️ Seerr: No open issue found for Media ID $seerr_media_id ($media_name)."
+        log "ℹ️ Seerr: No open issue matches found for '$media_name' (TMDB: $tmdb_id)."
     fi
 }
 
