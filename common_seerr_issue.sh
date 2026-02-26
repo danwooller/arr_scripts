@@ -4,6 +4,65 @@ sync_seerr_issue() {
     local message="$3"      # Error details or missing ep list
     local media_id="$4"     # Optional Manual Map ID
 
+    # 6. Trigger Arr Search
+    # This now only runs once, using the robust path-matching logic
+    if [[ -n "$message" ]]; then
+        # --- Sonarr Logic (TV) ---
+        if [[ "$media_type" == "tv" ]]; then
+            local target_url="$SONARR_API_BASE"
+            local target_key="$SONARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
+    
+            # Match by folder name
+            local folder_name=$(basename "${media_name%/}")
+            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
+                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                "\(.id)|\(.monitored)"' | head -n 1)
+            
+            local s_id=$(echo "$s_data" | cut -d'|' -f1)
+            local s_mon=$(echo "$s_data" | cut -d'|' -f2)
+    
+            if [[ -n "$s_id" && "$s_mon" == "true" ]]; then
+                log "📡 Sonarr: Triggering search for series '$folder_name' (ID: $s_id)..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $(echo $s_id | tr -d '[:space:]')}"
+            fi
+        fi # End TV Block
+
+        # --- Radarr Logic (Movie) ---
+        if [[ "$media_type" == "movie" ]]; then
+            local target_url="$RADARR_API_BASE"
+            local target_key="$RADARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
+
+            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
+                log "📡 Radarr: Forcing database update for '$media_name' (ID: $r_id)..."
+
+                # 1. Unmonitor the movie (This is a database-only change)
+                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"movieIds\": [$r_id], \"monitored\": false}"
+
+                # 2. Tell Radarr to rescan the folder (Single ID)
+                # Since it is unmonitored, Radarr is less likely to trigger global tasks
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
+
+                log "⏳ Waiting 5s for database to drop file entry..."
+                sleep 5
+
+                # 3. Remonitor the movie
+                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"movieIds\": [$r_id], \"monitored\": true}"
+
+                # 4. Search
+                log "📡 Radarr: Triggering search for missing movie..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
+            fi
+        fi # End Movie Block
+    fi
+
     # 1. Get Seerr Media ID
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
@@ -66,68 +125,4 @@ sync_seerr_issue() {
         -d "$json_payload")
     
     log "🚀 Seerr Issue created for $media_name."
-
-    # 6. Trigger Arr Search
-    # This now only runs once, using the robust path-matching logic
-    if [[ -n "$message" ]]; then
-        local target_url=""
-        local target_key=""
-        local instance_name=""
-        local payload=""
-
-        # --- Sonarr Logic (TV) ---
-        if [[ "$media_type" == "tv" ]]; then
-            local target_url="$SONARR_API_BASE"
-            local target_key="$SONARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
-    
-            # Match by folder name
-            local folder_name=$(basename "${media_name%/}")
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$folder_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
-                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"' | head -n 1)
-            
-            local s_id=$(echo "$s_data" | cut -d'|' -f1)
-            local s_mon=$(echo "$s_data" | cut -d'|' -f2)
-    
-            if [[ -n "$s_id" && "$s_mon" == "true" ]]; then
-                log "📡 Sonarr: Triggering search for series '$folder_name' (ID: $s_id)..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $(echo $s_id | tr -d '[:space:]')}"
-            fi
-        fi # End TV Block
-
-        # --- Radarr Logic (Movie) ---
-        if [[ "$media_type" == "movie" ]]; then
-            local target_url="$RADARR_API_BASE"
-            local target_key="$RADARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
-
-            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Forcing database update for '$media_name' (ID: $r_id)..."
-
-                # 1. Unmonitor the movie (This is a database-only change)
-                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"movieIds\": [$r_id], \"monitored\": false}"
-
-                # 2. Tell Radarr to rescan the folder (Single ID)
-                # Since it is unmonitored, Radarr is less likely to trigger global tasks
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
-
-                log "⏳ Waiting 5s for database to drop file entry..."
-                sleep 5
-
-                # 3. Remonitor the movie
-                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"movieIds\": [$r_id], \"monitored\": true}"
-
-                # 4. Search
-                log "📡 Radarr: Triggering search for missing movie..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
-            fi
-        fi # End Movie Block
-    fi
 }
