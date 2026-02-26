@@ -1,34 +1,35 @@
 resolve_seerr_issue() {
     local media_name="$1"
-    # Strip the year to be safe, so "The Order (2024)" becomes "The Order"
-    local clean_name=$(echo "$media_name" | sed 's/ ([0-9]\{4\})//g')
+    
+    # 1. Get the TMDB ID from Radarr
+    local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+        jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
 
-    log "🔍 Searching Seerr comments for: $clean_name"
+    log "🔍 Target TMDB ID: $tmdb_id"
 
-    # 1. Get the last 50 open issues
+    # 2. Get the list of all open issue IDs
     local issue_ids=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=50" | jq -r '.results[]?.id')
 
     for id in $issue_ids; do
-        # 2. Get the full detail including comments
+        # 3. Pull the full issue detail
         local detail=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue/$id")
         
-        # 3. Check if the movie name exists anywhere in the comments/messages
-        if echo "$detail" | jq -r '.comments[].message' | grep -qi "$clean_name"; then
-            log "✅ Seerr: Found '$clean_name' in Issue #$id comments. Resolving..."
-            
-            # 4. POST the resolution
+        # 4. Extract TMDB ID using the EXACT path from your previous curl output
+        local s_tmdb=$(echo "$detail" | jq -r '.media.tmdbId // empty')
+
+        # 5. Compare
+        if [[ "$tmdb_id" == "$s_tmdb" ]]; then
+            log "✅ Seerr: Match found! Issue #$id links to TMDB $tmdb_id. Resolving..."
             curl -s -X POST "$SEERR_API_BASE/issue/$id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
             
-            # 5. Refresh Radarr so it sees the new healthy file
+            # 6. Trigger Radarr Rescan
             local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-            if [[ -n "$r_id" ]]; then
-                curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
-            fi
+            [[ -n "$r_id" ]] && curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
             return 0
         fi
     done
 
-    log "ℹ️ Seerr: No open issues found mentioning '$clean_name' in comments."
+    log "ℹ️ Seerr: No open issues found linking to TMDB ID $tmdb_id."
 }
 
 sync_seerr_issue() {
