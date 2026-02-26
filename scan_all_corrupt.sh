@@ -11,9 +11,6 @@ SCANNER_SCRIPT="/usr/local/bin/scan_corrupt_media.sh"
 TOTAL=0
 SKIPPED=0
 
-# Graceful exit on Ctrl+C
-trap "log '🛑 Scan interrupted by user.'; exit 1" SIGINT SIGTERM
-
 log "🚀 Starting full library sweep in: $MOVIE_ROOT"
 
 # Use find to feed the loop
