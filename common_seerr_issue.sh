@@ -2,26 +2,35 @@ resolve_seerr_issue() {
     local media_name="$1"
     local media_type="$2"
 
-    # 1. URL Encode the name (Spaces -> %20, etc.)
-    local encoded_name=$(echo "$media_name" | jq -sRr @uri)
+    log "🔍 Resolving by TMDB lookup for: $media_name"
 
-    # 2. Get the Seerr Media ID using the Search endpoint
-    # We look for the TMDB/TVDB link to get the internal Media ID
-    local seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/search?query=$encoded_name" | \
-        jq -r '.results[]? | select(.title == $name or .name == $name) | .mediaInfo.id' --arg name "$media_name" | head -n 1)
-
-    # FALLBACK: If .mediaInfo.id is missing, try the direct media lookup
-    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
-        seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/media?take=1&filter=all&search=$encoded_name" | \
-            jq -r '.results[]? | .id' | head -n 1)
+    # 1. Get TMDB ID from Radarr (Movies) or TVDB ID from Sonarr (TV)
+    local external_id=""
+    if [[ "$media_type" == "movie" ]]; then
+        external_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+            jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId')
+    else
+        external_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tvdbId')
     fi
 
-    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
-        log "⚠️ Seerr: Could not find Media ID for '$media_name' even with encoding."
+    if [[ -z "$external_id" || "$external_id" == "null" ]]; then
+        log "⚠️ Could not find External ID in Arrs for '$media_name'."
         return 0
     fi
 
-    # 3. Find and Resolve the Issue
+    # 2. Ask Seerr for the Media ID using that specific External ID
+    # For movies we use tmdb, for TV we use tvdb
+    local id_type="tmdb"
+    [[ "$media_type" == "tv" ]] && id_type="tvdb"
+    
+    local seerr_media_id=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/media/$id_type/$external_id" | jq -r '.id')
+
+    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
+        log "⚠️ Seerr doesn't have a Media record for $id_type:$external_id ($media_name)."
+        return 0
+    fi
+
+    # 3. Find the Open Issue for that Media ID and Resolve it
     local issue_id=$(curl -s -L -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_API_BASE/issue?filter=open&limit=100" | \
         jq -r --arg mid "$seerr_media_id" '.results[]? | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
 
