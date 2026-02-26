@@ -20,13 +20,9 @@ log "🚀 Starting full library sweep in: $MOVIE_ROOT"
 while IFS= read -r -d '' folder; do
     ((TOTAL++))
     
-    # Quick check for video files to avoid unnecessary script overhead
-    # We check for common extensions (case-insensitive)
-    if ls "$folder"/*.[mM][kK][vV] "$folder"/*.[mM][pP]4 "$folder"/*.[aA][vV][iI] >/dev/null 2>&1; then
+    if find "$folder" -maxdepth 1 -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.avi" | grep -q .; then
         # Call the main scanner
-        # Temporary change for testing
-        # "$SCANNER_SCRIPT" "$folder"  <-- Comment this out
-        log "Would scan: $folder"    # <-- Add this
+        "$SCANNER_SCRIPT" "$folder"
     else
         log "⚠️ Skipping: No media found in $(basename "$folder")"
         ((SKIPPED++))
