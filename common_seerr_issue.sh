@@ -10,7 +10,7 @@ resolve_seerr_issue() {
     
     # 3. Match based on TMDB ID (using '[]?' to prevent the null iteration error)
     local issue_id=$(echo "$response" | jq -r --arg tid "$tmdb_id" '
-        .results[]? | select(.media.tmdbId == ($tid|tonumber)) | .id' | head -n 1)
+        .results[]? | select((.media.tmdbId|tostring) == ($tid|tostring)) | .id' | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" && "$issue_id" != "" ]]; then
         log "✅ Seerr: Found Issue #$issue_id. Resolving..."
