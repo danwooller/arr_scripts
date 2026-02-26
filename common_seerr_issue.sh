@@ -104,47 +104,29 @@ sync_seerr_issue() {
             local target_key="$RADARR_API_KEY"
             [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
 
-            # Match by folder name to get the ID
-            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
-                select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"' | head -n 1)
-
-            local r_id=$(echo "$r_data" | cut -d'|' -f1 | tr -d '[:space:]')
-            local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
-
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Forcing 'Missing' status for '$media_name' (ID: $r_id)..."
-                
-                # 1. Surgical Refresh: Build JSON with integer ID to avoid global scan
-                local refresh_payload=$(jq -n --arg id "$r_id" '{name: "RefreshMovie", movieId: ($id|tonumber)}')
-                
-                local refresh_cmd=$(curl -s -X POST "$target_url/command" \
-                    -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                    -d "$refresh_payload")
-                
-                local cmd_id=$(echo "$refresh_cmd" | jq -r '.id')
+                log "📡 Radarr: Forcing database update for '$media_name' (ID: $r_id)..."
 
-                # 2. Wait for this specific task to finish
-                log "⏳ Waiting for Radarr to update database..."
-                while true; do
-                    local status=$(curl -s -H "X-Api-Key: $target_key" "$target_url/command/$cmd_id" | jq -r '.status')
-                    [[ "$status" == "completed" ]] && break
-                    [[ "$status" == "failed" ]] && log "⚠️  Refresh failed" && break
-                    sleep 1
-                done
+                # 1. Unmonitor the movie (This is a database-only change)
+                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"movieIds\": [$r_id], \"monitored\": false}"
 
-                # 3. Final verification sleep
-                sleep 2
+                # 2. Tell Radarr to rescan the folder (Single ID)
+                # Since it is unmonitored, Radarr is less likely to trigger global tasks
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}"
 
-                # 4. Search (Now the database definitely says 'Missing')
-                log "📡 Radarr: Triggering replacement search..."
-                local search_payload=$(jq -n --arg id "$r_id" '{name: "MoviesSearch", movieIds: [($id|tonumber)]}')
-                curl -s -o /dev/null -X POST "$target_url/command" \
-                     -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "$search_payload"
-            else
-                log "⚠️  Radarr: Could not find monitored entry for '$media_name'."
+                log "⏳ Waiting 5s for database to drop file entry..."
+                sleep 5
+
+                # 3. Remonitor the movie
+                curl -s -X PUT "$target_url/movie/editor" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"movieIds\": [$r_id], \"monitored\": true}"
+
+                # 4. Search
+                log "📡 Radarr: Triggering search for missing movie..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
             fi
         fi # End Movie Block
     fi
