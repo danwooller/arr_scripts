@@ -20,11 +20,11 @@ sync_seerr_issue() {
     # 2. Deduplication Check
     local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
     
-    # We use // to check .message first, then .description as a fallback
+    # NEW JQ: Extract the first comment's message
     local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
         .results[] | 
         select(.media.id == ($mid|tonumber)) | 
-        "\(.id)|\(.message // .description // "")"' | head -n 1)
+        "\(.id)|\(.comments[0].message // "")"' | head -n 1)
     
     local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
     local old_msg=$(echo "$existing_data" | cut -d'|' -f2-)
