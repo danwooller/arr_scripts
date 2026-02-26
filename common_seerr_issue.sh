@@ -74,42 +74,35 @@ sync_seerr_issue() {
         if [[ "$media_type" == "tv" ]]; then
             local target_url="$SONARR_API_BASE"
             local target_key="$SONARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
 
-            # 1. Get Series Data
-            local s_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$media_name" '
+            # 1. Get Series ID
+            local s_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$media_name" '
                 .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
-                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"')
+                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | .id')
 
-            local s_id=$(echo "$s_data" | cut -d'|' -f1)
-            local s_mon=$(echo "$s_data" | cut -d'|' -f2)
-
-            if [[ "$s_mon" == "true" ]]; then
-                # 2. Get Episode Data
-                local ep_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/episode?seriesId=$s_id")
-                
-                # Match the specific episode by filename (for corruption) or just check monitored status
-                # If we're doing "Missing Episodes", we filter for monitored ones only
-                local target_ep=$(echo "$ep_data" | jq -c 'select(.monitored == true) | .[0]')
-                local ep_id=$(echo "$target_ep" | jq -r '.id // empty')
-                local ep_file_id=$(echo "$target_ep" | jq -r '.episodeFileId // empty')
-
-                if [[ -n "$ep_id" ]]; then
-                    # 3. Purge if there's a file, then Search
+            if [[ -n "$s_id" ]]; then
+                # 2. Check if this is a CORRUPTION event (message contains "CORRUPT:")
+                if [[ "$message" == *"CORRUPT:"* ]]; then
+                    # Extract filename from message
+                    local corrupt_filename=$(echo "$message" | grep -oP '(?<=CORRUPT: ).*?(?=\ \()')
+                    
+                    log "📡 Sonarr: Identifying specific file record for purge..."
+                    local ep_file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/episodefile?seriesId=$s_id" | \
+                        jq -r --arg fname "$corrupt_filename" '.[] | select(.relativePath | contains($fname)) | .id')
+                    
                     if [[ -n "$ep_file_id" ]]; then
-                        log "🗑️  Sonarr: Purging file record (ID: $ep_file_id)..."
+                        log "🗑️  Sonarr: Purging file record (ID: $ep_file_id) for '$corrupt_filename'..."
                         curl -s -X DELETE "$target_url/episodefile/$ep_file_id" -H "X-Api-Key: $target_key"
                         sleep 2
                     fi
-
-                    log "📡 Sonarr: Episode is Monitored. Triggering search for Episode ID: $ep_id..."
-                    curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                         -d "{\"name\": \"EpisodeSearch\", \"episodeIds\": [$ep_id]}"
-                else
-                    log "🚫 Sonarr: Skipping search. Episode is NOT monitored."
                 fi
-            else
-                log "🚫 Sonarr: Skipping search. Series '$media_name' is NOT monitored."
+
+                # 3. Trigger Search (Always safe for monitored items)
+                # If we have no specific episode ID from a purge, we search the series for missing items
+                log "📡 Sonarr: Triggering search for missing monitored episodes in '$media_name'..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $s_id}"
             fi
         fi # End TV Block
 
