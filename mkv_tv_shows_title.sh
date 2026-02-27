@@ -8,7 +8,7 @@
 source "/usr/local/bin/common_functions.sh"
 
 # --- Dependencies ---
-check_dependencies "jq" "mkvtoolnix"
+check_dependencies "mkvmerge"
 
 # --- Configuration ---
 # Set the MKV extension to check for
