@@ -7,6 +7,9 @@
 # --- Load Shared Functions ---
 source "/usr/local/bin/common_functions.sh"
 
+# --- Dependencies ---
+check_dependencies "jq" "mkvtoolnix"
+
 # --- Configuration ---
 # Set the MKV extension to check for
 MKV_EXTENSION=".mkv"
@@ -69,15 +72,11 @@ process_mkv() {
 
 # --- Main Script Logic ---
 
-# Check dependencies
-if ! command -v mkvpropedit &> /dev/null || ! command -v mkvinfo &> /dev/null; then
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Please install mkvtoolnix to run this script."
-    exit 1
-fi
-
 # Determine files to process
 files_to_process=()
 TARGET_DIR="$DEFAULT_TARGET_DIR"
+
+log_start "$TARGET_DIR"
 
 if [ "$#" -gt 0 ]; then
     # Check if the first argument is a directory
@@ -120,4 +119,4 @@ fi
 for mkv_file in "${files_to_process[@]}"; do
     process_mkv "$mkv_file"
 done
-[[ $LOG_LEVEL == "debug" ]] && log "✅ Script finished."
+[[ $LOG_LEVEL == "debug" ]] && log_end "$TARGET_DIR"
