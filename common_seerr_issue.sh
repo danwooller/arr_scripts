@@ -1,5 +1,5 @@
 resolve_seerr_issue() {
-    local folder_path="$1"
+    local folder_path="${1%/}"
     local base_url="${SEERR_API_BASE%/}"
     local api_key=$(echo "$SEERR_API_KEY" | tr -d '\r' | xargs)
     
@@ -11,15 +11,20 @@ resolve_seerr_issue() {
 
     # 1. Detect Media Type (TV vs Movie)
     if [[ "$folder_path" == *"/TV/"* ]]; then
-        media_type="tv"
-        # /mnt/synology/TV/Best Medicine/Season 1
-        local show_folder=$(dirname "$folder_path")
-        local season_name=$(basename "$folder_path")
-        season_num=$(echo "$season_name" | grep -oP '\d+' || echo "0")
+        # If input is: /mnt/synology/TV/Best Medicine/Season 1
+        local show_folder=$(dirname "$folder_path") # Result: /mnt/synology/TV/Best Medicine
+        local season_name=$(basename "$folder_path") # Result: Season 1
+        local season_num=$(echo "$season_name" | grep -oP '\d+' || echo "0")
 
-        # Get TVDB ID from Sonarr
+        # Use the SHOW folder to talk to Sonarr
         tvdb_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-            jq -r --arg path "$show_folder" '.[] | select(.path == $path) | .tvdbId')
+            jq -r --arg path "$show_folder" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
+            
+        if [[ -z "$tvdb_id" || "$tvdb_id" == "null" ]]; then
+            # THIS is where your error is likely being triggered
+            log "⚠️ Seerr: Could not link '$(basename "$folder_path")' to a TVDB ID."
+            return 1
+        fi
     else
         media_type="movie"
         # Get TMDB ID from Radarr
