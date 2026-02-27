@@ -79,4 +79,4 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
 
 done
 
-[[ $LOG_LEVEL == "debug" ]] && log "✅ Scan complete."
+[[ $LOG_LEVEL == "debug" ]] && log "✅ Scan complete.${1:+ - $1}"
