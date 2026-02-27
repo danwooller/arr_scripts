@@ -21,10 +21,11 @@ for dir in "$TARGET_DIR"/*/ ; do
         folder_year="${BASH_REMATCH[1]}"
         movie_title="${dir_name% (*}"
         
-        # Instance variables to track what to refresh
+        # Reset tracking variables for this specific folder
         target_base=""
         target_key=""
         radarr_id=""
+        any_change=0
 
         process_instance() {
             local base_url=$1
@@ -41,7 +42,7 @@ for dir in "$TARGET_DIR"/*/ ; do
 
             if [[ -z "$movie_json" || "$movie_json" == "null" ]]; then return 1; fi
 
-            radarr_id=$(echo "$movie_json" | jq -r '.id')
+            local current_radarr_id=$(echo "$movie_json" | jq -r '.id')
             local radarr_year=$(echo "$movie_json" | jq -r '.year')
             local db_path=$(echo "$movie_json" | jq -r '.path')
 
@@ -61,9 +62,10 @@ for dir in "$TARGET_DIR"/*/ ; do
                 curl -s -X PUT "$base_url/movie" -H "X-Api-Key: $api_key" \
                      -H "Content-Type: application/json" -d "$updated_json" > /dev/null
 
-                # Capture details for the refresh at the end
+                # Export data to parent scope
                 target_base="$base_url"
                 target_key="$api_key"
+                radarr_id="$current_radarr_id"
                 current_full_path="$new_path"
                 return 2
             fi
@@ -71,7 +73,6 @@ for dir in "$TARGET_DIR"/*/ ; do
         }
 
         # --- Instance Routing ---
-        any_change=0
         if [[ "$current_full_path" == *"4kMovies"* ]]; then
             process_instance "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "4K"
             [[ $? -eq 2 ]] && any_change=1
@@ -80,17 +81,18 @@ for dir in "$TARGET_DIR"/*/ ; do
             [[ $? -eq 2 ]] && any_change=1
         fi
 
-        # --- The Final Sync & Refresh ---
+        # --- The Final Sync & Targeted Refresh ---
         if [[ $any_change -eq 1 ]]; then
-             # 1. Resolve Seerr issue (This might trigger a Radarr refresh if an issue exists)
+             # 1. Resolve Seerr issue
              resolve_seerr_issue "$current_full_path"
 
-             # 2. Guaranteed Refresh (In case Seerr didn't do it)
-             # Radarr handles duplicate command requests gracefully, 
-             # but this ensures that even without an issue, the path is updated.
-             [[ -n "$radarr_id" ]] && curl -s -X POST "$target_base/command" \
-                -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                -d "{\"name\": \"RescanMovie\", \"movieIds\": [$radarr_id]}" > /dev/null
+             # 2. Targeted Refresh (Using singular movieId to prevent full library scan)
+             if [[ -n "$radarr_id" && "$radarr_id" != "null" ]]; then
+                 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Triggering targeted rescan for Movie ID: $radarr_id"
+                 curl -s -X POST "$target_base/command" \
+                    -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                    -d "{\"name\": \"RescanMovie\", \"movieId\": $radarr_id}" > /dev/null
+             fi
         fi
     fi
 done
