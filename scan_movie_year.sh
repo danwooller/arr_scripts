@@ -9,7 +9,6 @@ TARGET_DIR="${1:-/mnt/media/Movies}"
 shopt -s nullglob
 
 log_start "$TARGET_DIR"
-#log "🚀 Starting Movie Year Scan in: $TARGET_DIR"
 
 for dir in "$TARGET_DIR"/*/ ; do
     [[ -d "$dir" ]] || continue
@@ -98,4 +97,4 @@ for dir in "$TARGET_DIR"/*/ ; do
     fi
 done
 
-log "🏁 Scan complete."
+log_end "$TARGET_DIR"
