@@ -22,11 +22,11 @@ fi
 
 # --- Validation ---
 if [ ! -d "$TARGET_DIR" ]; then
-    log "Error: Directory '$TARGET_DIR' does not exist."
+    log "❌ Directory '$TARGET_DIR' does not exist."
     exit 1
 fi
 
-log "Starting integrity check on $TARGET_DIR..."
+log "ℹ️ Starting $TARGET_DIR..."
 #echo "------------------------------------------"
 
 # Find video files and execute ffmpeg check
@@ -65,4 +65,4 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
     fi
 done
 
-log "Completed integrity check on $TARGET_DIR..."
+log "ℹ️ Completed $TARGET_DIR..."
