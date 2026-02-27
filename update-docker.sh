@@ -15,7 +15,7 @@ BACKUP_DEST="${MOUNT_ROOT}/backup/${HOSTNAME}/opt"
 REQUIRED_SPACE_MB=5000 
 
 # 1. System Updates
-[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Starting update"
+log_start
 
 sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
 
