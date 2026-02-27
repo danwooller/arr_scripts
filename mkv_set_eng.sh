@@ -4,7 +4,7 @@
 source "/usr/local/bin/common_functions.sh"
 
 # Configuration
-SOURCE_DIR="${1:-/mnt/media/Movies}"
+TARGET_DIR="${1:-/mnt/media/Movies}"
 DRY_RUN=${DRY_RUN:-false}        # Defaults to false if not set/exported
 #LOG_LEVEL="debug"
 
@@ -23,10 +23,11 @@ modified_files=0
 audio_fixed=0
 subs_fixed=0
 
-log "STARTING SCAN: $SOURCE_DIR"
+log_start "$TARGET_DIR"
+
 [[ "$DRY_RUN" == "true" ]] && log "MODE: DRY RUN (No changes will be saved)"
 
-for file in "$SOURCE_DIR"/**/*.mkv; do
+for file in "$TARGET_DIR"/**/*.mkv; do
     [[ -e "$file" ]] || continue
     ((total_files++))
 
