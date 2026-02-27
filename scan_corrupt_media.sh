@@ -26,7 +26,7 @@ if [ ! -d "$TARGET_DIR" ]; then
     exit 1
 fi
 
-log "ℹ️ Starting $TARGET_DIR..."
+log_start "$TARGET_DIR"
 #echo "------------------------------------------"
 
 # Find video files and execute ffmpeg check
@@ -65,4 +65,4 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
     fi
 done
 
-log "ℹ️ Completed $TARGET_DIR..."
+log_end "$TARGET_DIR"
