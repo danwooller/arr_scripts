@@ -27,14 +27,10 @@ process_mkv() {
     
     # 1. Check if the file exists and is a regular file
     if [[ ! -f "$file" ]]; then
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Skipping: $file is not a regular file."
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Skipping: $file is not a regular file."
         return 1
     fi
-    if [[ $LOG_LEVEL = "debug" ]]; then
-        log "--- Processing: $file ---"
-    fi
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing: $file"
     # 2. Determine the desired title (the name of the file without its extension)
     # Get the filename only
     local filename_with_ext=$(basename "$file")
@@ -49,37 +45,23 @@ process_mkv() {
     # If the current_title is empty (meaning no title is set), use an empty string for comparison
     if [[ -z "$current_title" ]]; then
         current_title=""
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Current Title: <None Set>"
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Current Title: <None Set>"
     else
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Current Title: \"$current_title\""
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Current Title: \"$current_title\""
     fi
-    if [[ $LOG_LEVEL = "debug" ]]; then
-        log "Desired Title: \"$desired_title\""
-    fi
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Desired Title: \"$desired_title\""
     # 4. Compare and Update
     if [[ "$current_title" == "$desired_title" ]]; then
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Status: Title already matches the file name. No action required."
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Title already matches the file name. No action required."
     else
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Action: Updating Title field..."
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Updating Title field..."
         # Use mkvpropedit to set the segment title
         mkvpropedit "$file" --edit info --set "title=$desired_title"
 
         if [ $? -eq 0 ]; then
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "SUCCESS: Title updated to \"$desired_title\""
-            fi
+            [[ $LOG_LEVEL == "debug" ]] && log "✅ Title updated to \"$desired_title\""
         else
-            if [[ $LOG_LEVEL = "debug" ]]; then
-                log "ERROR: Failed to update title using mkvpropedit."
-            fi
+            [[ $LOG_LEVEL == "debug" ]] && log "❌ Failed to update title using mkvpropedit."
             return 1
         fi
     fi
@@ -89,10 +71,7 @@ process_mkv() {
 
 # Check dependencies
 if ! command -v mkvpropedit &> /dev/null || ! command -v mkvinfo &> /dev/null; then
-    if [[ $LOG_LEVEL = "debug" ]]; then
-        log "Error: 'mkvpropedit' or 'mkvinfo' (part of mkvtoolnix) is not installed."
-        log "Please install mkvtoolnix to run this script."
-    fi
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Please install mkvtoolnix to run this script."
     exit 1
 fi
 
@@ -105,9 +84,7 @@ if [ "$#" -gt 0 ]; then
     if [[ -d "$1" ]]; then
         # If $1 is a directory, use it as the new TARGET_DIR for a recursive search
         TARGET_DIR="$1"
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Directory provided as argument. Searching recursively for *.mkv in $TARGET_DIR..."
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Directory provided as argument. Searching recursively for *.mkv in $TARGET_DIR..."
         # Use find -print0 for robust, recursive searching.
         while IFS= read -r -d $'\0' file; do
             files_to_process+=("$file")
@@ -115,9 +92,7 @@ if [ "$#" -gt 0 ]; then
 
     else
         # If arguments are provided but $1 is NOT a directory, assume arguments are specific files
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Arguments provided are not a directory. Processing specific files..."
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Arguments provided are not a directory. Processing specific files..."
         files_to_process=("$@")
     fi
 else
@@ -125,9 +100,7 @@ else
     log "No files specified. Searching recursively for *.mkv in $TARGET_DIR..."
 
     if [[ ! -d "$TARGET_DIR" ]]; then
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Error: Default target directory '$TARGET_DIR' does not exist or is not a directory."
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "Error: Default target directory '$TARGET_DIR' does not exist or is not a directory."
         exit 1
     fi
     
@@ -140,17 +113,11 @@ fi
 
 # Process the identified files
 if [ ${#files_to_process[@]} -eq 0 ]; then
-    if [[ $LOG_LEVEL = "debug" ]]; then
-        log "No ${MKV_EXTENSION} files found to process in the specified location: $TARGET_DIR"
-    fi
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No ${MKV_EXTENSION} files found to process in the specified location: $TARGET_DIR"
     exit 0
 fi
-if [[ $LOG_LEVEL = "debug" ]]; then
-    log "Found ${#files_to_process[@]} file(s) to check."
-fi
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Found ${#files_to_process[@]} file(s) to check."
 for mkv_file in "${files_to_process[@]}"; do
     process_mkv "$mkv_file"
 done
-if [[ $LOG_LEVEL = "debug" ]]; then
-    log "Script finished."
-fi
+[[ $LOG_LEVEL == "debug" ]] && log "✅ Script finished."
