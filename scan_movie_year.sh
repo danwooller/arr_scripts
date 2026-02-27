@@ -58,8 +58,7 @@ for dir in "$TARGET_DIR"/*/ ; do
                     echo "[$label] ERROR: Cannot rename, '$new_name' already exists."
                 else
                     echo "[$label] ACTION: Renaming folder to '$new_name'..."
-                    #mv "$dir_full_path" "$new_path"
-echo "mv $dir_full_path $new_path"
+                    mv "$dir_full_path" "$new_path"
                     # Update variable so the next instance check doesn't fail or try to rename again
                     dir_full_path="$new_path" 
                 fi
