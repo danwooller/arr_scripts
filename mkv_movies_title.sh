@@ -55,22 +55,16 @@ process_mkv() {
 
     # 4. Compare and Update
     if [[ "$current_title" == "$desired_title" ]]; then
-        if [[ $LOG_LEVEL = "debug" ]]; then
-            log "Status: Title already matches the folder name. No action required."
-        fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️Title already matches the folder name. No action required."
     else
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Updating \"$desired_title\""
         # Use mkvpropedit to set the segment title
         mkvpropedit "$file" --edit info --set "title=$desired_title"
 
         if [ $? -eq 0 ]; then
-            #if [[ $LOG_LEVEL = "debug" ]]; then
-                log "✅ SUCCESS: Title updated to \"$desired_title\""
-            #fi
+            log "✅ SUCCESS: Title updated to \"$desired_title\""
         else
-            #if [[ $LOG_LEVEL = "debug" ]]; then
-                log "❌ ERROR: Failed to update \"$desired_title\" using mkvpropedit."
-            #fi
+            log "❌ ERROR: Failed to update \"$desired_title\" using mkvpropedit."
             return 1
         fi
     fi
