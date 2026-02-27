@@ -22,9 +22,7 @@ resolve_seerr_issue() {
             show_folder="$folder_path"
             season_num="0" # Or logic to loop through seasons if needed
         fi
-        
-        log "🔍 Debug: Show Folder is $show_folder" # Temporary debug line
-        
+        #log "🔍 Debug: Show Folder is $show_folder" # Temporary debug line
         # Get TVDB ID from Sonarr using the verified Show Folder
         lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
             jq -r --arg path "${show_folder%/}" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
