@@ -39,7 +39,7 @@ MIN_FILE_AGE=5
 mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_DIR"
 
 # --- Run Dependency Check using the shared function ---
-check_dependencies "HandBrakeCLI" "mkvmerge" "jq" "mkvpropedit"
+check_dependencies "HandBrakeCLI" "jq" "mkvtoolnix"
 
 log "ℹ️ HandBrake Converter started"
 
