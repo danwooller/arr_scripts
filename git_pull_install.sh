@@ -80,5 +80,5 @@ if [ -n "$FILENAME" ]; then
     fi
 fi
 
-log "Pull and service install complete for $FILENAME"
-echo "Sync complete."
+log "✅ Pull and service install complete for $FILENAME"
+echo "✅ Sync complete."
