@@ -9,7 +9,7 @@ if [[ "$CURRENT_HOSTNAME" == *"pi"* ]]; then
     REAL_USER="pi"
     SERVICE_USER="pi"
 else
-    REAL_USER="root"
+    REAL_USER="dan"
     SERVICE_USER="root"
 fi
 DEST_DIR="/home/$REAL_USER/arr_scripts"
