@@ -15,7 +15,7 @@ SECONDS=0
 shopt -s globstar
 
 # Ensure tools are present
-check_dependencies "jq" "mkvpropedit" "mkvmerge"
+check_dependencies "jq" "mkvtoolnix"
 
 # Initialize Counters
 total_files=0
