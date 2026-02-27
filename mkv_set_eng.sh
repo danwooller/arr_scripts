@@ -14,9 +14,6 @@ SECONDS=0
 # Enable recursive globbing
 shopt -s globstar
 
-# --- Dependencies ---
-check_dependencies "jq" "mkvtoolnix"
-
 # Initialize Counters
 total_files=0
 modified_files=0
