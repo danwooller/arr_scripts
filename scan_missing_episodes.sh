@@ -37,7 +37,7 @@ trigger_sonarr_search() {
     fi
 }
 
-log_start $TARGET_DIR
+log_start "$TARGET_DIR"
 
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
@@ -79,4 +79,4 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
 
 done
 
-log_end $TARGET_DIR
+log_end "$TARGET_DIR"
