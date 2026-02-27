@@ -14,7 +14,7 @@ SECONDS=0
 # Enable recursive globbing
 shopt -s globstar
 
-# Ensure tools are present
+# --- Dependencies ---
 check_dependencies "jq" "mkvtoolnix"
 
 # Initialize Counters
@@ -78,5 +78,5 @@ minutes=$((duration / 60))
 seconds=$((duration % 60))
 
 # --- Final Summary ---
-summary_msg="SCAN COMPLETE. Files: $total_files | Modified: $modified_files | Audio Fixed: $audio_fixed | Subs Fixed: $subs_fixed | Time: ${minutes}m ${seconds}s"
-log "$summary_msg"
+summary_msg="Files: $total_files | Modified: $modified_files | Audio Fixed: $audio_fixed | Subs Fixed: $subs_fixed | Time: ${minutes}m ${seconds}s"
+log_end "$summary_msg"
