@@ -15,9 +15,8 @@ BACKUP_DEST="${MOUNT_ROOT}/backup/${HOSTNAME}/opt"
 REQUIRED_SPACE_MB=5000 
 
 # 1. System Updates
-if [[ $LOG_LEVEL = "debug" ]]; then
-    log "Starting update"
-fi
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Starting update"
+
 sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
 
 # 2. & 3. Safety Checks
@@ -41,9 +40,8 @@ find_compose() {
 }
 
 # 4. Pre-fetch Images
-if [[ $LOG_LEVEL = "debug" ]]; then
-    log "Pre-pulling images..."
-fi
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pre-pulling images..."
+
 ROOT_COMPOSE=$(find_compose "/opt")
 [ -n "$ROOT_COMPOSE" ] && $DOCKER compose -f "$ROOT_COMPOSE" pull -q
 
@@ -53,9 +51,8 @@ for dir in /opt/*/ ; do
 done
 
 # 5. Stop Containers & Wait
-if [[ $LOG_LEVEL = "debug" ]]; then
-    log "Stopping all containers..."
-fi
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Stopping all containers..."
+
 RUNNING_CONTAINERS=$($DOCKER ps -q)
 if [ -n "$RUNNING_CONTAINERS" ]; then
     $DOCKER stop -t 20 $RUNNING_CONTAINERS >/dev/null 2>&1
@@ -78,16 +75,12 @@ fi
 if [ "$SKIP_BACKUP" = true ]; then
     log "⏩ Skipping rsync backup as requested."
 else
-    if [[ $LOG_LEVEL = "debug" ]]; then
-        log "Syncing /opt to $BACKUP_DEST..."
-    fi
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Syncing /opt to $BACKUP_DEST..."
     sudo rsync -avh /opt/ "$BACKUP_DEST" --delete --quiet
 fi
 
 # 7. Restart
-if [[ $LOG_LEVEL = "debug" ]]; then
-    log "Restarting containers..."
-fi
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Restarting containers..."
 
 PATHS_TO_CHECK=("/opt" /opt/*/)
 for path in "${PATHS_TO_CHECK[@]}"; do
@@ -108,9 +101,7 @@ for path in "${PATHS_TO_CHECK[@]}"; do
 done
 
 # 8. Cleanup
-if [[ $LOG_LEVEL = "debug" ]]; then
-    log "Pruning unused resources..."
-fi
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pruning unused resources..."
 $DOCKER image prune -f
 
-log "✅ Update complete."
+log_end
