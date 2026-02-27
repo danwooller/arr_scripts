@@ -13,12 +13,10 @@ echo "Scanning directories in: $TARGET_DIR"
 for dir in "$TARGET_DIR"/*/ ; do
     [[ -d "$dir" ]] || continue
 
-    # Initial path setup
     current_full_path="${dir%/}"
     dir_name=$(basename "$current_full_path")
     parent_dir=$(dirname "$current_full_path")
 
-    # Extract year from folder name: "Movie Title (YYYY)"
     if [[ "$dir_name" =~ \(([0-9]{4})\) ]]; then
         folder_year="${BASH_REMATCH[1]}"
         movie_title="${dir_name% (*}"
@@ -26,27 +24,23 @@ for dir in "$TARGET_DIR"/*/ ; do
         echo "------------------------------------------------"
         echo "Checking: $movie_title"
 
-        # Function to process an instance
-        # Returns 0 if year matches, 2 if renamed, 1 if not found/error
         process_instance() {
             local base_url=$1
             local api_key=$2
             local label=$3
             
-            # 1. Fetch data from Radarr
-            local response=$(curl -s -G --data-urlencode "term=$movie_title" \
-                "$base_url/movie/lookup" \
-                -H "X-Api-Key: $api_key")
+            # 1. Fetch current database record for this movie
+            # We search specifically for the title to get the internal ID and TMDB info
+            local movie_json=$(curl -s -H "X-Api-Key: $api_key" "$base_url/movie" | \
+                jq -c --arg t "$movie_title" '.[] | select(.title == $t)')
 
-            local radarr_year=$(echo "$response" | jq -r ".[] | select(.title==\"$movie_title\") | .year" | head -n 1)
-
-            if [[ -z "$radarr_year" || "$radarr_year" == "null" ]]; then
-                echo "[$label] Result: Movie not found in this instance."
+            if [[ -z "$movie_json" ]]; then
+                echo "[$label] Result: Movie not found in database."
                 return 1
             fi
 
-            # 2. Check for mismatch
-            # We re-extract the folder year because it might have changed in the previous loop
+            local radarr_id=$(echo "$movie_json" | jq -r '.id')
+            local radarr_year=$(echo "$movie_json" | jq -r '.year')
             local current_folder_name=$(basename "$current_full_path")
             [[ "$current_folder_name" =~ \(([0-9]{4})\) ]]
             local current_folder_year="${BASH_REMATCH[1]}"
@@ -55,45 +49,50 @@ for dir in "$TARGET_DIR"/*/ ; do
                 echo "[$label] Result: MATCH ($radarr_year)"
                 return 0
             else
-                echo "[$label] Result: MISMATCH! (Radarr says $radarr_year, Folder has $current_folder_year)"
+                echo "[$label] Result: MISMATCH! (Radarr: $radarr_year vs Folder: $current_folder_year)"
                 
                 local new_name="$movie_title ($radarr_year)"
                 local new_path="$parent_dir/$new_name"
 
-                if [[ -d "$new_path" ]]; then
-                    echo "[$label] NOTICE: Target '$new_name' already exists. Updating path reference..."
-                    current_full_path="$new_path"
-                    return 2
+                if [[ -d "$new_path" && "$current_full_path" != "$new_path" ]]; then
+                    echo "[$label] NOTICE: Target path exists. Syncing database path only..."
                 else
-                    echo "[$label] ACTION: Renaming folder to '$new_name'..."
+                    echo "[$label] ACTION: Renaming filesystem folder..."
                     mv "$current_full_path" "$new_path"
-                    current_full_path="$new_path"
-                    
-                    # Trigger Radarr Rescan so Seerr lookup works later
-                    local r_id=$(echo "$response" | jq -r ".[] | select(.title==\"$movie_title\") | .id")
-                    if [[ -n "$r_id" && "$r_id" != "null" ]]; then
-                        curl -s -X POST "$base_url/command" -H "X-Api-Key: $api_key" \
-                             -H "Content-Type: application/json" \
-                             -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}" > /dev/null
-                    fi
-                    return 2
                 fi
+
+                # --- CRITICAL: Update Radarr's Internal Path ---
+                echo "[$label] Updating Radarr database path to: $new_path"
+                
+                # Update the path in the JSON and PUT it back to the API
+                local updated_json=$(echo "$movie_json" | jq -c --arg p "$new_path" '.path = $p')
+                
+                curl -s -X PUT "$base_url/movie" \
+                     -H "X-Api-Key: $api_key" \
+                     -H "Content-Type: application/json" \
+                     -d "$updated_json" > /dev/null
+
+                # Now trigger Rescan so it sees the files at the new path
+                curl -s -X POST "$base_url/command" -H "X-Api-Key: $api_key" \
+                     -H "Content-Type: application/json" \
+                     -d "{\"name\": \"RescanMovie\", \"movieId\": $radarr_id}" > /dev/null
+
+                current_full_path="$new_path"
+                return 2
             fi
         }
 
-        # Check Standard
+        # Run for Standard
         process_instance "$RADARR_API_BASE" "$RADARR_API_KEY" "Standard"
         std_status=$?
 
-        # Check 4K (Now uses the updated current_full_path)
+        # Run for 4K (Uses updated path from Standard)
         process_instance "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "4K"
         fourk_status=$?
 
-        # Final Sync with Seerr if any change occurred
+        # Final Sync with Seerr
         if [[ $std_status -eq 2 || $fourk_status -eq 2 ]]; then
-             echo "[System] Syncing with Seerr for updated path..."
-             # Optional: Add a small sleep to let Radarr database update its path record
-             sleep 1
+             echo "[System] Resolving Seerr issues for: $current_full_path"
              resolve_seerr_issue "$current_full_path"
         fi
     fi
