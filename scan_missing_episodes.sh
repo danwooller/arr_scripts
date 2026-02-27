@@ -37,7 +37,7 @@ trigger_sonarr_search() {
     fi
 }
 
-[[ $LOG_LEVEL == "debug" ]] && log "Starting scan in $TARGET_DIR..."
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Starting scan in $TARGET_DIR..."
 
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
@@ -68,7 +68,7 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
         sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
     else
         # If NO episodes are missing, we call the NEW surgical resolver
-        log "✨ No gaps found for $series_name. Checking for Seerr issues to resolve..."
+        log "✨ Nothing missing for $series_name. Checking for Seerr issues to resolve..."
         
         # We need to loop through the seasons found to resolve them individually
         # because Seerr issues are season-specific.
