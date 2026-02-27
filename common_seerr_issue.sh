@@ -22,7 +22,6 @@ resolve_seerr_issue() {
             show_folder="$folder_path"
             season_num="0" # Or logic to loop through seasons if needed
         fi
-        #log "🔍 Debug: Show Folder is $show_folder" # Temporary debug line
         # Get TVDB ID from Sonarr using the verified Show Folder
         lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
             jq -r --arg path "${show_folder%/}" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
@@ -36,7 +35,7 @@ resolve_seerr_issue() {
 
     # Validation check
     if [[ -z "$lookup_id" || "$lookup_id" == "null" ]]; then
-        log "⚠️ Seerr: Could not link '$(basename "$folder_path")' to an ID."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Seerr: Could not link '$(basename "$folder_path")' to an ID."
         return 1
     fi
 
@@ -59,7 +58,7 @@ resolve_seerr_issue() {
 
     # 4. Resolve and Rescan
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found $media_type issue #$issue_id. Resolving..."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Seerr: Found $media_type issue #$issue_id. Resolving..."
         curl -s -X POST "$base_url/issue/$issue_id/resolved" -H "X-Api-Key: $api_key" > /dev/null
 
         if [[ "$media_type" == "movie" ]]; then
@@ -70,7 +69,7 @@ resolve_seerr_issue() {
             curl -s -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "{\"name\": \"RescanSeries\", \"seriesId\": $s_id}" > /dev/null
         fi
     else
-        log "ℹ️ Seerr: No matching open issues found for $media_type at $folder_path"
+        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: No matching open issues found for $media_type at $folder_path"
     fi
 }
 
@@ -100,12 +99,12 @@ sync_seerr_issue() {
                     # Extract filename from message
                     local corrupt_filename=$(echo "$message" | grep -oP '(?<=CORRUPT: ).*?(?=\ \()')
                     
-                    log "📡 Sonarr: Identifying specific file record for purge..."
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Sonarr: Identifying specific file record for purge..."
                     local ep_file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/episodefile?seriesId=$s_id" | \
                         jq -r --arg fname "$corrupt_filename" '.[] | select(.relativePath | contains($fname)) | .id')
                     
                     if [[ -n "$ep_file_id" ]]; then
-                        log "🗑️  Sonarr: Purging file record (ID: $ep_file_id) for '$corrupt_filename'..."
+                        [[ "$LOG_LEVEL" == "debug" ]] && log "🗑️  Sonarr: Purging file record (ID: $ep_file_id) for '$corrupt_filename'..."
                         curl -s -X DELETE "$target_url/episodefile/$ep_file_id" -H "X-Api-Key: $target_key"
                         sleep 2
                     fi
@@ -113,7 +112,7 @@ sync_seerr_issue() {
 
                 # 3. Trigger Search (Always safe for monitored items)
                 # If we have no specific episode ID from a purge, we search the series for missing items
-                log "📡 Sonarr: Triggering search for missing monitored episodes in '$media_name'..."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Sonarr: Triggering search for missing monitored episodes in '$media_name'..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                      -d "{\"name\": \"SeriesSearch\", \"seriesId\": $s_id}"
             fi
@@ -135,24 +134,24 @@ sync_seerr_issue() {
             local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
 
             if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
 
                 # 1. Get the File ID from the movie data
                 local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
 
                 # 2. If a file record exists in Radarr, tell Radarr to delete it
                 if [[ -n "$file_id" ]]; then
-                    log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
                     curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
                     sleep 2
                 fi
 
                 # 3. Now trigger the search
-                log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
                 curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
                      -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
             else
-                log "⚠️  Radarr: Could not find movie entry for '$media_name'."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️  Radarr: Could not find movie entry for '$media_name'."
             fi
         fi # End Movie Block
     fi
@@ -166,26 +165,18 @@ sync_seerr_issue() {
     fi
 
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        log "⚠️  Seerr: Could not link '$media_name' to an ID."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️  Seerr: Could not link '$media_name' to an ID."
         return 1
     fi
 
     # 3. Deduplication Check
-    #    local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")   
-    # NEW JQ: Extract the first comment's message
-#    local existing_data=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
-#        .results[] | 
-#        select(.media.id == ($mid|tonumber)) | 
-#        "\(.id)|\(.comments[0].message // "")"' | head -n 1)
-#    local issue_id=$(echo "$existing_data" | cut -d'|' -f1)
-#    local old_msg=$(echo "$existing_data" | cut -d'|' -f2-)
     local existing_issues=$(curl -s -X GET "$SEERR_API_BASE/issue?take=100&filter=open" -H "X-Api-Key: $SEERR_API_KEY")
     # Check if an issue ID exists for this specific Media ID
     local issue_id=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
         .results[] | select(.media.id == ($mid|tonumber)) | .id' | head -n 1)
 
     if [[ -n "$issue_id" ]]; then
-        log "🔄 Seerr: Issue #$issue_id already open for Media ID $media_id. Updating..."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "🔄 Seerr: Issue #$issue_id already open for Media ID $media_id. Updating..."
         
         # Add the new message as a comment so you have a history of the errors
         curl -s -X POST "$SEERR_API_BASE/issue/$issue_id/comment" \
@@ -209,7 +200,7 @@ sync_seerr_issue() {
     if [[ -n "$issue_id" ]]; then
         # If old_msg came back empty from JQ, we need to know
         if [[ -z "$old_msg" || "$old_msg" == "null" ]]; then
-             log "⚠️  Warning: Found issue #$issue_id but could not read the message from Seerr."
+             [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️  Warning: Found issue #$issue_id but could not read the message from Seerr."
         fi
 
         local norm_old=$(echo "$old_msg" | grep -oE "[0-9]+x[0-9]+" | sort -V | xargs | tr -d '\r\n')
@@ -218,7 +209,7 @@ sync_seerr_issue() {
         if [[ "$norm_old" == "$norm_new" && -n "$norm_new" ]]; then
             return 0 
         else
-            log "🔄 Change detected for $media_name ($norm_old -> $norm_new). Updating Seerr issue..."
+            [[ "$LOG_LEVEL" == "debug" ]] && log "🔄 Change detected for $media_name ($norm_old -> $norm_new). Updating Seerr issue..."
             curl -s -o /dev/null -X POST "$SEERR_API_BASE/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY"
         fi
     fi
