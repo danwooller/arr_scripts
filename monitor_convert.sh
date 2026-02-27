@@ -41,12 +41,12 @@ mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "mkvmerge" "jq" "mkvpropedit"
 
-log "--- HandBrake Converter started ---"
+log "ℹ️ HandBrake Converter started"
 
 # --- Main Monitoring Loop (Polling) ---
 while true; do
     if [[ $LOG_LEVEL = "debug" ]]; then
-        log "Polling $SOURCE_DIR for video files (age > ${MIN_FILE_AGE}m)..."
+        log "ℹ️ Polling $SOURCE_DIR for video files (age > ${MIN_FILE_AGE}m)..."
     fi
 
     # --- Cleanup local Directories ---
@@ -71,7 +71,7 @@ while true; do
         # --- 1. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
         SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
         if [[ $LOG_LEVEL = "debug" ]]; then
-            log "   -> Checking for English forced subtitles..."
+            log "ℹ️ Checking for English forced subtitles..."
         fi
         TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
         SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
@@ -85,23 +85,23 @@ while true; do
             mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
             if [[ $? -eq 0 ]]; then
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Subtitles extracted successfully."
+                log "ℹ️ Subtitles extracted successfully."
             fi
                 SUB_FILE_EXTRACTED=true
             else
                 if [[ $LOG_LEVEL = "debug" ]]; then
-                    log "   -> WARNING: Subtitle extraction failed. Will NOT embed subtitles."
+                    log "⚠️ Subtitle extraction failed. Will NOT embed subtitles."
                 fi
             fi
         else
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> No suitable English forced subtitle track found in the source file."
+                log "ℹ️ No suitable English forced subtitle track found in the source file."
             fi
         fi
         
         # --- 2. Copy the file to the conversion folder ---
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Copying to $CONVERT_DIR..."
+                log "ℹ️ Copying to $CONVERT_DIR..."
             fi
 
         #Copying to local directory.
@@ -113,18 +113,18 @@ while true; do
         # *** Robust Check to prevent HandBrake Exit Code 3 ***
         if [[ ! -f "$FILE_TO_PROCESS" ]]; then
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> ❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS does not exist after rsync. Skipping."
+                log "❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS does not exist after rsync. Skipping."
             fi
             continue 
         fi
         if [[ ! -r "$FILE_TO_PROCESS" ]]; then
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> ❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS is not readable by script user. Skipping."
+                log "❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS is not readable by script user. Skipping."
             fi
             continue 
         fi
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Local copy confirmed and readable."
+                log "ℹ️ Local copy confirmed and readable."
             fi
         
         # Reset HandBrake subtitle argument.
@@ -134,7 +134,7 @@ while true; do
         # --- 3. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
         SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Checking for English forced subtitles..."
+                log "ℹ️ Checking for English forced subtitles..."
             fi
         
         TRACK_INFO=$(mkvmerge -J "$FILE_TO_PROCESS" 2>/dev/null)
@@ -143,29 +143,29 @@ while true; do
 
         if [[ -n "$SUB_TRACK_ID" ]]; then
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
+                log "ℹ️ English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
             fi
             mkvextract tracks "$FILE_TO_PROCESS" "$SUB_TRACK_ID:$SUB_FILE"
             
             if [[ $? -eq 0 ]]; then
                 if [[ $LOG_LEVEL = "debug" ]]; then
-                    log "   -> Subtitles extracted successfully."
+                    log "ℹ️ Subtitles extracted successfully."
                 fi
                 HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
                 SUB_FILE_EXTRACTED=true
             else
                 if [[ $LOG_LEVEL = "debug" ]]; then
-                    log "   -> WARNING: Subtitle extraction failed. Will NOT embed subtitles."
+                    log "❌ Subtitle extraction failed. Will NOT embed subtitles."
                 fi
             fi
         else
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> No suitable English forced subtitle track found in the source file."
+                log "⚠️ No suitable English forced subtitle track found in the source file."
             fi
         fi
 
         if [[ $LOG_LEVEL = "debug" ]]; then
-            log "   -> Determining preset based on filename content..."
+            log "ℹ️ Determining preset based on filename content..."
         fi
 
         # --- 4. Determine Preset (Wrapped in quotes to prevent "Very" error) ---
@@ -184,7 +184,7 @@ while true; do
         else
             PRESET="$PRESET_SD"
         fi
-        log "   -> Using preset: $PRESET"
+        log "ℹ️ Using preset: $PRESET"
 
         HandBrakeCLI \
             --preset "$PRESET" \
@@ -207,26 +207,26 @@ while true; do
         # --- 6. Post-Conversion Cleanup and Move ---
         if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
             #if [[ $LOG_LEVEL = "debug" ]]; then
-                #log "   -> Conversion completed successfully. Output file: $OUTPUT_FILE"
+                #log "✅ Conversion completed successfully. Output file: $OUTPUT_FILE"
                 log "✅ $FILENAME"
             #fi
             
             # Move the completed file to the completed folder
             mv "$OUTPUT_FILE" "$COMPLETED_DIR/"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Moved completed file to $COMPLETED_DIR."
+                log "ℹ️ Moved completed file to $COMPLETED_DIR."
             fi
 
             # Cleanup only if conversion was successful
             rm -f "$FILE_TO_PROCESS"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Deleted temporary copy in $CONVERT_DIR."
+                log "ℹ️ Deleted temporary copy in $CONVERT_DIR."
             fi
 
             # Move the original file to the finished folder
             mv "$SOURCE_FILE" "$FINISHED_DIR/$BASE_NAME-$TIMESTAMP.$EXTENSION"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Moved original file to $FINISHED_DIR/$BASE_NAME_$TIMESTAMP.$EXTENSION."
+                log "ℹ️ Moved original file to $FINISHED_DIR/$BASE_NAME_$TIMESTAMP.$EXTENSION."
             fi
             
         else
@@ -234,7 +234,7 @@ while true; do
             # Clean up working file if conversion failed
             rm -f "$OUTPUT_FILE"
             if [[ $LOG_LEVEL = "debug" ]]; then
-                log "   -> Cleaned up failed output file."
+                log "ℹ️ Cleaned up failed output file."
             fi
         fi
             
