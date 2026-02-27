@@ -17,12 +17,14 @@ for dir in "$TARGET_DIR"/*/ ; do
     dir_name=$(basename "$current_full_path")
     parent_dir=$(dirname "$current_full_path")
 
+    # Extract year from folder name: "Movie Title (YYYY)"
     if [[ "$dir_name" =~ \(([0-9]{4})\) ]]; then
         folder_year="${BASH_REMATCH[1]}"
         movie_title="${dir_name% (*}"
         
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking filesystem entry: $movie_title"
 
+        # --- Instance Processing Function ---
         process_instance() {
             local base_url=$1
             local api_key=$2
@@ -40,12 +42,7 @@ for dir in "$TARGET_DIR"/*/ ; do
             local radarr_id=$(echo "$movie_json" | jq -r '.id')
             local radarr_year=$(echo "$movie_json" | jq -r '.year')
             
-            # Re-check current folder year in case it was renamed by Standard instance
-            local current_folder_name=$(basename "$current_full_path")
-            [[ "$current_folder_name" =~ \(([0-9]{4})\) ]]
-            local current_folder_year="${BASH_REMATCH[1]}"
-
-            if [[ "$radarr_year" == "$current_folder_year" ]]; then
+            if [[ "$radarr_year" == "$folder_year" ]]; then
                 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Year match confirmed ($radarr_year)."
                 return 0
             else
@@ -53,13 +50,13 @@ for dir in "$TARGET_DIR"/*/ ; do
                 local new_path="$parent_dir/$new_name"
 
                 if [[ -d "$new_path" && "$current_full_path" != "$new_path" ]]; then
-                    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Target path already exists. Syncing database only."
+                    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Target path already exists. Syncing database path only."
                 else
-                    log "✅ [$label] Renaming: '$current_folder_name' -> '$new_name'"
+                    log "✅ [$label] Renaming: '$dir_name' -> '$new_name'"
                     mv "$current_full_path" "$new_path"
                 fi
 
-                # Update Radarr's Internal Path
+                # Update Radarr's Internal Path via PUT
                 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Updating Radarr DB path for ID $radarr_id"
                 local updated_json=$(echo "$movie_json" | jq -c --arg p "$new_path" '.path = $p')
                 
@@ -78,13 +75,21 @@ for dir in "$TARGET_DIR"/*/ ; do
             fi
         }
 
-        process_instance "$RADARR_API_BASE" "$RADARR_API_KEY" "Standard"
-        std_status=$?
+        # --- Decision Tree ---
+        any_change=0
 
-        process_instance "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "4K"
-        fourk_status=$?
+        if [[ "$current_full_path" == *"4kMovies"* ]]; then
+            # Target 4K Radarr
+            process_instance "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "4K"
+            [[ $? -eq 2 ]] && any_change=1
+        else
+            # Target Standard Radarr
+            process_instance "$RADARR_API_BASE" "$RADARR_API_KEY" "Standard"
+            [[ $? -eq 2 ]] && any_change=1
+        fi
 
-        if [[ $std_status -eq 2 || $fourk_status -eq 2 ]]; then
+        # Sync with Seerr if a rename happened
+        if [[ $any_change -eq 1 ]]; then
              resolve_seerr_issue "$current_full_path"
         fi
     fi
