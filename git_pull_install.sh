@@ -47,27 +47,34 @@ if [ -n "$FILENAME" ]; then
         echo "Error: Script $FILENAME not found in $DEST_DIR"
     fi
 
-    # 5. Handle Service File (if exists)
+    # 5. Handle Service File (Template aware)
     if [ -f "$DEST_DIR/$SERVICE_FILE" ]; then
-        echo "Service file detected: $SERVICE_FILE. Installing/Restarting..."
+        echo "Service file detected: $SERVICE_FILE. Installing..."
         
-        # Copy to systemd directory
+        # Determine if this is a template service (contains @)
+        if [[ "$SERVICE_FILE" == *"@"* ]]; then
+            # Replace the .service suffix with @$REAL_USER.service
+            # e.g., "myscript@.service" becomes "myscript@pi.service"
+            ACTIVE_SERVICE_NAME="${SERVICE_FILE%.service}$REAL_USER.service"
+            echo "Template service detected. Using instance: $ACTIVE_SERVICE_NAME"
+        else
+            ACTIVE_SERVICE_NAME="$SERVICE_FILE"
+        fi
+
+        # Copy the physical file to systemd directory
         sudo cp "$DEST_DIR/$SERVICE_FILE" "/etc/systemd/system/"
         sudo chown root:root "/etc/systemd/system/$SERVICE_FILE"
         sudo chmod 644 "/etc/systemd/system/$SERVICE_FILE"
 
-        # Reload systemd to recognize changes
         sudo systemctl daemon-reload
 
-        # Enable the service (if not already enabled)
-        sudo systemctl enable "$SERVICE_FILE"
-
-        # Restart the service to apply the new script/config
-        echo "Restarting $SERVICE_FILE..."
-        sudo systemctl restart "$SERVICE_FILE"
+        # Enable and Restart using the instantiated name
+        echo "Enabling and Restarting $ACTIVE_SERVICE_NAME..."
+        sudo systemctl enable "$ACTIVE_SERVICE_NAME"
+        sudo systemctl restart "$ACTIVE_SERVICE_NAME"
         
-        # Check status briefly
-        systemctl is-active --quiet "$SERVICE_FILE" && echo "Service is running." || echo "Service failed to start."
+        # Check status
+        systemctl is-active --quiet "$ACTIVE_SERVICE_NAME" && echo "Service is running." || echo "Service failed to start."
     else
         echo "No service file found for $FILENAME. Skipping service update."
     fi
