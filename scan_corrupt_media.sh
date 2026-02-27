@@ -11,6 +11,7 @@ check_dependencies "ffmpeg" "find" "curl" "jq"
 # Use the first argument if provided; otherwise, use the default path
 TARGET_DIR="${1:-/mnt/media/Movies}"
 HOLD_DIR="/mnt/media/torrent/hold"
+#LOG_LEVEL="debug"
 
 # Display help if requested
 if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
