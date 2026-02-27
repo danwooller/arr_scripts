@@ -60,7 +60,7 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         
         mv --backup=numbered "$file" "$HOLD_DIR/"
     else
-        log "✅ HEALTHY: $file_name"
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ HEALTHY: $file_name"
         resolve_seerr_issue "$media_name" "$media_type"
     fi
 done
