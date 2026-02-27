@@ -18,7 +18,7 @@ fi
 check_dependencies "curl" "jq" "sed" "grep"
 
 TARGET_DIR="${1:-/mnt/media/TV}"
-LOG_LEVEL="debug"
+#LOG_LEVEL="debug"
 
 trigger_sonarr_search() {
     local series_name="$1"
@@ -37,7 +37,7 @@ trigger_sonarr_search() {
     fi
 }
 
-[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Starting scan in $TARGET_DIR..."
+[[ $LOG_LEVEL == "debug" ]] && log_start $TARGET_DIR
 
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
     series_name=$(basename "$series_path")
@@ -79,4 +79,4 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
 
 done
 
-[[ $LOG_LEVEL == "debug" ]] && log "✅ Scan complete${1:+ - $1}"
+[[ $LOG_LEVEL == "debug" ]] && log_end $TARGET_DIR
