@@ -17,78 +17,70 @@ for dir in "$TARGET_DIR"/*/ ; do
     dir_name=$(basename "$current_full_path")
     parent_dir=$(dirname "$current_full_path")
 
-    # Extract year from folder name: "Movie Title (YYYY)"
     if [[ "$dir_name" =~ \(([0-9]{4})\) ]]; then
         folder_year="${BASH_REMATCH[1]}"
         movie_title="${dir_name% (*}"
         
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking filesystem entry: $movie_title"
 
-        # --- Instance Processing Function ---
         process_instance() {
             local base_url=$1
             local api_key=$2
             local label=$3
             
-            # Fetch current database record
-            local movie_json=$(curl -s -H "X-Api-Key: $api_key" "$base_url/movie" | \
-                jq -c --arg t "$movie_title" '.[] | select(.title == $t)')
+            # 1. Fetch ALL movies matching the title
+            local response=$(curl -s -H "X-Api-Key: $api_key" "$base_url/movie")
 
-            if [[ -z "$movie_json" ]]; then
-                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Movie not found in database."
+            # 2. Refined JQ: Match Title AND existing Folder Year to find the SPECIFIC record
+            # This prevents remakes (like 'The Courier') from doubling up.
+            local movie_json=$(echo "$response" | jq -c --arg t "$movie_title" --arg y "$folder_year" \
+                '.[] | select(.title == $t and (.year|tostring) == $y)')
+
+            if [[ -z "$movie_json" || "$movie_json" == "null" ]]; then
+                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] No exact Title+Year match for '$movie_title ($folder_year)'."
                 return 1
             fi
 
             local radarr_id=$(echo "$movie_json" | jq -r '.id')
             local radarr_year=$(echo "$movie_json" | jq -r '.year')
             
-            if [[ "$radarr_year" == "$folder_year" ]]; then
-                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Year match confirmed ($radarr_year)."
+            # Since we matched by year, they will always match here. 
+            # However, we still check the PATH to see if the database needs an update.
+            local db_path=$(echo "$movie_json" | jq -r '.path')
+
+            if [[ "$db_path" == "$current_full_path" ]]; then
+                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Path and Year already correct in DB."
                 return 0
             else
-                local new_name="$movie_title ($radarr_year)"
-                local new_path="$parent_dir/$new_name"
-
-                if [[ -d "$new_path" && "$current_full_path" != "$new_path" ]]; then
-                    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Target path already exists. Syncing database path only."
-                else
-                    log "✅ [$label] Renaming: '$dir_name' -> '$new_name'"
-                    mv "$current_full_path" "$new_path"
-                fi
-
-                # Update Radarr's Internal Path via PUT
-                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ [$label] Updating Radarr DB path for ID $radarr_id"
-                local updated_json=$(echo "$movie_json" | jq -c --arg p "$new_path" '.path = $p')
+                # If the folder year is correct but the path in Radarr is wrong 
+                # (e.g., folder was moved/renamed manually before), we sync it.
+                log "✅ [$label] Syncing Radarr path for: $movie_title ($radarr_year)"
+                
+                local updated_json=$(echo "$movie_json" | jq -c --arg p "$current_full_path" '.path = $p')
                 
                 curl -s -X PUT "$base_url/movie" \
                      -H "X-Api-Key: $api_key" \
                      -H "Content-Type: application/json" \
                      -d "$updated_json" > /dev/null
 
-                # Trigger Rescan
                 curl -s -X POST "$base_url/command" -H "X-Api-Key: $api_key" \
                      -H "Content-Type: application/json" \
                      -d "{\"name\": \"RescanMovie\", \"movieId\": $radarr_id}" > /dev/null
 
-                current_full_path="$new_path"
                 return 2
             fi
         }
 
         # --- Decision Tree ---
         any_change=0
-
         if [[ "$current_full_path" == *"4kMovies"* ]]; then
-            # Target 4K Radarr
             process_instance "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "4K"
             [[ $? -eq 2 ]] && any_change=1
         else
-            # Target Standard Radarr
             process_instance "$RADARR_API_BASE" "$RADARR_API_KEY" "Standard"
             [[ $? -eq 2 ]] && any_change=1
         fi
 
-        # Sync with Seerr if a rename happened
         if [[ $any_change -eq 1 ]]; then
              resolve_seerr_issue "$current_full_path"
         fi
