@@ -1,53 +1,62 @@
-resolve_seerr_movie_issue() {
-    local media_name="$1"
-    
-    # 1. Clean variables
-    local base_url=$(echo "$SEERR_API_BASE" | tr -d '\r' | sed 's|/*$||')
+resolve_seerr_issue() {
+    local folder_path="$1"
+    local base_url="${SEERR_API_BASE%/}"
     local api_key=$(echo "$SEERR_API_KEY" | tr -d '\r' | xargs)
+    
+    local issue_id=""
+    local media_type=""
+    local tmdb_id=""
+    local tvdb_id=""
+    local season_num="0"
 
-    # 2. Get TMDB ID
-    local tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-        jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .tmdbId' | tr -d '\r')
+    # 1. Detect Media Type (TV vs Movie)
+    if [[ "$folder_path" == *"/TV/"* ]]; then
+        media_type="tv"
+        # /mnt/synology/TV/Best Medicine/Season 1
+        local show_folder=$(dirname "$folder_path")
+        local season_name=$(basename "$folder_path")
+        season_num=$(echo "$season_name" | grep -oP '\d+' || echo "0")
 
-    # 3. Corrected URL (Removed &limit=100)
-    local full_url="${base_url}/issue?filter=open"
-
-    # 4. Execute
-    local response_file="/tmp/seerr_resp.json"
-    local http_code=$(curl -s -o "$response_file" -w "%{http_code}" \
-        -H "Accept: application/json" \
-        -H "X-Api-Key: $api_key" \
-        "$full_url")
-
-    if [[ "$http_code" != "200" ]]; then
-        log "❌ Seerr API Error: HTTP $http_code"
-        log "   Response Body: $(cat "$response_file")"
-        return 1
+        # Get TVDB ID from Sonarr
+        tvdb_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+            jq -r --arg path "$show_folder" '.[] | select(.path == $path) | .tvdbId')
+    else
+        media_type="movie"
+        # Get TMDB ID from Radarr
+        tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+            jq -r --arg path "$folder_path" '.[] | select(.path == $path) | .tmdbId')
     fi
 
-    # 5. Search for the ID anywhere in the response
-    local issue_id=$(jq -r --arg tid "$tmdb_id" '.results[]? | select(tostring | contains($tid)) | .id' "$response_file" | head -n 1)
+    # 2. Fetch Open Issues
+    local resp_file="/tmp/seerr_resp.json"
+    curl -s -o "$resp_file" -H "X-Api-Key: $api_key" "$base_url/issue?filter=open"
 
+    # 3. Smart Search Logic
+    if [[ "$media_type" == "movie" ]]; then
+        issue_id=$(jq -r --arg tid "$tmdb_id" '
+            .results[]? | select(.media.tmdbId | tostring == $tid) | .id' "$resp_file" | head -n 1)
+    else
+        # For TV, we match TVDB ID AND the Season number
+        issue_id=$(jq -r --arg tid "$tvdb_id" --arg snum "$season_num" '
+            .results[]? | 
+            select((.media.tvdbId | tostring == $tid) and (.problemSeason | tostring == $snum)) 
+            | .id' "$resp_file" | head -n 1)
+    fi
+
+    # 4. Resolve and Trigger Apps
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found Issue #$issue_id. Resolving..."
-        curl -s -X POST "${base_url}/issue/$issue_id/resolved" -H "X-Api-Key: $api_key" > /dev/null
+        log "✅ Seerr: Found $media_type issue #$issue_id. Resolving..."
+        curl -s -X POST "$base_url/issue/$issue_id/resolved" -H "X-Api-Key: $api_key" > /dev/null
 
-        # Radarr Rescan
-        # 1. Get the Radarr Internal Movie ID
-        local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg folder "$media_name" '.[] | select(.path | endswith($folder)) | .id')
-
-        if [[ -n "$r_id" ]]; then
-            log "🎬 Radarr: Triggering surgical rescan for ID $r_id..."
-            
-            # Send the command to ONLY rescan this specific movie ID
-            # We use a clean JSON payload and ignore the output
-            curl -s -X POST "$RADARR_API_BASE/command" \
-                 -H "X-Api-Key: $RADARR_API_KEY" \
-                 -H "Content-Type: application/json" \
-                 -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}" > /dev/null
+        if [[ "$media_type" == "movie" ]]; then
+            local r_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | jq -r --arg path "$folder_path" '.[] | select(.path == $path) | .id')
+            curl -s -X POST "$RADARR_API_BASE/command" -H "X-Api-Key: $RADARR_API_KEY" -H "Content-Type: application/json" -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}" > /dev/null
+        else
+            local s_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | jq -r --arg path "$show_folder" '.[] | select(.path == $path) | .id')
+            curl -s -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "{\"name\": \"RescanSeries\", \"seriesId\": $s_id}" > /dev/null
         fi
     else
-        log "ℹ️ Seerr: No open issues found for TMDB $tmdb_id."
+        log "ℹ️ Seerr: No matching open issues found for $media_type at $folder_path"
     fi
 }
 
