@@ -65,7 +65,7 @@ while true; do
         EXTENSION="${FILENAME##*.}"
         
         #if [[ $LOG_LEVEL = "debug" ]]; then
-            log "✅ Detected video file: $FILENAME"
+            log "ℹ️ Detected: $FILENAME"
         #fi
 
         # --- 1. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
@@ -80,7 +80,7 @@ while true; do
         if [[ -n "$SUB_TRACK_ID" ]]; then
             #if [[ $LOG_LEVEL = "debug" ]]; then
                 #log "   -> English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
-                log "   -> Forced subtitles (ID: $SUB_TRACK_ID): $BASE_NAME..."
+                log "ℹ️ Forced subtitles (ID: $SUB_TRACK_ID): $BASE_NAME..."
             #fi
             mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
             if [[ $? -eq 0 ]]; then
@@ -208,7 +208,7 @@ while true; do
         if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
             #if [[ $LOG_LEVEL = "debug" ]]; then
                 #log "   -> Conversion completed successfully. Output file: $OUTPUT_FILE"
-                log "   -> Conversion complete: $FILENAME"
+                log "✅ $FILENAME"
             #fi
             
             # Move the completed file to the completed folder
@@ -230,7 +230,7 @@ while true; do
             fi
             
         else
-            log "   -> ❌ ERROR: HandBrake conversion failed with exit code $CONVERSION_EXIT_CODE for $FILENAME."
+            log "   -> ❌ Failed: $CONVERSION_EXIT_CODE for $FILENAME."
             # Clean up working file if conversion failed
             rm -f "$OUTPUT_FILE"
             if [[ $LOG_LEVEL = "debug" ]]; then
