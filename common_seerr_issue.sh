@@ -12,13 +12,22 @@ resolve_seerr_issue() {
     # 1. Detect TV vs Movie
     if [[ "$folder_path" == *"/TV/"* ]]; then
         media_type="tv"
-        # If folder is ".../TV/Best Medicine/Season 1", show_folder is ".../TV/Best Medicine"
-        show_folder=$(dirname "$folder_path")
-        season_num=$(basename "$folder_path" | grep -oP '\d+' || echo "0")
         
-        # Get TVDB ID from Sonarr
+        # Logic: If the folder name contains "Season", we need to go up 1 level for the Show ID.
+        # If it doesn't, we are already at the Show root.
+        if [[ "$(basename "$folder_path")" == *"Season"* ]]; then
+            show_folder=$(dirname "$folder_path")
+            season_num=$(basename "$folder_path" | grep -oP '\d+' || echo "0")
+        else
+            show_folder="$folder_path"
+            season_num="0" # Or logic to loop through seasons if needed
+        fi
+        
+        log "🔍 Debug: Show Folder is $show_folder" # Temporary debug line
+        
+        # Get TVDB ID from Sonarr using the verified Show Folder
         lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-            jq -r --arg path "$show_folder" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
+            jq -r --arg path "${show_folder%/}" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
         id_type="tvdbId"
     else
         # Get TMDB ID from Radarr
