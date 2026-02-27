@@ -3,6 +3,9 @@
 # --- Setup & Includes ---
 source "/usr/local/bin/common_functions.sh"
 
+# --- Dependencies ---
+check_dependencies "jq" "mkvpropedit" "mkvmerge"
+
 # Configuration
 TARGET_DIR="${1:-/mnt/media/Movies}"
 DRY_RUN=${DRY_RUN:-false}        # Defaults to false if not set/exported
