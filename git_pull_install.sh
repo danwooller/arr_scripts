@@ -13,6 +13,7 @@ fi
 DEST_DIR="/home/$REAL_USER/arr_scripts"
 FILENAME=$1
 SERVICE_FILE="$FILENAME.service"
+SERVICE_DIR="/etc/systemd/system/"
 
 cd "$DEST_DIR" || exit
 
@@ -47,36 +48,50 @@ if [ -n "$FILENAME" ]; then
         echo "Error: Script $FILENAME not found in $DEST_DIR"
     fi
 
-    # 5. Handle Service File (Template aware)
-    if [ -f "$DEST_DIR/$SERVICE_FILE" ]; then
-        echo "Service file detected: $SERVICE_FILE. Installing..."
-        
-        # Determine if this is a template service (contains @)
-        if [[ "$SERVICE_FILE" == *"@"* ]]; then
-            # Replace the .service suffix with @$REAL_USER.service
-            # e.g., "myscript@.service" becomes "myscript@pi.service"
-            ACTIVE_SERVICE_NAME="${SERVICE_FILE%.service}$REAL_USER.service"
-            echo "Template service detected. Using instance: $ACTIVE_SERVICE_NAME"
-        else
-            ACTIVE_SERVICE_NAME="$SERVICE_FILE"
+    # 5. Handle Service File (Template & Extension Aware)
+    # Strip .sh from the filename to find the service (e.g., monitor_convert)
+    BASE_NAME="${FILENAME%.sh}"
+    
+    # Define possible service file names
+    SERVICE_TEMPLATE="${BASE_NAME}@.service"
+    SERVICE_STANDARD="${BASE_NAME}.service"
+
+    # Determine which one exists (check repo first, then system)
+    SELECTED_SERVICE=""
+    if [ -f "$DEST_DIR/$SERVICE_TEMPLATE" ] || [ -f "$SERVICE_DIR$SERVICE_TEMPLATE" ]; then
+        SELECTED_SERVICE="$SERVICE_TEMPLATE"
+    elif [ -f "$DEST_DIR/$SERVICE_STANDARD" ] || [ -f "$SERVICE_DIR$SERVICE_STANDARD" ]; then
+        SELECTED_SERVICE="$SERVICE_STANDARD"
+    fi
+
+    if [ -n "$SELECTED_SERVICE" ]; then
+        echo "Service file detected: $SELECTED_SERVICE. Processing..."
+
+        # 5a. Sync from repo to system if it exists in repo
+        if [ -f "$DEST_DIR/$SELECTED_SERVICE" ]; then
+            sudo cp "$DEST_DIR/$SELECTED_SERVICE" "$SERVICE_DIR"
+            sudo chown root:root "$SERVICE_DIR$SELECTED_SERVICE"
+            sudo chmod 644 "$SERVICE_DIR$SELECTED_SERVICE"
+            sudo systemctl daemon-reload
         fi
 
-        # Copy the physical file to systemd directory
-        sudo cp "$DEST_DIR/$SERVICE_FILE" "/etc/systemd/system/"
-        sudo chown root:root "/etc/systemd/system/$SERVICE_FILE"
-        sudo chmod 644 "/etc/systemd/system/$SERVICE_FILE"
+        # 5b. Determine Active Instance Name
+        if [[ "$SELECTED_SERVICE" == *"@"* ]]; then
+            # Instance name becomes: monitor_convert@dan.service
+            ACTIVE_NAME="${SELECTED_SERVICE%.service}$REAL_USER.service"
+            echo "Template detected. Using instance: $ACTIVE_NAME"
+        else
+            ACTIVE_NAME="$SELECTED_SERVICE"
+        fi
 
-        sudo systemctl daemon-reload
-
-        # Enable and Restart using the instantiated name
-        echo "Enabling and Restarting $ACTIVE_SERVICE_NAME..."
-        sudo systemctl enable "$ACTIVE_SERVICE_NAME"
-        sudo systemctl restart "$ACTIVE_SERVICE_NAME"
+        # 5c. Enable and Restart
+        echo "Restarting $ACTIVE_NAME..."
+        sudo systemctl enable "$ACTIVE_NAME"
+        sudo systemctl restart "$ACTIVE_NAME"
         
-        # Check status
-        systemctl is-active --quiet "$ACTIVE_SERVICE_NAME" && echo "Service is running." || echo "Service failed to start."
+        systemctl is-active --quiet "$ACTIVE_NAME" && echo "Service is running." || echo "Service failed to start."
     else
-        echo "No service file found for $FILENAME. Skipping service update."
+        echo "No service file (standard or @template) found for $BASE_NAME. Skipping."
     fi
 fi
 
