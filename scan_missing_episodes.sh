@@ -67,8 +67,14 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
     if [[ -n "$missing_in_series" ]]; then
         sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
     else
-        # Passing empty string triggers the AUTO-CLOSE logic
-        sync_seerr_issue "$series_name" "tv" "" "${MANUAL_MAPS[$series_name]}"
+        # If NO episodes are missing, we call the NEW surgical resolver
+        log "✨ No gaps found for $series_name. Checking for Seerr issues to resolve..."
+        
+        # We need to loop through the seasons found to resolve them individually
+        # because Seerr issues are season-specific.
+        find "$series_path" -maxdepth 1 -type d -name "Season*" | while read -r season_folder; do
+             resolve_seerr_issue "$season_folder"
+        done
     fi
 
 done
