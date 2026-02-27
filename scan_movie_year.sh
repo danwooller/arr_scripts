@@ -28,7 +28,7 @@ for dir in "$TARGET_DIR"/*/ ; do
         echo "------------------------------------------------"
         echo "Checking: $movie_title"
 
-        check_instance() {
+        check_and_fix() {
             local base_url=$1
             local api_key=$2
             local label=$3
@@ -50,7 +50,6 @@ for dir in "$TARGET_DIR"/*/ ; do
             else
                 echo "[$label] Result: MISMATCH! (Radarr says $radarr_year)"
                 
-                # Construct new name
                 new_name="$movie_title ($radarr_year)"
                 new_path="$parent_dir/$new_name"
 
@@ -59,17 +58,36 @@ for dir in "$TARGET_DIR"/*/ ; do
                 else
                     echo "[$label] ACTION: Renaming folder to '$new_name'..."
                     mv "$dir_full_path" "$new_path"
-                    # Update variable so the next instance check doesn't fail or try to rename again
+                    
+                    # 1. Update global path variable for the next check (4K)
                     dir_full_path="$new_path" 
+
+                    # 2. Trigger Radarr Rescan for this specific movie
+                    # We fetch the internal Radarr ID using the NEW path
+                    local r_id=$(curl -s -H "X-Api-Key: $api_key" "$base_url/movie" | \
+                                jq -r --arg p "$new_path" '.[] | select(.path == $p or .path == ($p + "/")) | .id')
+                    
+                    if [[ -n "$r_id" && "$r_id" != "null" ]]; then
+                        echo "[$label] Triggering Radarr Rescan (ID: $r_id)..."
+                        curl -s -X POST "$base_url/command" -H "X-Api-Key: $api_key" \
+                             -H "Content-Type: application/json" \
+                             -d "{\"name\": \"RescanMovie\", \"movieId\": $r_id}" > /dev/null
+                    fi
+
+                    # 3. Resolve Seerr Issue
+                    # Since the year is now fixed, any open "Issue" in Overseerr/Prowlarr can be closed.
+                    echo "[$label] Syncing with Seerr..."
+                    resolve_seerr_issue "$new_path"
                 fi
                 return 2
             fi
         }
 
-        # Check Standard first, then 4K
-        check_instance "$RADARR_API_BASE" "$RADARR_API_KEY" "Standard"
-        # If Standard already renamed it, $dir_full_path is updated for the 4K check
-        check_instance "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "4K"
+        # Check Standard first
+        check_and_fix "$RADARR_API_BASE" "$RADARR_API_KEY" "Standard"
+        
+        # Check 4K instance (uses updated dir_full_path if Standard renamed it)
+        check_and_fix "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "4K"
 
     fi
 done
