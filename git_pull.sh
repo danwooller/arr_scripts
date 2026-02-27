@@ -7,8 +7,10 @@ source "/usr/local/bin/common_functions.sh"
 CURRENT_HOSTNAME=$(hostname)
 if [[ "$CURRENT_HOSTNAME" == *"pi"* ]]; then
     REAL_USER="pi"
+    SERVICE_USER="pi"
 else
     REAL_USER="root"
+    SERVICE_USER="root"
 fi
 DEST_DIR="/home/$REAL_USER/arr_scripts"
 FILENAME=$1
