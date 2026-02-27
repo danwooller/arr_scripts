@@ -51,8 +51,12 @@ resolve_seerr_issue() {
     if [[ "$media_type" == "movie" ]]; then
         issue_id=$(jq -r --arg tid "$lookup_id" '.results[]? | select(.media.tmdbId | tostring == $tid) | .id' "$response_file" | head -n 1)
     else
+        # Try to match the specific season first, OR match Season 0 (General/Specials)
         issue_id=$(jq -r --arg tid "$lookup_id" --arg snum "$season_num" '
-            .results[]? | select((.media.tvdbId | tostring == $tid) and (.problemSeason | tostring == $snum)) | .id' "$response_file" | head -n 1)
+            .results[]? | 
+            select(.media.tvdbId | tostring == $tid) |
+            select((.problemSeason | tostring == $snum) or (.problemSeason | tostring == "0")) |
+            .id' "$response_file" | head -n 1)
     fi
 
     # 4. Resolve and Rescan
