@@ -7,8 +7,10 @@ source "/usr/local/bin/common_functions.sh"
 CURRENT_HOSTNAME=$(hostname)
 if [[ "$CURRENT_HOSTNAME" == *"pi"* ]]; then
     REAL_USER="pi"
+    SERVICE_USER="pi"
 else
     REAL_USER="root"
+    SERVICE_USER="root"
 fi
 DEST_DIR="/home/$REAL_USER/arr_scripts"
 FILENAME=$1
@@ -78,7 +80,7 @@ if [ -n "$FILENAME" ]; then
         # 5b. Determine Active Instance Name
         if [[ "$SELECTED_SERVICE" == *"@"* ]]; then
             # Instance name becomes: monitor_convert@dan.service
-            ACTIVE_NAME="${SELECTED_SERVICE%.service}$REAL_USER.service"
+            ACTIVE_NAME="${SELECTED_SERVICE%.service}$SERVICE_USER.service"
             echo "Template detected. Using instance: $ACTIVE_NAME"
         else
             ACTIVE_NAME="$SELECTED_SERVICE"
