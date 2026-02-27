@@ -20,6 +20,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | **move_tv_shows_synology.sh** | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
 | **scan_corrupt_media.sh** | Scan directories in $1 looking for corruptedmedia files, marking an issue in Seer. |
 | **scan_missing_episodes.sh** | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. |
+| **scan_movie_year.sh** | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. |
 | **update-docker.sh** | Runs a linux update then backs up the containers to the network while updating. Includes a --no-backup flag.|
 | **usenet_org.sh** | Looks for media files without readable filenames and attempts to convert them using folder names. |
 
