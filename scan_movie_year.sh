@@ -8,7 +8,7 @@ source "/usr/local/bin/common_seerr_issue.sh"
 TARGET_DIR="${1:-/mnt/media/Movies}"
 shopt -s nullglob
 
-log_start
+log_start "$TARGET_DIR"
 #log "🚀 Starting Movie Year Scan in: $TARGET_DIR"
 
 for dir in "$TARGET_DIR"/*/ ; do
