@@ -1,54 +1,52 @@
 resolve_seerr_issue() {
-    local folder_path="${1%/}"
+    local folder_path="${1%/}" # Strip trailing slash
     local base_url="${SEERR_API_BASE%/}"
-    local api_key=$(echo "$SEERR_API_KEY" | tr -d '\r' | xargs)
+    local api_key="$SEERR_API_KEY"
     
-    local issue_id=""
-    local media_type=""
-    local tmdb_id=""
-    local tvdb_id=""
+    local media_type="movie"
+    local show_folder=""
     local season_num="0"
+    local lookup_id=""
+    local id_type=""
 
-    # 1. Detect Media Type (TV vs Movie)
+    # 1. Detect TV vs Movie
     if [[ "$folder_path" == *"/TV/"* ]]; then
-        # If input is: /mnt/synology/TV/Best Medicine/Season 1
-        local show_folder=$(dirname "$folder_path") # Result: /mnt/synology/TV/Best Medicine
-        local season_name=$(basename "$folder_path") # Result: Season 1
-        local season_num=$(echo "$season_name" | grep -oP '\d+' || echo "0")
-
-        # Use the SHOW folder to talk to Sonarr
-        tvdb_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+        media_type="tv"
+        # If folder is ".../TV/Best Medicine/Season 1", show_folder is ".../TV/Best Medicine"
+        show_folder=$(dirname "$folder_path")
+        season_num=$(basename "$folder_path" | grep -oP '\d+' || echo "0")
+        
+        # Get TVDB ID from Sonarr
+        lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
             jq -r --arg path "$show_folder" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
-            
-        if [[ -z "$tvdb_id" || "$tvdb_id" == "null" ]]; then
-            # THIS is where your error is likely being triggered
-            log "⚠️ Seerr: Could not link '$(basename "$folder_path")' to a TVDB ID."
-            return 1
-        fi
+        id_type="tvdbId"
     else
-        media_type="movie"
         # Get TMDB ID from Radarr
-        tmdb_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-            jq -r --arg path "$folder_path" '.[] | select(.path == $path) | .tmdbId')
+        lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+            jq -r --arg path "$folder_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tmdbId')
+        id_type="tmdbId"
     fi
 
-    # 2. Fetch Open Issues
-    local resp_file="/tmp/seerr_resp.json"
-    curl -s -o "$resp_file" -H "X-Api-Key: $api_key" "$base_url/issue?filter=open"
+    # Validation check
+    if [[ -z "$lookup_id" || "$lookup_id" == "null" ]]; then
+        log "⚠️ Seerr: Could not link '$(basename "$folder_path")' to an ID."
+        return 1
+    fi
 
-    # 3. Smart Search Logic
+    # 2. Search Seerr for open issues
+    local response_file="/tmp/seerr_resp.json"
+    curl -s -o "$response_file" -H "X-Api-Key: $api_key" "$base_url/issue?filter=open"
+
+    # 3. Match Issue ID
+    local issue_id=""
     if [[ "$media_type" == "movie" ]]; then
-        issue_id=$(jq -r --arg tid "$tmdb_id" '
-            .results[]? | select(.media.tmdbId | tostring == $tid) | .id' "$resp_file" | head -n 1)
+        issue_id=$(jq -r --arg tid "$lookup_id" '.results[]? | select(.media.tmdbId | tostring == $tid) | .id' "$response_file" | head -n 1)
     else
-        # For TV, we match TVDB ID AND the Season number
-        issue_id=$(jq -r --arg tid "$tvdb_id" --arg snum "$season_num" '
-            .results[]? | 
-            select((.media.tvdbId | tostring == $tid) and (.problemSeason | tostring == $snum)) 
-            | .id' "$resp_file" | head -n 1)
+        issue_id=$(jq -r --arg tid "$lookup_id" --arg snum "$season_num" '
+            .results[]? | select((.media.tvdbId | tostring == $tid) and (.problemSeason | tostring == $snum)) | .id' "$response_file" | head -n 1)
     fi
 
-    # 4. Resolve and Trigger Apps
+    # 4. Resolve and Rescan
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
         log "✅ Seerr: Found $media_type issue #$issue_id. Resolving..."
         curl -s -X POST "$base_url/issue/$issue_id/resolved" -H "X-Api-Key: $api_key" > /dev/null
@@ -62,41 +60,6 @@ resolve_seerr_issue() {
         fi
     else
         log "ℹ️ Seerr: No matching open issues found for $media_type at $folder_path"
-    fi
-}
-
-resolve_seerr_tv_issue() {
-    local season_folder="$1" # e.g., /mnt/synology/TV/Best Medicine/Season 1
-    
-    # 1. Get the Show Folder (one level up)
-    local show_folder=$(dirname "$season_folder")
-    local show_name=$(basename "$show_folder")
-    local season_num=$(basename "$season_folder" | grep -oP '\d+')
-
-    # 2. Get TV TMDB ID from Sonarr (instead of Radarr)
-    # Note: Use SONARR_API_KEY and SONARR_API_BASE here
-    local tmdb_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-        jq -r --arg path "$show_folder" '.[] | select(.path == $path) | .tvdbId')
-
-    # 3. Seerr search (Filtering by Season)
-    local full_url="${SEERR_API_BASE%/}/issue?filter=open"
-    local response_file="/tmp/seerr_tv_resp.json"
-    
-    curl -s -o "$response_file" -H "X-Api-Key: $SEERR_API_KEY" "$full_url"
-
-    # 4. Match based on TVDB ID AND Season Number
-    local issue_id=$(jq -r --arg tid "$tmdb_id" --arg snum "$season_num" '
-        .results[]? | 
-        select(
-            (.media.tvdbId | tostring == $tid) and 
-            (.problemSeason | tostring == $snum)
-        ) | .id' "$response_file" | head -n 1)
-
-    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found TV Issue #$issue_id for $show_name Season $season_num. Resolving..."
-        curl -s -X POST "${SEERR_API_BASE%/}/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY" > /dev/null
-    else
-        log "ℹ️ Seerr: No open issues found for $show_name (ID: $tmdb_id) Season $season_num."
     fi
 }
 
