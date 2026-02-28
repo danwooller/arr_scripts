@@ -73,21 +73,25 @@ check_dependencies() {
 }
 
 manage_remote_torrent() {
-    local action=$1    # "pause", "resume", or "delete"
-    local t_name=$2
-    local found=false
-
+    local action=$1
+    local filename="$2"
+    # We strip underscores and take a chunk of the name for a fuzzy search
+    local search_term=$(echo "${filename:0:20}" | sed 's/_/ /g')
+    
     for server in "${QBT_SERVERS[@]}"; do
-        # We check if the torrent exists on this port
-        if qbittorrent-cli torrent list --server "$server" | grep -iIq "$t_name"; then
-            log "Action [$action] on $server for: $t_name"
-            qbittorrent-cli torrent "$action" --server "$server" --name "$t_name" >/dev/null 2>&1
-            found=true
-            break 
+        log "Searching $server for: $search_term"
+        
+        # We list ALL torrents and find the one that matches our filename
+        # Then we extract the Hash (40 chars)
+        local t_hash=$(qbittorrent-cli torrent list --server "$server" --all | grep -i "$search_name" | awk '{print $1}' | grep -E '^[a-f0-9]{40}$' | head -n 1)
+
+        if [ -n "$t_hash" ]; then
+            log "✅ Found match on $server. Action: $action ($t_hash)"
+            qbittorrent-cli torrent "$action" --server "$server" --hash "$t_hash" >/dev/null 2>&1
+            return 0
         fi
     done
-
-    [ "$found" = false ] && log "⚠️ $t_name not found on any QBT server."
+    log "⚠️ No match found for $search_term"
 }
 
 update_ha_status() {
