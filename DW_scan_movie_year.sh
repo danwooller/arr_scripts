@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
-source "/usr/local/bin/common_seerr_issue.sh"
+source "/usr/local/bin/DW_common_functions.sh"
+source "/usr/local/bin/DW_common_seerr_issue.sh"
 
 # --- Configuration ---
 TARGET_DIR="${1:-/mnt/media/Movies}"
