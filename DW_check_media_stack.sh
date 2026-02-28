@@ -30,6 +30,7 @@ check_service() {
 
     if [[ "$status" == "200" ]]; then
         #echo -e "${GREEN}OK (HTTP 200)${NC}"
+        echo "-"
     else
         echo -e "${RED}FAILED (HTTP $status)${NC}"
         ((TOTAL_ERRORS++))
