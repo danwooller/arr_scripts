@@ -73,25 +73,35 @@ check_dependencies() {
 }
 
 manage_remote_torrent() {
-    local action=$1
+    local action=$1    # "pause", "resume", or "delete"
     local filename="$2"
-    # We strip underscores and take a chunk of the name for a fuzzy search
-    local search_term=$(echo "${filename:0:20}" | sed 's/_/ /g')
+    # We strip underscores for the search to match the JSON "name"
+    local search_name=$(echo "${2%.*}" | sed 's/_/ /g')
     
-    for server in "${QBT_SERVERS[@]}"; do
-        log "Searching $server for: $search_term"
-        
-        # We list ALL torrents and find the one that matches our filename
-        # Then we extract the Hash (40 chars)
-        local t_hash=$(qbittorrent-cli torrent list --server "$server" --all | grep -i "$search_name" | awk '{print $1}' | grep -E '^[a-f0-9]{40}$' | head -n 1)
+    # Map the action to the correct qBit API endpoint
+    local api_action="$action"
+    [ "$action" == "delete" ] && api_action="delete" # Endpoint is /delete
 
-        if [ -n "$t_hash" ]; then
-            log "✅ Found match on $server. Action: $action ($t_hash)"
-            qbittorrent-cli torrent "$action" --server "$server" --hash "$t_hash" >/dev/null 2>&1
+    for server in "${QBT_SERVERS[@]}"; do
+        log "Checking $server for match..."
+        
+        # 1. Get the Hash of the torrent matching the name
+        local t_hash=$(curl -s "$server/api/v2/torrents/info?all=true" | jq -r ".[] | select(.name | contains(\"$search_name\")) | .hash" | head -n 1)
+
+        if [ -n "$t_hash" ] && [ "$t_hash" != "null" ]; then
+            log "✅ Found! Hash: $t_hash. Sending $action command..."
+            
+            # 2. Perform the action (pause, resume, or delete)
+            # Note: delete requires 'deleteFiles=false' to keep your processed file
+            if [ "$action" == "delete" ]; then
+                curl -s -X POST "$server/api/v2/torrents/delete" -d "hashes=$t_hash&deleteFiles=false"
+            else
+                curl -s -X POST "$server/api/v2/torrents/$action" -d "hashes=$t_hash"
+            fi
             return 0
         fi
     done
-    log "⚠️ No match found for $search_term"
+    log "⚠️ No match found in QBT for '$search_name'"
 }
 
 update_ha_status() {
