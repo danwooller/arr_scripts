@@ -29,7 +29,7 @@ check_service() {
     local status=$(curl -s -L -o /dev/null --connect-timeout 5 -w "%{http_code}" -H "X-Api-Key: $key" "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
-        echo -e "${GREEN}OK (HTTP 200)${NC}"
+        #echo -e "${GREEN}OK (HTTP 200)${NC}"
     else
         echo -e "${RED}FAILED (HTTP $status)${NC}"
         ((TOTAL_ERRORS++))
