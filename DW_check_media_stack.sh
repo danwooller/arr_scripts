@@ -81,11 +81,20 @@ check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/users"
 [[ $? -eq 0 ]] && update_ha_status "Wizarr" "online" || update_ha_status "Wizarr" "offline"
 
 # Qbittorrent
+# --- qBittorrent Instances (Dynamic Array) ---
+echo "--- qBittorrent Connectivity ---"
+
+# Explicitly define the names to match your 5 servers
+QBT_NAMES=("TV" "Movies" "Music" "4K TV" "4K Movies")
+
 for i in "${!QBT_SERVERS[@]}"; do
     URL="${QBT_SERVERS[$i]}"
-    FRIENDLY_NAME="qBittorrent (${QBT_NAMES[$i]})"
+    FRIENDLY_NAME="${QBT_NAMES[$i]}"
     
-    echo -n "Checking $FRIENDLY_NAME... "
+    # If the name is missing for some reason, fallback to the index
+    [[ -z "$FRIENDLY_NAME" ]] && FRIENDLY_NAME="Instance $i"
+
+    echo -n "Checking qBittorrent ($FRIENDLY_NAME)... "
 
     if [[ -z "$URL" ]]; then
         echo -e "${RED}FAILED (URL Empty)${NC}"
@@ -93,19 +102,23 @@ for i in "${!QBT_SERVERS[@]}"; do
         continue
     fi
 
-    # Check the heartbeat endpoint (app/version)
-    # Using --connect-timeout 3 to keep the diagnostic snappy
+    # Heartbeat check
     status=$(curl -s -L -o /dev/null --connect-timeout 3 -w "%{http_code}" "$URL/api/v2/app/version")
+
+    # Prepare a clean Entity ID for Home Assistant (e.g., "qbt_4k_movies")
+    # This removes spaces, converts to lowercase, and removes parentheses
+    HA_ENTITY_NAME=$(echo "qbt_$FRIENDLY_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /_/g' | sed 's/[()]//g')
 
     if [[ "$status" == "200" ]]; then
         echo -e "${GREEN}OK (HTTP 200)${NC}"
-        update_ha_status "$FRIENDLY_NAME" "online"
+        update_ha_status "$HA_ENTITY_NAME" "online"
     else
         echo -e "${RED}FAILED (HTTP $status)${NC}"
-        update_ha_status "$FRIENDLY_NAME" "offline"
+        update_ha_status "$HA_ENTITY_NAME" "offline"
         ((TOTAL_ERRORS++))
     fi
 done
+
 # 4. Config File
 #CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
 #echo -n "Checking Config File... "
