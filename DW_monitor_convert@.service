@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /usr/local/bin/monitor_convert.sh
+ExecStart=/bin/bash /usr/local/bin/DW_monitor_convert.sh
 Restart=always
 RestartSec=10
 # %i will be replaced by whatever you put after the @ when starting
