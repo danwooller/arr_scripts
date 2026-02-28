@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Load your modular library files
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 source "/usr/local/bin/common_seerr_issue.sh"
 
 # Colors for readability
