@@ -1,0 +1,16 @@
+[Unit]
+Description=MKV Subtitle Monitor Service
+After=network.target
+
+[Service]
+User=root
+Group=root
+
+Type=simple
+# Adjust the path below to where you actually saved the .sh file
+ExecStart=/bin/bash /usr/local/bin/DW_move_tv_shows_synology.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
