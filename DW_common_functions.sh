@@ -73,35 +73,35 @@ check_dependencies() {
 }
 
 manage_remote_torrent() {
-    local action=$1    # "pause", "resume", or "delete"
+    local action=$1    # "stop" or "delete"
     local filename="$2"
-    # We strip underscores for the search to match the JSON "name"
-    local search_name=$(echo "${2%.*}" | sed 's/_/ /g')
     
-    # Map the action to the correct qBit API endpoint
-    local api_action="$action"
-    [ "$action" == "delete" ] && api_action="delete" # Endpoint is /delete
+    # Clean the name for searching (strip extension, replace underscores with spaces)
+    local search_name=$(echo "${filename%.*}" | sed 's/_/ /g')
 
     for server in "${QBT_SERVERS[@]}"; do
-        log "Checking $server for match..."
-        
-        # 1. Get the Hash of the torrent matching the name
+        # 1. Find the Hash using the info endpoint (which we know works)
         local t_hash=$(curl -s "$server/api/v2/torrents/info?all=true" | jq -r ".[] | select(.name | contains(\"$search_name\")) | .hash" | head -n 1)
 
+        if [ -z "$t_hash" ] || [ "$t_hash" == "null" ]; then
+            # Try a second "fuzzy" search if the first one fails
+            t_hash=$(curl -s "$server/api/v2/torrents/info?all=true" | jq -r ".[] | select(.name | contains(\"${search_name:0:15}\")) | .hash" | head -n 1)
+        fi
+
         if [ -n "$t_hash" ] && [ "$t_hash" != "null" ]; then
-            log "✅ Found! Hash: $t_hash. Sending $action command..."
+            log "✅ Found on $server. Sending $action..."
             
-            # 2. Perform the action (pause, resume, or delete)
-            # Note: delete requires 'deleteFiles=false' to keep your processed file
             if [ "$action" == "delete" ]; then
+                # deleteFiles=false is CRITICAL so we don't delete your new MKV
                 curl -s -X POST "$server/api/v2/torrents/delete" -d "hashes=$t_hash&deleteFiles=false"
             else
-                curl -s -X POST "$server/api/v2/torrents/$action" -d "hashes=$t_hash"
+                # Use the 'stop' command we just verified
+                curl -s -X POST "$server/api/v2/torrents/stop" -d "hashes=$t_hash"
             fi
             return 0
         fi
     done
-    log "⚠️ No match found in QBT for '$search_name'"
+    log "⚠️ Could not find torrent matching: $search_name"
 }
 
 update_ha_status() {
