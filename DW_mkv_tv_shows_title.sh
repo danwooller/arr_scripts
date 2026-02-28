@@ -5,7 +5,7 @@
 # the name of the immediate containing folder.
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Dependencies ---
 check_dependencies "mkvmerge"
