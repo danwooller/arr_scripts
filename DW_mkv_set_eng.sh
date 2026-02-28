@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- Setup & Includes ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Dependencies ---
 check_dependencies "jq" "mkvpropedit" "mkvmerge"
