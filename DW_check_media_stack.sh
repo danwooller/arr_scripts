@@ -120,13 +120,13 @@ done
 
 # 4. Config File
 #CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
-#echo -n "Checking Config File... "
-#if [[ -f "$CONFIG_FILE" ]]; then
-#    echo -e "${GREEN}FOUND${NC}"
-#else
-#    echo -e "${RED}NOT FOUND ($CONFIG_FILE)${NC}"
-#    ((TOTAL_ERRORS++))
-#fi
+echo -n "Checking Config File... "
+if [[ -f "$CONFIG_FILE" ]]; then
+    echo -e "${GREEN}FOUND${NC}"
+else
+    echo -e "${RED}NOT FOUND ($CONFIG_FILE)${NC}"
+    ((TOTAL_ERRORS++))
+fi
 
 echo "-------------------------------------------"
 if [ $TOTAL_ERRORS -eq 0 ]; then
