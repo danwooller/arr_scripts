@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # 1. Detect the Real User
 if [ -n "$SUDO_USER" ]; then
