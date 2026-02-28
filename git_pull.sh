@@ -29,12 +29,12 @@ if ! sudo -u $REAL_USER git pull origin main; then
     sudo -u $REAL_USER git reset --hard origin/main
 fi
 
-# 3. Always update common_functions.sh
-if [ -f "$DEST_DIR/common_functions.sh" ]; then
-    echo "Updating /usr/local/bin/common_functions.sh..."
-    sudo cp "$DEST_DIR/common_functions.sh" "/usr/local/bin/"
-    sudo chmod +x "/usr/local/bin/common_functions.sh"
-    sudo chown root:root "/usr/local/bin/common_functions.sh"
+# 3. Always update DW_common_functions.sh
+if [ -f "$DEST_DIR/DW_common_functions.sh" ]; then
+    echo "Updating /usr/local/bin/DW_common_functions.sh..."
+    sudo cp "$DEST_DIR/DW_common_functions.sh" "/usr/local/bin/"
+    sudo chmod +x "/usr/local/bin/DW_common_functions.sh"
+    sudo chown root:root "/usr/local/bin/DW_common_functions.sh"
 fi
 
 # 4. Sync back to system bin if requested
