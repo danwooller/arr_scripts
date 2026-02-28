@@ -79,6 +79,8 @@ process_mkv() {
 files_to_process=()
 TARGET_DIR="$DEFAULT_TARGET_DIR"
 
+log_start "$TARGET_DIR"
+
 if [ "$#" -gt 0 ]; then
     # Check if the first argument is a directory
     if [[ -d "$1" ]]; then
@@ -119,4 +121,4 @@ fi
 for mkv_file in "${files_to_process[@]}"; do
     process_mkv "$mkv_file"
 done
-[[ $LOG_LEVEL == "debug" ]] && log "✅ Script finished."
+[[ $LOG_LEVEL == "debug" ]] && log_end "$TARGET_DIR"
