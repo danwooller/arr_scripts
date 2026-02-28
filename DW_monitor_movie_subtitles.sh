@@ -22,8 +22,17 @@ while true; do
         filename=$(basename "$file")
         
         # Stability Check
-        SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
-        if [ "$SIZE1" -ne "$SIZE2" ] || lsof "$file" &> /dev/null; then continue; fi
+#        SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
+#        if [ "$SIZE1" -ne "$SIZE2" ] || lsof "$file" &> /dev/null; then continue; fi
+        # Stability Check
+        SIZE1=$(stat -c%s "$file")
+        sleep 5
+        SIZE2=$(stat -c%s "$file")
+        
+        if [ "$SIZE1" -ne "$SIZE2" ]; then 
+            log "File size still changing ($SIZE1 vs $SIZE2), skipping..."
+            continue 
+        fi
 
         log "Processing: $filename"
         metadata=$(mkvmerge --identify "$file" --identification-format json)
