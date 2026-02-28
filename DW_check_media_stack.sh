@@ -29,8 +29,7 @@ check_service() {
     local status=$(curl -s -L -o /dev/null --connect-timeout 5 -w "%{http_code}" -H "X-Api-Key: $key" "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
-        #echo -e "${GREEN}OK (HTTP 200)${NC}"
-        echo "-"
+        echo -e "${GREEN}OK (HTTP 200)${NC}"
     else
         echo -e "${RED}FAILED (HTTP $status)${NC}"
         ((TOTAL_ERRORS++))
@@ -79,7 +78,7 @@ check_service "Tautulli" "$TAUTULLI_API_BASE" "$TAUTULLI_API_KEY" "?apikey=$TAUT
 
 # Wizarr
 check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/users"
-[[ $? -eq 0 ]] && update_ha_status "Wizarr" "online" >/dev/null || update_ha_status "Wizarr" "offline" >/dev/null
+#[[ $? -eq 0 ]] && update_ha_status "Wizarr" "online" >/dev/null || update_ha_status "Wizarr" "offline" >/dev/null
 
 # Qbittorrent
 # --- qBittorrent Instances (Dynamic Array) ---
