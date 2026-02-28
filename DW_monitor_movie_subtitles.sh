@@ -11,7 +11,7 @@ SUBTITLE_DIR="/mnt/media/backup/subtitles"
 SLEEP_INTERVAL=120
 
 mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$SUBTITLE_DIR"
-check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
+check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "qbittorrent-cli" "rename"
 
 log "Monitoring $SOURCE_DIR..."
 
