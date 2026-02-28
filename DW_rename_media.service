@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/bin/bash /usr/local/bin/rename_media.sh
+ExecStart=/bin/bash /usr/local/bin/DW_rename_media.sh
 Restart=always
 RestartSec=10
 User=root
