@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
-source "/usr/local/bin/common_seerr_issue.sh"
+source "/usr/local/bin/DW_common_functions.sh"
+source "/usr/local/bin/DW_common_seerr_issue.sh"
 
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
