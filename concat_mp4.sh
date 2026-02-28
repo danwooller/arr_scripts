@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- Setup & Includes ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # 1. Setup Environment
 TARGET_DIR="/mnt/media/torrent/${HOST}/concat"
