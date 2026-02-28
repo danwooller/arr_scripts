@@ -3,7 +3,7 @@
 # Monitors a folder looking for video files and extracts any forced subtitle.
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Configuration ---
 HOST=$(hostname -s)
@@ -13,7 +13,7 @@ SOURCE_DIR="/mnt/media/torrent/${HOST}/subtitles/extract"
 POLL_INTERVAL=30
 MIN_FILE_AGE=5 
 
-log "--- Polling Conversion Monitor Started ---"
+log_start "$SOURCE_DIR"
 
 # --- Main Monitoring Loop (Polling) ---
 while true; do
@@ -53,3 +53,5 @@ while true; do
     # Wait for the next poll cycle
     sleep "$POLL_INTERVAL"
 done
+
+log_end "$SOURCE_DIR"
