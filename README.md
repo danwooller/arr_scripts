@@ -8,31 +8,31 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 ## 🛠 Core Media Tools
 | File | Description |
 | :--- | :--- |
-| **DW_cert_monitor.sh** | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. |
-| **DW_check_media_stack.sh** | Checks availability of docker services and reports to Home Assistant. |
-| **DW_concat_mp4.sh** | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. |
-| **DW_convert_mkv.sh** | Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder, determines whether the file is 1080p or 4K and converts the file using HandBrakeCLIbefore copying back to the network for further sorting. |
-| **DW_merge_forced_subtitles.sh** | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
-| **DW_mkv_set_eng.sh** | Checks mkv files in $1 and sets audio and subtitles to English if they are unset. |
-| **DW_monitor_convert.sh** | Monitors folders for unconverted media, detects resolution (1080p/4K), and transcodes via HandBrakeCLI. |
-| **DW_monitor_movie_subtitles.sh** | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
-| **DW_move_movies_synology.sh** | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
-| **DW_move_tv_shows_synology.sh** | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
-| **DW_scan_corrupt_media.sh** | Scan directories in $1 looking for corruptedmedia files, marking an issue in Seer. |
-| **DW_scan_missing_episodes.sh** | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. |
-| **DW_scan_movie_year.sh** | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. |
-| **update-docker.sh** | Runs a linux update then backs up the containers to the network while updating. Includes a --no-backup flag.|
-| **DW_usenet_org.sh** | Looks for media files without readable filenames and attempts to convert them using folder names. |
+| [**DW_cert_monitor.sh**](./DW_cert_monitor.sh) | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. |
+| [**DW_check_media_stack.sh**](./DW_check_media_stack.sh) | Checks availability of docker services and reports to Home Assistant. |
+| [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. |
+| [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder, determines whether the file is 1080p or 4K and converts the file using HandBrakeCLI before copying back to the network for further sorting. |
+| [**DW_merge_forced_subtitles.sh**](./DW_merge_forced_subtitles.sh) | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
+| [**DW_mkv_set_eng.sh**](./DW_mkv_set_eng.sh) | Checks mkv files in $1 and sets audio and subtitles to English if they are unset. |
+| [**DW_monitor_convert.sh**](./DW_monitor_convert.sh) | Monitors folders for unconverted media, detects resolution (1080p/4K), and transcodes via HandBrakeCLI. |
+| [**DW_monitor_movie_subtitles.sh**](./DW_monitor_movie_subtitles.sh) | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
+| [**DW_move_movies_synology.sh**](./DW_move_movies_synology.sh) | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
+| [**DW_move_tv_shows_synology.sh**](./DW_move_tv_shows_synology.sh) | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
+| [**DW_scan_corrupt_media.sh**](./DW_scan_corrupt_media.sh) | Scan directories in $1 looking for corrupted media files, marking an issue in Seer. |
+| [**DW_scan_missing_episodes.sh**](./DW_scan_missing_episodes.sh) | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. |
+| [**DW_scan_movie_year.sh**](./DW_scan_movie_year.sh) | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. |
+| [**update-docker.sh**](./update-docker.sh) | Runs a linux update then backs up the containers to the network while updating. Includes a --no-backup flag. |
+| [**DW_usenet_org.sh**](./DW_usenet_org.sh) | Looks for media files without readable filenames and attempts to convert them using folder names. |
 
 ### 🔧 System & Maintenance Tools
 | File | Description |
 | :--- | :--- |
-| **DW_common_functions.sh** | Global include file for standardised logging and dependency management. |
+| [**DW_common_functions.sh**](./DW_common_functions.sh) | Global include file for standardised logging and dependency management. |
 | **common_keys.txt** | Sensitive keys and mappings, called by common_functions.sh. |
-| **DW_common_seer_issue.sh** | Function for managing issues on Seer, called by common_functions.sh. |
-| **git_pull.sh** | Pulls $1 from GitHub. Copies to /usr/local/bin and sets permissions. |
-| **git_pull_install.sh** | Specialized installer: Syncs script, sets permissions, and configures the systemd service. |
-| **git_push.sh** | Pushes local edits to GitHub. Auto-handles identity, branch naming, and index cleanup. |
+| [**DW_common_seer_issue.sh**](./DW_common_seer_issue.s) | Function for managing issues on Seer, called by common_functions.sh. |
+| [**git_pull.sh**](./git_pull.sh) | Pulls $1 from GitHub. Copies to /usr/local/bin and sets permissions. |
+| [**git_pull_install.sh**](./git_pull_install.sh) | Specialized installer: Syncs script, sets permissions, and configures the systemd service. |
+| [**git_push.sh**](./git_push.sh) | Pushes local edits to GitHub. Auto-handles identity, branch naming, and index cleanup. |
 | ***.service** | Systemd unit templates for running any of the above as background daemons. |
 | **xxx.sh** | xxx. |
 ---
