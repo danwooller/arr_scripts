@@ -5,7 +5,7 @@
 # (indicating a REPACK or new episodes) and moves them
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # === Configuration ===
 HOST_NAME=$(hostname)
