@@ -5,7 +5,7 @@
 # Use for FORCED subtitles.
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Configuration ---
 HOST=$(hostname -s)
