@@ -13,6 +13,7 @@ else
     SERVICE_USER="root"
 fi
 DEST_DIR="/home/$REAL_USER/arr_scripts"
+BIN_DIR="/usr/local/bin"
 FILENAME=$1
 SERVICE_FILE="$FILENAME.service"
 SERVICE_DIR="/etc/systemd/system/"
@@ -31,21 +32,27 @@ if ! sudo -u "$REAL_USER" git pull origin main; then
     sudo -u "$REAL_USER" git reset --hard origin/main
 fi
 
-# 3. Always update DW_common_functions.sh
+# 3. Always update common files
 if [ -f "$DEST_DIR/DW_common_functions.sh" ]; then
-    echo "Updating /usr/local/bin/DW_common_functions.sh..."
-    sudo cp "$DEST_DIR/DW_common_functions.sh" "/usr/local/bin/"
-    sudo chmod +x "/usr/local/bin/DW_common_functions.sh"
-    sudo chown root:root "/usr/local/bin/DW_common_functions.sh"
+    echo "Updating $BIN_DIR/DW_common_functions.sh..."
+    sudo cp "$DEST_DIR/DW_common_functions.sh" "$BIN_DIR/"
+    sudo chmod +x "$BIN_DIR/DW_common_functions.sh"
+    sudo chown root:root "$BIN_DIR/DW_common_functions.sh"
+fi
+if [ -f "$DEST_DIR/DW_common_seerr_issue.sh" ]; then
+    echo "Updating $BIN_DIR/DW_common_seerr_issue.sh..."
+    sudo cp "$DEST_DIR/DW_common_seerr_issue.sh" "$BIN_DIR/"
+    sudo chmod +x "$BIN_DIR/DW_common_seerr_issue.sh"
+    sudo chown root:root "$BIN_DIR/DW_common_seerr_issue.sh"
 fi
 
 if [ -n "$FILENAME" ]; then
     # 4. Sync script to system bin
     if [ -f "$DEST_DIR/$FILENAME" ]; then
-        echo "Updating /usr/local/bin/$FILENAME..."
-        sudo cp "$DEST_DIR/$FILENAME" "/usr/local/bin/"
-        sudo chmod +x "/usr/local/bin/$FILENAME"
-        sudo chown root:root "/usr/local/bin/$FILENAME"
+        echo "Updating $BIN_DIR/$FILENAME..."
+        sudo cp "$DEST_DIR/$FILENAME" "$BIN_DIR/"
+        sudo chmod +x "$BIN_DIR/$FILENAME"
+        sudo chown root:root "$BIN_DIR/$FILENAME"
     else
         echo "Error: Script $FILENAME not found in $DEST_DIR"
     fi
