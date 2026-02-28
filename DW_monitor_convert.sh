@@ -5,7 +5,7 @@
 # before copying back to the network for further sorting.
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/common_functions.sh"
+source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Configuration ---
 HOST=$(hostname -s)
