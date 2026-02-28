@@ -4,6 +4,9 @@
 # using mkvinfo and mkvpropedit. The desired title is set to match
 # the name of the immediate containing folder.
 
+# --- Run Dependency Check using the shared function ---
+check_dependencies "mkvpropedit"
+
 # --- Load Shared Functions ---
 source "/usr/local/bin/DW_common_functions.sh"
 
@@ -71,12 +74,6 @@ process_mkv() {
 }
 
 # --- Main Script Logic ---
-
-# Check dependencies
-if ! command -v mkvpropedit &> /dev/null || ! command -v mkvinfo &> /dev/null; then
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Please install mkvtoolnix to run this script." >&2
-    exit 1
-fi
 
 # Determine files to process
 files_to_process=()
