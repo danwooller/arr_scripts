@@ -41,7 +41,8 @@ mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge"
 
-log "ℹ️ HandBrake Converter started"
+#log "ℹ️ HandBrake Converter started"
+log_start "$SOURCE_DIR"
 
 # --- Main Monitoring Loop (Polling) ---
 while true; do
