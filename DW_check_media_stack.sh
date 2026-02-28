@@ -80,15 +80,41 @@ check_service "Tautulli" "$TAUTULLI_API_BASE" "$TAUTULLI_API_KEY" "?apikey=$TAUT
 check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/users"
 [[ $? -eq 0 ]] && update_ha_status "Wizarr" "online" || update_ha_status "Wizarr" "offline"
 
+# Qbittorrent
+for i in "${!QBT_SERVERS[@]}"; do
+    URL="${QBT_SERVERS[$i]}"
+    FRIENDLY_NAME="qBittorrent (${QBT_NAMES[$i]})"
+    
+    echo -n "Checking $FRIENDLY_NAME... "
+
+    if [[ -z "$URL" ]]; then
+        echo -e "${RED}FAILED (URL Empty)${NC}"
+        ((TOTAL_ERRORS++))
+        continue
+    fi
+
+    # Check the heartbeat endpoint (app/version)
+    # Using --connect-timeout 3 to keep the diagnostic snappy
+    status=$(curl -s -L -o /dev/null --connect-timeout 3 -w "%{http_code}" "$URL/api/v2/app/version")
+
+    if [[ "$status" == "200" ]]; then
+        echo -e "${GREEN}OK (HTTP 200)${NC}"
+        update_ha_status "$FRIENDLY_NAME" "online"
+    else
+        echo -e "${RED}FAILED (HTTP $status)${NC}"
+        update_ha_status "$FRIENDLY_NAME" "offline"
+        ((TOTAL_ERRORS++))
+    fi
+done
 # 4. Config File
-CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
-echo -n "Checking Config File... "
-if [[ -f "$CONFIG_FILE" ]]; then
-    echo -e "${GREEN}FOUND${NC}"
-else
-    echo -e "${RED}NOT FOUND ($CONFIG_FILE)${NC}"
-    ((TOTAL_ERRORS++))
-fi
+#CONFIG_FILE="/mnt/media/torrent/ubuntu9_sonarr.txt"
+#echo -n "Checking Config File... "
+#if [[ -f "$CONFIG_FILE" ]]; then
+#    echo -e "${GREEN}FOUND${NC}"
+#else
+#    echo -e "${RED}NOT FOUND ($CONFIG_FILE)${NC}"
+#    ((TOTAL_ERRORS++))
+#fi
 
 echo "-------------------------------------------"
 if [ $TOTAL_ERRORS -eq 0 ]; then
