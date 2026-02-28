@@ -1,0 +1,15 @@
+[Unit]
+Description=MKV Subtitle Monitor Service
+After=network.target
+
+[Service]
+Type=simple
+# Adjust the path below to where you actually saved the .sh file
+ExecStart=/bin/bash /usr/local/bin/DW_monitor_movie_subtitles.sh
+User=root
+Group=root
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
