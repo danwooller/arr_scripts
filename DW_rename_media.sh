@@ -1,17 +1,14 @@
 #!/bin/bash
 
+# --- Load Shared Functions ---
+source "/usr/local/bin/DW_common_functions.sh"
+
 # --- Configuration ---
 HOST_NAME=$(hostname)
 CONVERT_DIR="/mnt/media/torrent/${HOST_NAME}_convert"
 NZB_DIR="/mnt/media/torrent/nzb-get/nzb"
 LOG_FILE="/mnt/media/torrent/${HOST_NAME}.log"
 SLEEP_INTERVAL=60
-
-# --- Logging Function ---
-log() {
-    # Outputs to terminal and appends to the log file with a timestamp
-    echo "$(date +'%H:%M'): $1" | tee -a "$LOG_FILE"
-}
 
 # Ensure script exits immediately if any command fails (except for handled errors)
 set -e
