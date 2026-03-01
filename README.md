@@ -68,7 +68,7 @@ Setup on a New Machine
 
 ### 3. Clone the repository
 ```bash
-git clone [https://github.com/danwooller/arr_scripts.git](https://github.com/danwooller/arr_scripts.git) ~/arr_scripts
+sudo git clone https://github.com/danwooller/arr_scripts.git ~/arr_scripts
 cd ~/arr_scripts
 ```
 ### 4. Set permissions
