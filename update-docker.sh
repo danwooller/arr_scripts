@@ -46,20 +46,43 @@ find_compose() {
     sudo find "$1" -maxdepth 1 \( -name "docker-compose.yml" -o -name "docker-compose.yaml" \) 2>/dev/null | head -n 1
 }
 
-# 4. Pre-fetch Images
-[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pre-pulling images..."
-
+# 4. Pre-fetch Images (with Error Logging)
 ROOT_COMPOSE=$(find_compose "/opt")
 if [ -n "$ROOT_COMPOSE" ]; then
-    log "   -> Pulling root: $ROOT_COMPOSE"
-    $DOCKER compose -f "$ROOT_COMPOSE" pull
+    log "ℹ️ Pre-pulling images for: $ROOT_COMPOSE"
+    
+    # Run timeout and capture the result
+    sudo timeout 300s $DOCKER compose -f "$ROOT_COMPOSE" pull -q
+    RESULT=$?
+
+    if [ $RESULT -eq 124 ]; then
+        log "❌ ERROR: Pull TIMED OUT (300s exceeded) for $ROOT_COMPOSE"
+    elif [ $RESULT -ne 0 ]; then
+        log "❌ ERROR: Pull FAILED (Exit Code: $RESULT) for $ROOT_COMPOSE"
+    else
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $ROOT_COMPOSE"
+    fi
 fi
 
 for dir in /opt/*/ ; do
     COMPOSE_FILE=$(find_compose "$dir")
+    
     if [ -n "$COMPOSE_FILE" ]; then
-        log "   -> Pulling for: $dir"
-        $DOCKER compose -f "$COMPOSE_FILE" pull
+        DIR_NAME=$(basename "$dir")
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pre-pulling images for: $DIR_NAME"
+
+        # Run pull with a 10-minute timeout
+        # Using -q to keep the overnight logs clean
+        sudo timeout 600s $DOCKER compose -f "$COMPOSE_FILE" pull -q
+        PULL_RESULT=$?
+
+        if [ $PULL_RESULT -eq 124 ]; then
+            log "❌ ERROR: Pull TIMED OUT (600s) for $DIR_NAME"
+        elif [ $PULL_RESULT -ne 0 ]; then
+            log "❌ ERROR: Pull FAILED (Exit Code: $PULL_RESULT) for $DIR_NAME"
+        else
+            [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $DIR_NAME"
+        fi
     fi
 done
 
