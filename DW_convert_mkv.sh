@@ -86,24 +86,24 @@ while true; do
                     --track-name 1:"English" \
                     "${FULL_PATH}" > /dev/null 2>&1
 
+
                 if [ $? -eq 0 ]; then
                     log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
-                    # Moves original to finished, preserving its name (but loses subfolder structure in finished)
                     mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
-                    # Remove from the torrent client
-                    # We use $FILE_NAME or $FULL_FILE_NAME depending on what your function expects
-                    log "Removing torrent: ${FILE_NAME}"
-                    TORRENT_HASH=$(curl -s -u "username:password" "http://localhost:8080/api/v2/torrents/info" | \
-                        jq -r ".[] | select(.name | contains(\"$FILE_NAME\")) | .hash")
-                    if [ -n "$TORRENT_HASH" ]; then
-                        log "Found Hash: $TORRENT_HASH. Deleting..."
-                        manage_remote_torrent "delete" "$TORRENT_HASH"
+                
+                    # Robust Lookup:
+                    # We use the first 15-20 chars of the filename to avoid truncation/special char issues
+                    SEARCH_STR=$(echo "$FILE_NAME" | cut -c 1-20)
+                    
+                    # This finds the ID/Hash via the API
+                    TARGET_ID=$(manage_remote_torrent "find_hash" "$SEARCH_STR")
+                
+                    if [ -n "$TARGET_ID" ]; then
+                        log "Removing torrent ID: $TARGET_ID"
+                        manage_remote_torrent "delete" "$TARGET_ID"
                     else
-                        log "⚠️ Still could not find torrent hash for: $FILE_NAME"
+                        log "⚠️ Failed to find hash for $SEARCH_STR"
                     fi
-                else
-                    log "❌ Error converting ${FULL_FILE_NAME}"
-                    rm -f "$FINAL_OUTPUT"
                 fi
             fi
         done
