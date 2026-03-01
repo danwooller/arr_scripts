@@ -68,7 +68,7 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
         sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
     else
         # If NO episodes are missing, we call the NEW surgical resolver
-        log "✨ Nothing missing for $series_name. Checking for Seerr issues to resolve..."
+        [[ $LOG_LEVEL == "debug" ]] && log "✨ Nothing missing for $series_name. Checking for Seerr issues to resolve..."
         
         # We need to loop through the seasons found to resolve them individually
         # because Seerr issues are season-specific.
