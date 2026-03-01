@@ -5,7 +5,11 @@ source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Flag Handling ---
 SKIP_BACKUP=false
-if [[ "$1" == "--no-backup" ]]; then
+SKIP_UPDATE=false
+if [[ "$1" == "--no-backup-update" ]]; then
+    SKIP_BACKUP=true
+    SKIP_UPDATE=true
+elif [[ "$1" == "--no-backup" ]]; then
     SKIP_BACKUP=true
 fi
 
@@ -17,7 +21,9 @@ REQUIRED_SPACE_MB=5000
 # 1. System Updates
 log_start
 
-sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
+if [ "$SKIP_UPDATE" = false ]; then
+    sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
+fi
 
 # 2. & 3. Safety Checks
 if ! mountpoint -q "$MOUNT_ROOT"; then
