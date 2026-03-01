@@ -16,7 +16,8 @@ fi
 # --- Configuration ---
 DOCKER="/usr/bin/docker"
 BACKUP_DEST="${MOUNT_ROOT}/backup/${HOSTNAME}/opt"
-REQUIRED_SPACE_MB=5000 
+REQUIRED_SPACE_MB=5000
+LOG_LEVEL="debug"
 
 # 1. System Updates
 log_start
