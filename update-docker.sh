@@ -14,18 +14,23 @@ elif [[ "$1" == "--no-backup" ]]; then
 elif [[ "$1" == "--no-update" ]]; then
     SKIP_UPDATE=true
 elif [ -z "$1" ]; then
-    # No flag provided, ask the user with a 30s timeout
-    echo -n "❓ No flags detected. Skip Backup & Updates? (y/N) [Timeout 30s]: "
-    read -t 30 -n 1 RESPONSE
-    echo "" # Move to a new line after input
+    # 2. No flags provided? Enter Interactive Mode with 30s timeout
+    echo "❓ No flags detected. Choose your options (Default is 'No' in 30s):"
 
-    if [[ "$RESPONSE" =~ ^[Yy]$ ]]; then
-        log "ℹ️ User selected: Skipping Backup & Updates."
+    # Ask about Backup
+    read -t 30 -p "   -> Skip Rsync Backup? (y/N): " RESP_BACKUP
+    if [[ "$RESP_BACKUP" =~ ^[Yy]$ ]]; then
         SKIP_BACKUP=true
-        SKIP_UPDATE=true
-    else
-        log "ℹ️ Proceeding with full Backup & Updates (Default/No)."
+        log "ℹ️ Choice: Skipping Backup."
     fi
+
+    # Ask about System Updates
+    read -t 30 -p "   -> Skip OS apt Updates? (y/N): " RESP_UPDATE
+    if [[ "$RESP_UPDATE" =~ ^[Yy]$ ]]; then
+        SKIP_UPDATE=true
+        log "ℹ️ Choice: Skipping Updates."
+    fi
+    echo "" # Clean line break
 fi
 
 # --- Configuration ---
