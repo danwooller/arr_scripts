@@ -18,7 +18,7 @@ elif [ -z "$1" ]; then
     echo "❓ No flags detected. Choose your options (Default is 'No' in 30s):"
 
     # Ask about Backup
-    read -t 30 -p "   -> Skip Rsync Backup? (y/N): " RESP_BACKUP
+    read -t 30 -p "   -> Skip Backup? (y/N): " RESP_BACKUP
     if [[ "$RESP_BACKUP" =~ ^[Yy]$ ]]; then
         SKIP_BACKUP=true
         log "ℹ️ Choice: Skipping Backup."
