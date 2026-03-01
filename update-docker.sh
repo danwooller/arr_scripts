@@ -11,6 +11,21 @@ if [[ "$1" == "--no-backup-update" ]]; then
     SKIP_UPDATE=true
 elif [[ "$1" == "--no-backup" ]]; then
     SKIP_BACKUP=true
+elif [[ "$1" == "--no-update" ]]; then
+    SKIP_UPDATE=true
+elif [ -z "$1" ]; then
+    # No flag provided, ask the user with a 30s timeout
+    echo -n "❓ No flags detected. Skip Backup & Updates? (y/N) [Timeout 30s]: "
+    read -t 30 -n 1 RESPONSE
+    echo "" # Move to a new line after input
+
+    if [[ "$RESPONSE" =~ ^[Yy]$ ]]; then
+        log "ℹ️ User selected: Skipping Backup & Updates."
+        SKIP_BACKUP=true
+        SKIP_UPDATE=true
+    else
+        log "ℹ️ Proceeding with full Backup & Updates (Default/No)."
+    fi
 fi
 
 # --- Configuration ---
