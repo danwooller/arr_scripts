@@ -93,7 +93,14 @@ while true; do
                     # Remove from the torrent client
                     # We use $FILE_NAME or $FULL_FILE_NAME depending on what your function expects
                     log "Removing torrent: ${FILE_NAME}"
-                    manage_remote_torrent "delete" "$FILE_NAME"
+                    TORRENT_HASH=$(curl -s -u "username:password" "http://localhost:8080/api/v2/torrents/info" | \
+                        jq -r ".[] | select(.name | contains(\"$FILE_NAME\")) | .hash")
+                    if [ -n "$TORRENT_HASH" ]; then
+                        log "Found Hash: $TORRENT_HASH. Deleting..."
+                        manage_remote_torrent "delete" "$TORRENT_HASH"
+                    else
+                        log "⚠️ Still could not find torrent hash for: $FILE_NAME"
+                    fi
                 else
                     log "❌ Error converting ${FULL_FILE_NAME}"
                     rm -f "$FINAL_OUTPUT"
