@@ -50,11 +50,17 @@ find_compose() {
 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pre-pulling images..."
 
 ROOT_COMPOSE=$(find_compose "/opt")
-[ -n "$ROOT_COMPOSE" ] && $DOCKER compose -f "$ROOT_COMPOSE" pull -q
+if [ -n "$ROOT_COMPOSE" ]; then
+    log "   -> Pulling root: $ROOT_COMPOSE"
+    $DOCKER compose -f "$ROOT_COMPOSE" pull
+fi
 
 for dir in /opt/*/ ; do
     COMPOSE_FILE=$(find_compose "$dir")
-    [ -n "$COMPOSE_FILE" ] && $DOCKER compose -f "$COMPOSE_FILE" pull -q
+    if [ -n "$COMPOSE_FILE" ]; then
+        log "   -> Pulling for: $dir"
+        $DOCKER compose -f "$COMPOSE_FILE" pull
+    fi
 done
 
 # 5. Stop Containers & Wait
