@@ -50,6 +50,15 @@ find_compose() {
 ROOT_COMPOSE=$(find_compose "/opt")
 if [ -n "$ROOT_COMPOSE" ]; then
     log "ℹ️ Pre-pulling images for: $ROOT_COMPOSE"
+
+    # --- Pre-Pull Space Check ---
+    # Get current available space in MB
+    CURRENT_SPACE_MB=$(df -m /opt | awk 'NR==2 {print $4}')
+    
+    if [ "$CURRENT_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
+        log "⚠️ WARNING: Skipping pull for $DIR_NAME. Low space: ${CURRENT_SPACE_MB}MB (Required: ${REQUIRED_SPACE_MB}MB)"
+        continue # Skip to the next folder in /opt/
+    fi
     
     # Run timeout and capture the result
     sudo timeout 300s $DOCKER compose -f "$ROOT_COMPOSE" pull -q
