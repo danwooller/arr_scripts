@@ -90,6 +90,10 @@ while true; do
                     log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
                     # Moves original to finished, preserving its name (but loses subfolder structure in finished)
                     mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
+                    # Remove from the torrent client
+                    # We use $FILE_NAME or $FULL_FILE_NAME depending on what your function expects
+                    log "Removing torrent: ${FILE_NAME}"
+                    manage_remote_torrent "delete" "$FILE_NAME"
                 else
                     log "❌ Error converting ${FULL_FILE_NAME}"
                     rm -f "$FINAL_OUTPUT"
