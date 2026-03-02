@@ -74,7 +74,7 @@ while true; do
                 fi
 
                 # 3. Conversion Process
-                log "Converting: ${FULL_FILE_NAME} (from subfolder) -> ${FILE_NAME}${EXT_OUT}"
+                log "ℹ️ Converting: ${FULL_FILE_NAME} (from subfolder) -> ${FILE_NAME}${EXT_OUT}"
                 
                 #mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}" > /dev/null 2>&1
                 # Use '--language 1:eng' which is the standard ID for the first audio track in most MP4s
@@ -87,10 +87,10 @@ while true; do
 
 
                 if [ $? -eq 0 ]; then
-                    log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
+                    log "ℹ️ Success. Moving ${FULL_FILE_NAME} to finished."
                     mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
 
-                    log "Removing torrent: $FILE_NAME"
+                    log "ℹ️ Removing torrent: $FILE_NAME"
                     manage_remote_torrent "delete" "$FILE_NAME"
                 fi
             fi
