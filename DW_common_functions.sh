@@ -76,16 +76,19 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     
-    # 1. Strip extension and replace underscores/dots with a generic match
-    # We turn "Frozen.II.2019" into "Frozen.*II.*2019" for the jq search
-    local search_name=$(echo "${filename%.*}" | sed 's/[._]/ /g' | sed 's/"/\\"/g')
+    # 1. Prepare a "Regex-safe" search string
+    # We strip the extension, then replace ALL dots, underscores, and dashes 
+    # with a "." (which means "any character" in Regex).
+    # "Frozen.II.2019...[YTS.MX]" -> "Frozen.II.2019.*YTS"
+    local search_regex=$(echo "${filename%.*}" | sed 's/[._ -]/./g' | sed 's/\[/\\\[/g; s/\]/\\\]/g')
 
     for server in "${QBT_SERVERS[@]}"; do
         local api_url="${server}/api/v2/torrents"
 
-        # 2. Use 'test' with a regular expression in jq for a much "stickier" match
+        # 2. Use 'test' with the regex for a much "stickier" match
+        # The "i" makes it case-insensitive
         local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                       jq -r ".[] | select(.name | test(\"$search_name\"; \"i\")) | .hash" | head -n 1)
+                       jq -r ".[] | select(.name | test(\"$search_regex\"; \"i\")) | .hash" | head -n 1)
 
         # 3. Perform the Action
         if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
@@ -100,7 +103,8 @@ manage_remote_torrent() {
         fi
     done
 
-    log "⚠️ Could not find torrent matching: $search_name"
+    # If we get here, log the REASON it failed
+    log "⚠️ Could not find torrent matching regex: $search_regex"
     return 1
 }
 
