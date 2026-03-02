@@ -1,5 +1,7 @@
 #!/bin/bash
 
+HOST=$(hostname -s)
+
 # --- Shared Logging Function ---
 log() {
     # Using local variables for cleaner output
