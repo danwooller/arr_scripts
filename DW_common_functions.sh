@@ -73,37 +73,27 @@ check_dependencies() {
 }
 
 manage_remote_torrent() {
-    local action=$1    # "stop" or "delete"
+    local action=$1
     local filename="$2"
     
-    # Clean the name for searching (strip extension, replace underscores with spaces)
-    # We also escape double quotes to prevent jq syntax errors
-    local search_name=$(echo "${filename%.*}" | sed 's/_/ /g' | sed 's/"/\\"/g')
+    # 1. Strip extension and replace underscores/dots with a generic match
+    # We turn "Frozen.II.2019" into "Frozen.*II.*2019" for the jq search
+    local search_name=$(echo "${filename%.*}" | sed 's/[._]/ /g' | sed 's/"/\\"/g')
 
     for server in "${QBT_SERVERS[@]}"; do
-        # Ensure the server URL includes the port if not already there (e.g., http://192.168.1.50:8080)
         local api_url="${server}/api/v2/torrents"
 
-        # 1. Find the Hash using the info endpoint
+        # 2. Use 'test' with a regular expression in jq for a much "stickier" match
         local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                       jq -r ".[] | select(.name | contains(\"$search_name\")) | .hash" | head -n 1)
-
-        # 2. Try a second "fuzzy" search (first 15 chars) if the first one fails
-        if [ -z "$t_hash" ] || [ "$t_hash" == "null" ]; then
-            local short_name="${search_name:0:15}"
-            t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                     jq -r ".[] | select(.name | contains(\"$short_name\")) | .hash" | head -n 1)
-        fi
+                       jq -r ".[] | select(.name | test(\"$search_name\"; \"i\")) | .hash" | head -n 1)
 
         # 3. Perform the Action
-        if [ -n "$t_hash" ] && [ "$t_hash" != "null" ]; then
-            log "✅ Found on $server (Hash: ${t_hash:0:8}...). Sending $action..."
+        if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
+            log "✅ Found on $server (Hash: ${t_hash:0:8}). Sending $action..."
             
-            if [ "$action" == "delete" ]; then
-                # deleteFiles=false ensures we only remove the entry from the UI
+            if [[ "$action" == "delete" ]]; then
                 curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/delete" -d "hashes=$t_hash&deleteFiles=false"
             else
-                # Using the 'stop' (pause) command
                 curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/stop" -d "hashes=$t_hash"
             fi
             return 0
