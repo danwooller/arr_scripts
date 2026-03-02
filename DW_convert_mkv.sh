@@ -16,11 +16,10 @@ WATCH_DIRS=(
 
 OUTPUT_DIR="/mnt/media/torrent/completed"
 FINISHED_DIR="/mnt/media/torrent/finished/"
-LOG_FILE="/mnt/media/torrent/${HOST}.log"
 #LOG_LEVEL="debug"
 POLL_INTERVAL=30
 
-mkdir -p "$OUTPUT_DIR" "$FINISHED_DIR"
+mkdir -p "$OUTPUT_DIR" "$EXT_VIDEO"
 
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "jq" "mkvmerge" "mkvpropedit" "rename"
