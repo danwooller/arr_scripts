@@ -13,7 +13,7 @@ SLEEP_INTERVAL=120
 mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$SUBTITLE_DIR"
 check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "qbittorrent-cli" "rename"
 
-log "Monitoring $SOURCE_DIR..."
+log_start "$SOURCE_DIR"
 
 while true; do
     find "$SOURCE_DIR" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
@@ -107,3 +107,5 @@ while true; do
     done
     sleep "$SLEEP_INTERVAL"
 done
+
+log_end "$SOURCE_DIR"
