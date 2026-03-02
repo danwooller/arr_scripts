@@ -169,4 +169,8 @@ done
 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pruning unused resources..."
 $DOCKER image prune -f
 
+if [ -f /var/run/reboot-required ]; then
+  log "⚠️ reboot required"
+fi
+
 log_end
