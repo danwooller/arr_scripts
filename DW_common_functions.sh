@@ -150,6 +150,22 @@ restart_vpn_containers() {
             log "❌ Failed to restart $container_id. Check if container exists."
         fi
     done
+    # 3. Loop through the TRANSMISSION names and transform them
+    for friendly_name in "${TRANS_NAMES[@]}"; do
+        # Transformation steps:
+        # 1. tr '[:upper:]' '[:lower:]' -> convert to lowercase (4K TV -> 4k tv)
+        # 2. sed 's/ //g'               -> remove all spaces (4k tv -> 4ktv)
+        # 3. Prepend "transmission-"     -> (4ktv -> transmission-4ktv)
+        clean_name=$(echo "$friendly_name" | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
+        container_id="transmission-$clean_name"
+        #log "🔄 Restarting Container: $container_id"
+        # Perform the restart and check for success
+        if docker restart "$container_id" >/dev/null 2>&1; then
+            log "✅ Successfully restarted $container_id"
+        else
+            log "❌ Failed to restart $container_id. Check if container exists."
+        fi
+    done
     log "🏁 VPN Container Restart Complete."
 }
 
