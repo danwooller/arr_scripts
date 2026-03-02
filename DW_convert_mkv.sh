@@ -4,7 +4,6 @@
 source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Configuration ---
-HOST=$(hostname -s)
 EXT_VIDEO=("mp4" "m4v")
 EXT_OUT=".mkv"
 
