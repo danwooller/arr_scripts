@@ -29,44 +29,56 @@ log_end() {
 }
 
 # Universal Graceful Exit
-# This will now apply to any script that sources this file
 trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
+# This will now apply to any script that sources this file
 
 # --- Load External Configuration ---
 CONFIG_FILE="/usr/local/bin/common_keys.txt"
 if [[ -f "$CONFIG_FILE" ]]; then
-    # Source the file, but strip any trailing Windows CR characters on the fly
     source <(sed 's/\r$//' "$CONFIG_FILE")
+    # Source the file, but strip any trailing Windows CR characters on the fly
 else
     log "WARN: Config file $CONFIG_FILE not found."
 fi
 
-# --- Shared Dependency Checker ---
 check_dependencies() {
     local missing_deps=()
+    # Initializes an empty array to store the names of any tools not found on the system.
     
     for dep in "$@"; do
+    # Loops through every argument passed to the function (e.g., "jq", "curl", "mkvmerge").
         if ! command -v "$dep" >/dev/null 2>&1; then
+        # Checks if the command exists in the system PATH; redirects output to 'null' to keep the terminal clean.
             missing_deps+=("$dep")
+            # If the command is NOT found, adds that specific tool name to the missing_deps array.
         else
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ '$dep' is ready."
+            # If the tool IS found and you have debug logging enabled, it records that the dependency is satisfied.
         fi
     done
 
     # If there are missing dependencies, handle them in one go
     if [ ${#missing_deps[@]} -gt 0 ]; then
+    # Checks if the count of items in the missing_deps array is greater than zero.
         log "Missing dependencies: ${missing_deps[*]}"
+        # Logs the list of all missing tools in a single line.
         log "Attempting to install missing packages..."
+        # Informs the user that the script is about to try and fix the problem automatically.
         
         # Note: Package names don't always match command names (e.g., HandBrakeCLI vs handbrake-cli)
         # This logic attempts to install the command name, but may need manual overrides
         sudo apt-get update && sudo apt-get install -y "${missing_deps[@]}"
+        # Refreshes the package list and attempts to install the missing tools using the Debian/Ubuntu package manager.
         
         # Final verification
         for dep in "${missing_deps[@]}"; do
+        # Loops back through the list of tools that were just supposedly installed.
             if ! command -v "$dep" >/dev/null 2>&1; then
+            # Re-checks if the command is now available in the system PATH.
                 log "❌ Critical Error: Failed to install '$dep'. Script exiting."
+                # Logs a failure message if the 'apt-get' command didn't actually provide the required tool.
                 exit 1
+                # Terminates the entire script with an error code to prevent it from crashing later during execution.
             fi
         done
     fi
