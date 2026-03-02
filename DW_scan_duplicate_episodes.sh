@@ -42,38 +42,29 @@ for series_path in "${SERIES_LIST[@]}"; do
         # 2. Sync to Seerr
         sync_seerr_issue "$series_name" "tv" "Duplicate Episode(s): $dup_list" "${MANUAL_MAPS[$series_name]}"
     else
-
-
-        # If NO episodes are missing, we call the NEW surgical resolver
-        [[ $LOG_LEVEL == "debug" ]] && log "✨ Nothing missing for $series_name. Checking for Seerr issues to resolve..."
+        [[ $LOG_LEVEL == "debug" ]] && log "✨ No duplicates for $series_name. Checking for resolution..."
         
-        # We need to loop through the seasons found to resolve them individually
-        # because Seerr issues are season-specific.
-        find "$series_path" -maxdepth 1 -type d -name "Season*" | while read -r season_folder; do
-             resolve_seerr_issue "$season_folder"
-        done
-#        [[ $LOG_LEVEL == "debug" ]] && log "✨ No duplicates for $series_name. Checking for resolution..."
         # 3. Resolution Logic (Fixed scope: removed 'local')
         # Get TVDB ID from Sonarr using the path
-#        tvdb_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | \
-#                        jq -r --arg path "$series_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
+        tvdb_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | \
+                        jq -r --arg path "$series_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
 
-#        if [[ -n "$tvdb_id" && "$tvdb_id" != "null" ]]; then
+        if [[ -n "$tvdb_id" && "$tvdb_id" != "null" ]]; then
             # Fetch open issues from Seerr
-#            open_issues=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_URL/api/v1/issue?filter=open")
+            open_issues=$(curl -s -H "X-Api-Key: $SEERR_API_KEY" "$SEERR_URL/api/v1/issue?filter=open")
             
             # Find the Issue ID that matches this TVDB ID
-#            issue_id=$(echo "$open_issues" | jq -r --arg tid "$tvdb_id" '.results[] | select(.media.tvdbId | tostring == $tid) | .id' | head -n 1)
+            issue_id=$(echo "$open_issues" | jq -r --arg tid "$tvdb_id" '.results[] | select(.media.tvdbId | tostring == $tid) | .id' | head -n 1)
 
-#            if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-#                log "✅ Duplicates resolved for $series_name. Closing Seerr Issue #$issue_id..."
-#                curl -s -X POST "$SEERR_URL/api/v1/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY" > /dev/null
+            if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
+                log "✅ Duplicates resolved for $series_name. Closing Seerr Issue #$issue_id..."
+                curl -s -X POST "$SEERR_URL/api/v1/issue/$issue_id/resolved" -H "X-Api-Key: $SEERR_API_KEY" > /dev/null
                 
                 # Trigger Sonarr Rescan
-#                s_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | jq -r --arg path "$series_path" '.[] | select(.path == $path) | .id')
-#                [[ -n "$s_id" ]] && curl -s -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "{\"name\": \"RescanSeries\", \"seriesId\": $s_id}" > /dev/null
-#            fi
-#        fi
+                s_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | jq -r --arg path "$series_path" '.[] | select(.path == $path) | .id')
+                [[ -n "$s_id" ]] && curl -s -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "{\"name\": \"RescanSeries\", \"seriesId\": $s_id}" > /dev/null
+            fi
+        fi
     fi
 done
 
