@@ -91,8 +91,10 @@ manage_remote_torrent() {
     # Assigns the first argument (stop/delete) to a local variable for clarity.
     local filename="$2"
     # Assigns the filename passed from the main script to a local variable.
-    local search_regex=$(echo "${filename:0:25}" | sed 's/[^a-zA-Z0-9]/.*/g')
+    #local search_regex=$(echo "${filename:0:25}" | sed 's/[^a-zA-Z0-9]/.*/g')
     # Takes the first 25 chars, then replaces all non-alphanumeric chars with '.*' (the regex wildcard).
+    # We shorten the capture to 10 characters to avoid "BluRay/BrRip" mismatches
+    local search_regex=$(echo "${filename:0:10}" | sed 's/[^a-zA-Z0-9]/.*/g')
 
     for server in "${QBT_SERVERS[@]}"; do
     # Loops through every server URL defined in your common_functions.sh array.
