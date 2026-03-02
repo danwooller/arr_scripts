@@ -3,4 +3,4 @@
 # --- Load Shared Functions ---
 source "/usr/local/bin/DW_common_functions.sh"
 
-restart_media_stack
+restart_vpn_containers
