@@ -77,31 +77,41 @@ manage_remote_torrent() {
     local filename="$2"
     
     # Clean the name for searching (strip extension, replace underscores with spaces)
-    local search_name=$(echo "${filename%.*}" | sed 's/_/ /g')
+    # We also escape double quotes to prevent jq syntax errors
+    local search_name=$(echo "${filename%.*}" | sed 's/_/ /g' | sed 's/"/\\"/g')
 
     for server in "${QBT_SERVERS[@]}"; do
-        # 1. Find the Hash using the info endpoint (which we know works)
-        local t_hash=$(curl -s "$server/api/v2/torrents/info?all=true" | jq -r ".[] | select(.name | contains(\"$search_name\")) | .hash" | head -n 1)
+        # Ensure the server URL includes the port if not already there (e.g., http://192.168.1.50:8080)
+        local api_url="${server}/api/v2/torrents"
 
+        # 1. Find the Hash using the info endpoint
+        local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
+                       jq -r ".[] | select(.name | contains(\"$search_name\")) | .hash" | head -n 1)
+
+        # 2. Try a second "fuzzy" search (first 15 chars) if the first one fails
         if [ -z "$t_hash" ] || [ "$t_hash" == "null" ]; then
-            # Try a second "fuzzy" search if the first one fails
-            t_hash=$(curl -s "$server/api/v2/torrents/info?all=true" | jq -r ".[] | select(.name | contains(\"${search_name:0:15}\")) | .hash" | head -n 1)
+            local short_name="${search_name:0:15}"
+            t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
+                     jq -r ".[] | select(.name | contains(\"$short_name\")) | .hash" | head -n 1)
         fi
 
+        # 3. Perform the Action
         if [ -n "$t_hash" ] && [ "$t_hash" != "null" ]; then
-            log "✅ Found on $server. Sending $action..."
+            log "✅ Found on $server (Hash: ${t_hash:0:8}...). Sending $action..."
             
             if [ "$action" == "delete" ]; then
-                # deleteFiles=false is CRITICAL so we don't delete your new MKV
-                curl -s -X POST "$server/api/v2/torrents/delete" -d "hashes=$t_hash&deleteFiles=false"
+                # deleteFiles=false ensures we only remove the entry from the UI
+                curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/delete" -d "hashes=$t_hash&deleteFiles=false"
             else
-                # Use the 'stop' command we just verified
-                curl -s -X POST "$server/api/v2/torrents/stop" -d "hashes=$t_hash"
+                # Using the 'stop' (pause) command
+                curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/stop" -d "hashes=$t_hash"
             fi
             return 0
         fi
     done
+
     log "⚠️ Could not find torrent matching: $search_name"
+    return 1
 }
 
 update_ha_status() {
