@@ -76,21 +76,29 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     
-    # 1. Prepare a "Regex-safe" search string
-    # We strip the extension, then replace ALL dots, underscores, and dashes 
-    # with a "." (which means "any character" in Regex).
-    # "Frozen.II.2019...[YTS.MX]" -> "Frozen.II.2019.*YTS"
-    local search_regex=$(echo "${filename%.*}" | sed 's/[._ -]/./g' | sed 's/\[/\\\[/g; s/\]/\\\]/g')
+    # 1. TRUNCATION FIX: Strip the extension (.mp4) but keep the rest
+    # We use a greedy strip to ensure we only lose the very last extension
+    local base_name="${filename%.*}"
+
+    # 2. REGEX PREP: 
+    # - Replace dots, underscores, and spaces with a "." (Regex wildcard)
+    # - Escape square brackets so they don't break the Regex engine
+    local search_regex=$(echo "$base_name" | sed 's/[._ -]/./g' | sed 's/\[/\\\[/g; s/\]/\\\]/g')
+
+    # 3. SAFETY: If the name is still too long/complex, 
+    # let's just use the first 25 characters of the regex-safe string.
+    local final_search="${search_regex:0:40}"
 
     for server in "${QBT_SERVERS[@]}"; do
+        # Note: Ensure $server includes http:// and port (e.g. http://192.168.1.10:8080)
         local api_url="${server}/api/v2/torrents"
 
-        # 2. Use 'test' with the regex for a much "stickier" match
-        # The "i" makes it case-insensitive
+        # 4. THE LOOKUP:
+        # We use 'test' with the 'i' (insensitive) flag. 
+        # This will match "Frozen.II" against "Frozen II" or "Frozen_II"
         local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                       jq -r ".[] | select(.name | test(\"$search_regex\"; \"i\")) | .hash" | head -n 1)
+                       jq -r ".[] | select(.name | test(\"$final_search\"; \"i\")) | .hash" | head -n 1)
 
-        # 3. Perform the Action
         if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
             log "✅ Found on $server (Hash: ${t_hash:0:8}). Sending $action..."
             
@@ -103,8 +111,7 @@ manage_remote_torrent() {
         fi
     done
 
-    # If we get here, log the REASON it failed
-    log "⚠️ Could not find torrent matching regex: $search_regex"
+    log "⚠️ Could not find torrent matching regex: $final_search"
     return 1
 }
 
