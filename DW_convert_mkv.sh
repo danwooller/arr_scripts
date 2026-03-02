@@ -24,7 +24,8 @@ mkdir -p "$OUTPUT_DIR" "$EXT_VIDEO"
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "jq" "mkvmerge" "mkvpropedit" "rename"
 
-#log_start "$WATCH_DIRS"
+log_start "$WATCH_DIRS"
+log_start
 
 while true; do
     for TARGET_DIR in "${WATCH_DIRS[@]}"; do
