@@ -74,35 +74,34 @@ check_dependencies() {
 
 manage_remote_torrent() {
     local action=$1
-    local filename="$2"  # This is already "Frozen.II.2019.1080p.BluRay.x264.AAC5.1-[YTS.MX]"
+    local filename="$2"
+    
+    # 1. Prepare a Regex Search String:
+    # We take the first 25 characters of the filename and replace 
+    # all dots/underscores/dashes with a "." (the Regex wildcard).
+    # This turns "Frozen.II.2019" into "Frozen.II.2019" which matches "Frozen II (2019)"
+    local search_regex=$(echo "${filename:0:25}" | sed 's/[._ -]/./g')
 
     for server in "${QBT_SERVERS[@]}"; do
-        local api_url="${server}/api/v2/torrents"
-
-        # Using --arg TARGET "$filename" ensures jq treats the brackets and dots 
-        # as a literal string, NOT as code or regex.
-        local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                       jq -r --arg TARGET "$filename" '.[] | select(.name == $TARGET) | .hash' | head -n 1)
-
-        # Fallback: if exact match fails, try a 'contains' match
-        if [[ -z "$t_hash" || "$t_hash" == "null" ]]; then
-            t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                     jq -r --arg TARGET "$filename" '.[] | select(.name | contains($TARGET)) | .hash' | head -n 1)
-        fi
+        # 2. Use 'test' with the 'i' flag for a case-insensitive Regex match
+        # We pass the regex safely using --arg
+        local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
+                       jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | .hash' | head -n 1)
 
         if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
-            log "✅ Found Hash: $t_hash. Sending $action..."
+            log "✅ Found match for [$search_regex] -> Hash: ${t_hash:0:8}"
             
-            # Note: qBittorrent API uses 'pause' for 'stop'
-            local qbt_action="${action}"
-            [[ "$action" == "stop" ]] && qbt_action="pause"
+            # Map 'stop' to the API's 'pause' endpoint
+            local q_cmd="${action}"
+            [[ "$action" == "stop" ]] && q_cmd="pause"
 
-            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/${qbt_action}" -d "hashes=$t_hash&deleteFiles=false"
+            # Execute the API call
+            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=false"
             return 0
         fi
     done
 
-    log "⚠️ Could not find torrent matching exactly: $filename"
+    log "⚠️ Could not find any torrent matching regex: $search_regex"
     return 1
 }
 
