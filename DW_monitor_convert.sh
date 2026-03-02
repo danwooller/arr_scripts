@@ -185,6 +185,9 @@ while true; do
             # Move the original file to the finished folder
             mv "$SOURCE_FILE" "$FINISHED_DIR/$BASE_NAME-$TIMESTAMP.$EXTENSION"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved original file to $FINISHED_DIR/$BASE_NAME_$TIMESTAMP.$EXTENSION."
+
+            # Search & Delete across all 5 servers
+            manage_remote_torrent "delete" "$BASE_NAME"
             
         else
             log "   -> ❌ Failed: $CONVERSION_EXIT_CODE for $FILENAME."
