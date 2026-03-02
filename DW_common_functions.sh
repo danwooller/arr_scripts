@@ -124,7 +124,7 @@ manage_remote_torrent() {
 }
 
 restart_vpn_containers() {
-    log "🚀 Starting Media Stack Restart..."
+    log "🚀 Restarting VPN Containers..."
 
     # 1. Restart the VPN Container first
     # This ensures the network tunnel is ready for the dependent containers
@@ -154,7 +154,7 @@ restart_vpn_containers() {
         fi
     done
 
-    log "🏁 Media Stack Restart Sequence Complete."
+    log "🏁 VPN Container Restart Complete."
 }
 
 update_ha_status() {
