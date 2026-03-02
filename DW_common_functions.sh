@@ -76,20 +76,23 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     
-    # 1. Take the first 25 chars.
-    # 2. ESCAPE any existing regex characters in the filename (like [ or ])
-    # 3. REPLACE dots/underscores with '.' so they match spaces/dashes/dots in QBT
-    local search_regex=$(echo "${filename:0:25}" | sed 's/[\[\]\(\)\+\*]/./g; s/[._ -]/./g')
+    # 1. Take a unique chunk (first 20 chars)
+    # 2. Strip ALL non-alphanumeric characters and replace them with '.*'
+    # This turns "Frozen.II.2019" into "Frozen.*II.*2019"
+    local search_regex=$(echo "${filename:0:20}" | sed 's/[^a-zA-Z0-9]/.*/g')
 
     for server in "${QBT_SERVERS[@]}"; do
-        # We use the 'test' function in jq with the "i" (case-insensitive) flag
-        local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
-                       jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | .hash' | head -n 1)
+        # 3. Use the 'test' function with "i" flag
+        # We also grab the name found for the log so we can see the match
+        local t_data=$(curl -s -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
+                       jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
 
-        if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
-            log "✅ Found match! Hash: ${t_hash:0:8}. Sending $action..."
+        if [[ -n "$t_data" ]]; then
+            local t_hash=$(echo "$t_data" | cut -d'|' -f1)
+            local t_name=$(echo "$t_data" | cut -d'|' -f2)
             
-            # Map 'stop' to 'pause'
+            log "✅ Match Found: [$t_name]. Sending $action..."
+            
             local q_cmd="${action}"
             [[ "$action" == "stop" ]] && q_cmd="pause"
 
@@ -98,7 +101,7 @@ manage_remote_torrent() {
         fi
     done
 
-    log "⚠️ Still could not find any torrent matching regex: $search_regex"
+    log "⚠️ Still no match using regex: $search_regex"
     return 1
 }
 
