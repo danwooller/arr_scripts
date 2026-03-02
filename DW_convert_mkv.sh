@@ -50,7 +50,6 @@ while true; do
             [[ -e "$FULL_PATH" ]] || continue
 
             FULL_FILE_NAME=$(basename "$FULL_PATH")
-            FILE_EXT="${FULL_FILE_NAME##*.}"
             FILE_NAME="${FULL_FILE_NAME%.*}"
 
             if [ -n "$FILE_NAME" ]; then
@@ -90,10 +89,8 @@ while true; do
                 if [ $? -eq 0 ]; then
                     log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
                     mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
-                
-                    # Remove from the torrent client
-                    # We use $FILE_NAME or $FULL_FILE_NAME depending on what your function expects
-                    log "Removing torrent: ${FILE_NAME} $FILE_NAME"
+
+                    log "Removing torrent: $FILE_NAME"
                     manage_remote_torrent "delete" "$FILE_NAME"
                 fi
             fi
