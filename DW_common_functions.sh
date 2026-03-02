@@ -49,7 +49,7 @@ check_dependencies() {
         if ! command -v "$dep" >/dev/null 2>&1; then
             missing_deps+=("$dep")
         else
-            [[ $LOG_LEVEL == "debug" ]] && log "✅ '$dep' is ready."
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ '$dep' is ready."
         fi
     done
 
@@ -87,7 +87,7 @@ manage_remote_torrent() {
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
             local t_name=$(echo "$t_data" | cut -d'|' -f2)
             
-            log "✅ Match Found: [$t_name]. Sending $action..."
+            log "ℹ️ Match Found: [$t_name]. Sending $action..."
             
             local q_cmd="${action}"
             [[ "$action" == "stop" ]] && q_cmd="pause"
