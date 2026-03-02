@@ -123,6 +123,40 @@ manage_remote_torrent() {
     # Exits with an 'error' code if no server in the array contained a matching torrent.
 }
 
+restart_vpn_containers() {
+    log "🚀 Starting Media Stack Restart..."
+
+    # 1. Restart the VPN Container first
+    # This ensures the network tunnel is ready for the dependent containers
+    log "🔄 Restarting VPN: $VPN_CONTAINER"
+    docker restart "$VPN_CONTAINER"
+    
+    # Wait 5 seconds for the VPN tunnel to initialize
+    sleep 5 
+
+    # 2. Loop through the QBT names and transform them
+    for friendly_name in "${QBT_NAMES[@]}"; do
+        
+        # Transformation steps:
+        # 1. tr '[:upper:]' '[:lower:]' -> convert to lowercase (4K TV -> 4k tv)
+        # 2. sed 's/ //g'               -> remove all spaces (4k tv -> 4ktv)
+        # 3. Prepend "qbittorrent-"     -> (4ktv -> qbittorrent-4ktv)
+        clean_name=$(echo "$friendly_name" | tr '[:upper:]' '[:lower:]' | sed 's/ //g')
+        container_id="qbittorrent-$clean_name"
+
+        log "🔄 Restarting Container: $container_id"
+        
+        # Perform the restart and check for success
+        if docker restart "$container_id" >/dev/null 2>&1; then
+            log "✅ Successfully restarted $container_id"
+        else
+            log "❌ Failed to restart $container_id. Check if container exists."
+        fi
+    done
+
+    log "🏁 Media Stack Restart Sequence Complete."
+}
+
 update_ha_status() {
     local service_name=$1
     # Assigns the human-readable name of the service (e.g., "Radarr" or "Plex") to a local variable.
