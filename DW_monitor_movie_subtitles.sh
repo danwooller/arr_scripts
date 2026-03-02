@@ -90,16 +90,19 @@ while true; do
             if [ "$NEEDS_PROPEDIT" = true ]; then
                 mkvpropedit "$DEST_DIR/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
             fi
+            FILE_NAME="${filename%.*}"
             log "✅ Finishing ${filename%.*}"
             if mv "$file" "$FINISHED_DIR/"; then
                 log "✅ Processed and moved. Cleaning up QBT..."
                 # 3. Search & Delete across all 5 servers
-                manage_remote_torrent "delete" "$torrent_name"
+                #manage_remote_torrent "delete" "$torrent_name"
+                manage_remote_torrent "delete" "$FILE_NAME"
             fi
         else
             log "❌ Error: Merge failed. Resuming torrent..."
             # 4. Search & Resume across all 5 servers
-            manage_remote_torrent "resume" "$torrent_name"
+            #manage_remote_torrent "resume" "$torrent_name"
+            manage_remote_torrent "resume" "$FILE_NAME"
         fi
     done
     sleep "$SLEEP_INTERVAL"
