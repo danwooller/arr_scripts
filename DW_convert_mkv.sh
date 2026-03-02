@@ -91,19 +91,10 @@ while true; do
                     log "✅ Success. Moving ${FULL_FILE_NAME} to finished."
                     mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
                 
-                    # Robust Lookup:
-                    # We use the first 15-20 chars of the filename to avoid truncation/special char issues
-                    SEARCH_STR=$(echo "$FILE_NAME" | cut -c 1-20)
-                    
-                    # This finds the ID/Hash via the API
-                    TARGET_ID=$(manage_remote_torrent "find_hash" "$SEARCH_STR")
-                
-                    if [ -n "$TARGET_ID" ]; then
-                        log "Removing torrent ID: $TARGET_ID"
-                        manage_remote_torrent "delete" "$TARGET_ID"
-                    else
-                        log "⚠️ Failed to find hash for $SEARCH_STR"
-                    fi
+                    # Remove from the torrent client
+                    # We use $FILE_NAME or $FULL_FILE_NAME depending on what your function expects
+                    log "Removing torrent: ${FILE_NAME} $FILE_NAME"
+                    manage_remote_torrent "delete" "$FILE_NAME"
                 fi
             fi
         done
