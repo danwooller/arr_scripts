@@ -49,4 +49,14 @@ for series_path in "${SERIES_LIST[@]}"; do
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Duplicates for $series_name haven't changed. Skipping Seerr comment."
         fi
     else
-        [[ $LOG_LEVEL == "debug" ]] && log "✨ No duplicates for $series_name. Checking for issues
+        [[ $LOG_LEVEL == "debug" ]] && log "✨ No duplicates for $series_name. Checking for issues to resolve..."
+        
+        # 4. Resolve the issue in Seerr because the duplicates are gone
+        # We loop through seasons to ensure the resolver hits the right targets
+        find "$series_path" -maxdepth 1 -type d -name "Season*" | while read -r season_folder; do
+             resolve_seerr_issue "$season_folder"
+        done
+    fi
+done
+
+log_end "Duplicate Check: $INPUT_PATH"
