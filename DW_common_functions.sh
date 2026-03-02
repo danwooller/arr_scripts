@@ -74,35 +74,35 @@ check_dependencies() {
 
 manage_remote_torrent() {
     local action=$1
-    local filename="$2"
-    
-    # 1. Clean the filename variable
-    # We only strip the extension (.mp4 / .mkv) if it's there
-    local target_name="${filename%.*}"
+    local filename="$2"  # This is already "Frozen.II.2019.1080p.BluRay.x264.AAC5.1-[YTS.MX]"
 
     for server in "${QBT_SERVERS[@]}"; do
         local api_url="${server}/api/v2/torrents"
 
-        # 2. THE DIRECT MATCH:
-        # We use '==' for an exact string match. 
-        # We use '--arg' in jq to safely pass the name with brackets without shell breakage.
+        # Using --arg TARGET "$filename" ensures jq treats the brackets and dots 
+        # as a literal string, NOT as code or regex.
         local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                       jq -r --arg TARGET "$target_name" '.[] | select(.name == $TARGET) | .hash' | head -n 1)
+                       jq -r --arg TARGET "$filename" '.[] | select(.name == $TARGET) | .hash' | head -n 1)
 
-        # 3. IF EXACT MATCH FAILS, TRY CONTAINS (Still safe with --arg)
+        # Fallback: if exact match fails, try a 'contains' match
         if [[ -z "$t_hash" || "$t_hash" == "null" ]]; then
             t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                     jq -r --arg TARGET "$target_name" '.[] | select(.name | contains($TARGET)) | .hash' | head -n 1)
+                     jq -r --arg TARGET "$filename" '.[] | select(.name | contains($TARGET)) | .hash' | head -n 1)
         fi
 
         if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
             log "✅ Found Hash: $t_hash. Sending $action..."
-            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/${action/stop/pause}" -d "hashes=$t_hash&deleteFiles=false"
+            
+            # Note: qBittorrent API uses 'pause' for 'stop'
+            local qbt_action="${action}"
+            [[ "$action" == "stop" ]] && qbt_action="pause"
+
+            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/${qbt_action}" -d "hashes=$t_hash&deleteFiles=false"
             return 0
         fi
     done
 
-    log "⚠️ Could not find torrent matching exactly: $target_name"
+    log "⚠️ Could not find torrent matching exactly: $filename"
     return 1
 }
 
