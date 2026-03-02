@@ -76,18 +76,14 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     
-    # 1. Take a unique chunk (first 20 chars)
-    # 2. Strip ALL non-alphanumeric characters and replace them with '.*'
-    # This turns "Frozen.II.2019" into "Frozen.*II.*2019"
-    local search_regex=$(echo "${filename:0:20}" | sed 's/[^a-zA-Z0-9]/.*/g')
+    # regex: alphanumeric chunks separated by "match anything" wildcards
+    local search_regex=$(echo "${filename:0:25}" | sed 's/[^a-zA-Z0-9]/.*/g')
 
     for server in "${QBT_SERVERS[@]}"; do
-        # 3. Use the 'test' function with "i" flag
-        # We also grab the name found for the log so we can see the match
         local t_data=$(curl -s -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
                        jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
 
-        if [[ -n "$t_data" ]]; then
+        if [[ -n "$t_data" && "$t_data" != "|" ]]; then
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
             local t_name=$(echo "$t_data" | cut -d'|' -f2)
             
@@ -100,8 +96,6 @@ manage_remote_torrent() {
             return 0
         fi
     done
-
-    log "⚠️ Still no match using regex: $search_regex"
     return 1
 }
 
