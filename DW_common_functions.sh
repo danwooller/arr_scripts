@@ -76,42 +76,33 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     
-    # 1. TRUNCATION FIX: Strip the extension (.mp4) but keep the rest
-    # We use a greedy strip to ensure we only lose the very last extension
-    local base_name="${filename%.*}"
-
-    # 2. REGEX PREP: 
-    # - Replace dots, underscores, and spaces with a "." (Regex wildcard)
-    # - Escape square brackets so they don't break the Regex engine
-    local search_regex=$(echo "$base_name" | sed 's/[._ -]/./g' | sed 's/\[/\\\[/g; s/\]/\\\]/g')
-
-    # 3. SAFETY: If the name is still too long/complex, 
-    # let's just use the first 25 characters of the regex-safe string.
-    local final_search="${search_regex:0:40}"
+    # 1. Clean the filename variable
+    # We only strip the extension (.mp4 / .mkv) if it's there
+    local target_name="${filename%.*}"
 
     for server in "${QBT_SERVERS[@]}"; do
-        # Note: Ensure $server includes http:// and port (e.g. http://192.168.1.10:8080)
         local api_url="${server}/api/v2/torrents"
 
-        # 4. THE LOOKUP:
-        # We use 'test' with the 'i' (insensitive) flag. 
-        # This will match "Frozen.II" against "Frozen II" or "Frozen_II"
+        # 2. THE DIRECT MATCH:
+        # We use '==' for an exact string match. 
+        # We use '--arg' in jq to safely pass the name with brackets without shell breakage.
         local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
-                       jq -r ".[] | select(.name | test(\"$final_search\"; \"i\")) | .hash" | head -n 1)
+                       jq -r --arg TARGET "$target_name" '.[] | select(.name == $TARGET) | .hash' | head -n 1)
+
+        # 3. IF EXACT MATCH FAILS, TRY CONTAINS (Still safe with --arg)
+        if [[ -z "$t_hash" || "$t_hash" == "null" ]]; then
+            t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${api_url}/info?all=true" | \
+                     jq -r --arg TARGET "$target_name" '.[] | select(.name | contains($TARGET)) | .hash' | head -n 1)
+        fi
 
         if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
-            log "✅ Found on $server (Hash: ${t_hash:0:8}). Sending $action..."
-            
-            if [[ "$action" == "delete" ]]; then
-                curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/delete" -d "hashes=$t_hash&deleteFiles=false"
-            else
-                curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/stop" -d "hashes=$t_hash"
-            fi
+            log "✅ Found Hash: $t_hash. Sending $action..."
+            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${api_url}/${action/stop/pause}" -d "hashes=$t_hash&deleteFiles=false"
             return 0
         fi
     done
 
-    log "⚠️ Could not find torrent matching regex: $final_search"
+    log "⚠️ Could not find torrent matching exactly: $target_name"
     return 1
 }
 
