@@ -170,7 +170,9 @@ done
 $DOCKER image prune -f
 
 if [ -f /var/run/reboot-required ]; then
-  log "⚠️ reboot required"
+    log "⚠️ reboot required"
+else
+    log "⏩ no reboot required"
 fi
 
 log_end
