@@ -76,32 +76,29 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     
-    # 1. Prepare a Regex Search String:
-    # We take the first 25 characters of the filename and replace 
-    # all dots/underscores/dashes with a "." (the Regex wildcard).
-    # This turns "Frozen.II.2019" into "Frozen.II.2019" which matches "Frozen II (2019)"
-    local search_regex=$(echo "${filename:0:25}" | sed 's/[._ -]/./g')
+    # 1. Take the first 25 chars.
+    # 2. ESCAPE any existing regex characters in the filename (like [ or ])
+    # 3. REPLACE dots/underscores with '.' so they match spaces/dashes/dots in QBT
+    local search_regex=$(echo "${filename:0:25}" | sed 's/[\[\]\(\)\+\*]/./g; s/[._ -]/./g')
 
     for server in "${QBT_SERVERS[@]}"; do
-        # 2. Use 'test' with the 'i' flag for a case-insensitive Regex match
-        # We pass the regex safely using --arg
+        # We use the 'test' function in jq with the "i" (case-insensitive) flag
         local t_hash=$(curl -s -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
                        jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | .hash' | head -n 1)
 
         if [[ -n "$t_hash" && "$t_hash" != "null" ]]; then
-            log "✅ Found match for [$search_regex] -> Hash: ${t_hash:0:8}"
+            log "✅ Found match! Hash: ${t_hash:0:8}. Sending $action..."
             
-            # Map 'stop' to the API's 'pause' endpoint
+            # Map 'stop' to 'pause'
             local q_cmd="${action}"
             [[ "$action" == "stop" ]] && q_cmd="pause"
 
-            # Execute the API call
             curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=false"
             return 0
         fi
     done
 
-    log "⚠️ Could not find any torrent matching regex: $search_regex"
+    log "⚠️ Still could not find any torrent matching regex: $search_regex"
     return 1
 }
 
