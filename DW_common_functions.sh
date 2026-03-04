@@ -152,28 +152,33 @@ notify_media_managers() {
 }
 
 notify_sonarr_targeted_rename() {
-    local show_name="$1"
+    local search_path="$1"
     
     if [ -z "$SONARR_API_KEY" ]; then return 1; fi
 
-    log "🔍 Finding Sonarr ID for: $show_name"
+    # Normalize the path (remove trailing slash)
+    search_path="${search_path%/}"
+    
+    # Get just the show folder name (e.g., "3rd Rock from the Sun")
+    local show_name=$(basename "$search_path")
 
-    # Get the list of all series and find the ID for the matching title
+    log "🔍 Requesting Sonarr ID for: $show_name"
+
+    # Use jq to find the ID where the path ends with our show name
     local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-        python3 -c "import sys, json; [print(s['id']) for s in json.load(sys.stdin) if s['title'].lower() == '$show_name'.lower()]" | head -n 1)
+        jq -r ".[] | select(.path | endswith(\"/$show_name\")) | .id")
 
-    if [ -n "$series_id" ]; then
-        log "📝 Triggering Rename for $show_name (ID: $series_id)..."
+    if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
+        log "📝 Found ID $series_id. Triggering RenameSeries..."
         
-        # Command Sonarr to rename files for this specific series
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
              "$SONARR_API_BASE/command" > /dev/null
         
-        log "✅ Rename command sent to Sonarr."
+        log "✅ Sonarr rename task queued."
     else
-        log "⚠️ Could not find '$show_name' in Sonarr library."
+        log "⚠️ Could not map '$show_name' to a Sonarr Series ID."
     fi
 }
 
