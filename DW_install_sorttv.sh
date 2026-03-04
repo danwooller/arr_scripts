@@ -1,7 +1,12 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/DW_common_functions.sh"
+if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
+    source "/usr/local/bin/DW_common_functions.sh"
+else
+    log "⚠️ Required library /usr/local/bin/DW_common_functions.sh not found."
+    exit 1
+fi
 
 # Exit immediately if a command exits with a non-zero status
 set -e
