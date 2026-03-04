@@ -57,6 +57,14 @@ else
     exit 1
 fi
 
+# Bulletproof the TVDB API against malformed responses
+log "ℹ️ Applying safety patch to TVDB::API..."
+TVDB_API="/usr/local/share/perl/5.38.2/TVDB/API.pm"
+if [ -f "$TVDB_API" ]; then
+    sudo sed -i 's/return \$self->{xml}->XMLin(\$xml);/my \$data; eval { \$data = \$self->{xml}->XMLin(\$xml) }; if (\$@) { return undef; } return \$data;/' "$TVDB_API"
+    log "✅ TVDB::API crash protection applied."
+fi
+
 log "ℹ️ Verifying permissions and paths..."
 # Get the actual user who called sudo, defaulting to 'dan' if not found
 REAL_USER=${SUDO_USER:-dan}
