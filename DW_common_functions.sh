@@ -226,6 +226,69 @@ restart_vpn_containers() {
     log "🏁 VPN Container Restart Complete."
 }
 
+# --- Function to sync a specific TV show folder ---
+# Usage: sync_tv_show_synology "Show Name (Year)"
+sync_tv_show_synology() {
+    local SHOW_NAME="$1"
+    
+    # Ensure variables are available (inherited from the calling script)
+    local SYNOLOGY_DIR="${SYNOLOGY_DIR:-/mnt/synology/TV}"
+    local MEDIA_DIR="${MEDIA_DIR:-/mnt/media/TV}"
+    local DRY_RUN="${DRY_RUN:-false}"
+    
+    local DEST_SHOW_PATH="$SYNOLOGY_DIR/$SHOW_NAME"
+    local SOURCE_SHOW_PATH="$MEDIA_DIR/$SHOW_NAME"
+
+    if [[ -z "$SHOW_NAME" ]]; then
+        log "Error: No show name provided to sync_tv_show function."
+        return 1
+    fi
+
+    log "--- TV Show Sync Started for: $SHOW_NAME ---"
+
+    # Check if the destination exists
+    if [[ ! -d "$DEST_SHOW_PATH" ]]; then
+        log "Error: Destination folder '$SHOW_NAME' not found in $SYNOLOGY_DIR"
+        return 1
+    fi
+
+    # Check if the source exists
+    if [[ -d "$SOURCE_SHOW_PATH" ]]; then
+        # Configure rsync options based on DRY_RUN
+        local RSYNC_OPTS="-avh"
+        if $DRY_RUN; then
+            log "DRY RUN ENABLED for '$SHOW_NAME'."
+            RSYNC_OPTS="-avhn"
+        else
+            RSYNC_OPTS="-avh --remove-source-files"
+        fi
+
+        # Execute rsync
+        rsync $RSYNC_OPTS "$SOURCE_SHOW_PATH/" "$DEST_SHOW_PATH"
+        
+        if [[ $? -eq 0 ]]; then
+            log "✅ Sync completed for '$SHOW_NAME'"
+
+            if ! $DRY_RUN; then
+                # Clean up empty sub-directories
+                find "$SOURCE_SHOW_PATH" -mindepth 1 -type d -empty -delete
+                
+                # Remove show folder if empty
+                if [[ -d "$SOURCE_SHOW_PATH" ]] && [[ -z "$(ls -A "$SOURCE_SHOW_PATH")" ]]; then
+                    rmdir "$SOURCE_SHOW_PATH"
+                    log "Removed empty source folder: $SHOW_NAME"
+                fi
+            fi
+        else
+            log "[ERROR] rsync failed for '$SHOW_NAME'."
+            return 1
+        fi
+    else
+        log "No source files found for '$SHOW_NAME' in $MEDIA_DIR."
+        return 0 # Return 0 because there's nothing to do, not necessarily a script failure
+    fi
+}
+
 update_ha_status() {
     local service_name=$1
     # Assigns the human-readable name of the service (e.g., "Radarr" or "Plex") to a local variable.
