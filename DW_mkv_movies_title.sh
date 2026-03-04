@@ -4,11 +4,17 @@
 # using mkvinfo and mkvpropedit. The desired title is set to match
 # the name of the immediate containing folder.
 
+# --- Load Shared Functions ---
+# Checking existence to prevent 'set -e' from killing the script cryptically
+if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
+    source "/usr/local/bin/DW_common_functions.sh"
+else
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
+    exit 1
+fi
+
 # --- Run Dependency Check using the shared function ---
 check_dependencies "mkvpropedit"
-
-# --- Load Shared Functions ---
-source "/usr/local/bin/DW_common_functions.sh"
 
 # --- Configuration ---
 # Set the MKV extension to check for
