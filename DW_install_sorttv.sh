@@ -40,6 +40,7 @@ cpan TVDB::API WWW::TheMovieDB
 # 5. Directory Setup
 log "ℹ️ Preparing /opt/sorttv..."
 mkdir -p /opt/sorttv
+mkdir -p /opt/sorttv/lib/IO/Uncompress/
 
 # 6. Restore Configuration and Scripts from Backup
 SOURCE_PATH="/mnt/media/backup/$(hostname -s)/opt/sorttv"
@@ -54,6 +55,18 @@ else
     log "⚠️ ERROR: Backup source $SOURCE_PATH not found!"
     log "⚠️ Ensure your backup drive is mounted before running."
     exit 1
+fi
+
+log "ℹ️ Verifying permissions and paths..."
+# Get the actual user who called sudo, defaulting to 'dan' if not found
+REAL_USER=${SUDO_USER:-dan}
+chown -R "$REAL_USER":"$REAL_USER" /opt/sorttv
+chmod -R 755 /opt/sorttv/lib
+
+if [ -f "/opt/sorttv/lib/IO/Uncompress/Unzip.pm" ]; then
+    log "✅ Local Unzip.pm is in place and readable."
+else
+    log "⚠️ WARNING: Local Unzip.pm missing from backup! Sorting may crash on malformed MKVs."
 fi
 
 if /opt/sorttv/sorttv.pl --version > /dev/null 2>&1; then
