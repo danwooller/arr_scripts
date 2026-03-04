@@ -74,7 +74,8 @@ while true; do
                     # Execute rsync - capture detailed output to log file
                     rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path"
                 fi
-                
+                # Tell Sonarr to update
+                notify_sonarr_targeted_rename "$show_name"
                 if [[ $? -eq 0 ]]; then
                     log "✅ Sync completed for '$show_name'"
 
