@@ -5,8 +5,19 @@
 # before copying back to the network for further sorting.
 
 # --- Load Shared Functions ---
-source "/usr/local/bin/DW_common_functions.sh"
-source "/usr/local/bin/DW_common_seerr_issue.sh"
+# Checking existence to prevent 'set -e' from killing the script cryptically
+if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
+    source "/usr/local/bin/DW_common_functions.sh"
+else
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
+    exit 1
+fi
+if [ -f "/usr/local/bin/DW_common_seerr_issue.sh" ]; then
+    source "/usr/local/bin/DW_common_seerr_issue.sh"
+else
+    echo "⚠️ /usr/local/bin/DW_common_seerr_issue.sh missing. Exiting."
+    exit 1
+fi
 
 # --- Configuration ---
 HOST=$(hostname -s)
