@@ -125,6 +125,32 @@ manage_remote_torrent() {
     # Exits with an 'error' code if no server in the array contained a matching torrent.
 }
 
+# --- Media Library Notification Function ---
+notify_media_managers() {
+    # Notify Sonarr
+    if [ -n "$SONARR_API_KEY" ]; then
+        echo "📡 Notifying Sonarr to scan for new downloads..."
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d '{"name": "DownloadedEpisodesScan"}' \
+             "$SONARR_API_BASE/command" > /dev/null
+    else
+        echo "⚠️ SONARR_API_KEY not found. Skipping Sonarr notify."
+    fi
+
+    # Notify Radarr
+    if [ -n "$RADARR_API_KEY" ]; then
+        echo "🎬 Notifying Radarr to scan for new downloads..."
+        # Note: Radarr uses the same command name as Sonarr
+        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d '{"name": "DownloadedEpisodesScan"}' \
+             "$RADARR_API_BASE/command" > /dev/null
+    else
+        echo "⚠️ RADARR_API_KEY not found. Skipping Radarr notify."
+    fi
+}
+
 restart_vpn_containers() {
     log "🚀 Restarting VPN Containers..."
 
