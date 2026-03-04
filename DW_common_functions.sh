@@ -151,6 +151,32 @@ notify_media_managers() {
     fi
 }
 
+notify_sonarr_targeted_rename() {
+    local show_name="$1"
+    
+    if [ -z "$SONARR_API_KEY" ]; then return 1; fi
+
+    log "🔍 Finding Sonarr ID for: $show_name"
+
+    # Get the list of all series and find the ID for the matching title
+    local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+        python3 -c "import sys, json; [print(s['id']) for s in json.load(sys.stdin) if s['title'].lower() == '$show_name'.lower()]" | head -n 1)
+
+    if [ -n "$series_id" ]; then
+        log "📝 Triggering Rename for $show_name (ID: $series_id)..."
+        
+        # Command Sonarr to rename files for this specific series
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
+             "$SONARR_API_BASE/command" > /dev/null
+        
+        log "✅ Rename command sent to Sonarr."
+    else
+        log "⚠️ Could not find '$show_name' in Sonarr library."
+    fi
+}
+
 restart_vpn_containers() {
     log "🚀 Restarting VPN Containers..."
 
