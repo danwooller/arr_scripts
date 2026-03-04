@@ -14,9 +14,8 @@ HOST_NAME=$(hostname)
 SYNOLOGY_DIR="/mnt/synology/TV"
 MEDIA_DIR="/mnt/media/TV"
 LOG_LEVEL="debug"
-
 # Set to "true" for a dry run.
-DRY_RUN=false
+DRY_RUN=true
 
 # --- Argument Check ---
 if [[ -z "$1" ]]; then
