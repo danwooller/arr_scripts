@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Run: cd ~/arr_scripts && sudo ./git_pull.sh DW_install_sorttv.sh && cd /usr/local/bin && sudo ./DW_install_sorttv.sh
+# to install, includes fixes for really old code
+
 # --- Load Shared Functions ---
 # Checking existence to prevent 'set -e' from killing the script cryptically
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
