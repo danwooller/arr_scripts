@@ -159,24 +159,37 @@ notify_sonarr_targeted_rename() {
     # Normalize the path (remove trailing slash)
     search_path="${search_path%/}"
     
-    # Get just the show folder name (e.g., "3rd Rock from the Sun")
+    # Get just the show folder name
     local show_name=$(basename "$search_path")
 
     log "🔍 Requesting Sonarr ID for: $show_name"
 
-    # Use jq to find the ID where the path ends with our show name
+    # Fetch Series ID
     local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
         jq -r ".[] | select(.path | endswith(\"/$show_name\")) | .id")
 
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
-        log "📝 Found ID $series_id. Triggering RenameSeries..."
         
+        # 1. Trigger Refresh (Disk Scan)
+        log "🔄 Triggering Sonarr Refresh for ID $series_id (Scanning disk...)"
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
+             "$SONARR_API_BASE/command" > /dev/null
+
+        # 2. Brief Wait
+        # Sonarr needs a moment to pick up the files from the disk. 
+        # For a few episodes, 5s is usually plenty.
+        sleep 5 
+
+        # 3. Trigger Rename
+        log "📝 Triggering RenameSeries for ID $series_id..."
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
              "$SONARR_API_BASE/command" > /dev/null
         
-        log "✅ Sonarr rename task queued."
+        log "✅ Sonarr tasks (Refresh + Rename) queued."
     else
         log "⚠️ Could not map '$show_name' to a Sonarr Series ID."
     fi
