@@ -1,0 +1,15 @@
+[Unit]
+Description=Monitor completed for files to sort
+After=network.target
+
+[Service]
+User=root
+Group=root
+
+Type=simple
+ExecStart=/bin/bash /usr/local/bin/DW_sort_tv.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
