@@ -30,10 +30,11 @@ do
     # Check if the file has an .mkv extension (case-insensitive)
     if [[ "$NEW_FILE" == *.mkv ]]; then
         echo "Detected MKV: $NEW_FILE"
-        
-      # Capture output and check for success
-      # Using 'tee' allows the output to appear in your logs while being captured
-      OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
+
+        # Capture output and check for success
+        # Using 'tee' allows the output to appear in your logs while being captured
+        #OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
+        OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1)
       
       if [ $? -eq 0 ]; then
           log "✅ SortTV ran successfully."
