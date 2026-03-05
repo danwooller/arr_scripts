@@ -9,6 +9,8 @@ else
     exit 1
 fi
 
+LOCK_FILE="/tmp/sorttv_running.lock"
+
 check_dependencies "jq"
 
 log_start
