@@ -340,7 +340,7 @@ update_plex_library() {
     log "🎬 Triggering Plex scan: $library_name (Section $section_id)..."
     
     # Construct the full URL for the API call
-    local request_url="http://$url/library/sections/$section_id/refresh"
+    local request_url="$url/library/sections/$section_id/refresh"
     
     # Execute and capture the HTTP status code
     local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
