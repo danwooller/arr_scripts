@@ -10,9 +10,6 @@ else
 fi
 
 # === Configuration ===
-HOST_NAME=$(hostname)
-SYNOLOGY_DIR="/mnt/synology/TV"
-MEDIA_DIR="/mnt/media/TV"
 LOG_LEVEL="debug"
 # Set to "true" for a dry run.
 DRY_RUN=true
@@ -24,20 +21,20 @@ if [[ -z "$1" ]]; then
 fi
 
 SHOW_NAME="$1"
-DEST_SHOW_PATH="$SYNOLOGY_DIR/$SHOW_NAME"
-SOURCE_SHOW_PATH="$MEDIA_DIR/$SHOW_NAME"
+DEST_SHOW_PATH="$DIR_SYNOLOGY_TV/$SHOW_NAME"
+SOURCE_SHOW_PATH="$DIR_MEDIA_TV/$SHOW_NAME"
 
 # --- Run Dependency Check ---
 check_dependencies "rsync"
 
 # --- Safety Checks ---
-if [[ ! -d "$SYNOLOGY_DIR" ]]; then
-    log "Error: Synology TV directory not found: $SYNOLOGY_DIR"
+if [[ ! -d "$DIR_SYNOLOGY_TV" ]]; then
+    log "Error: Synology TV directory not found: $DIR_SYNOLOGY_TV"
     exit 1
 fi
 
-if [[ ! -d "$MEDIA_DIR" ]]; then
-    log "Error: Media TV directory not found: $MEDIA_DIR"
+if [[ ! -d "$DIR_MEDIA_TV" ]]; then
+    log "Error: Media TV directory not found: $DIR_MEDIA_TV"
     exit 1
 fi
 
@@ -56,7 +53,7 @@ log "--- Manual TV Show Sync Started for: $SHOW_NAME ---"
 
 # Check if the destination show folder exists on Synology
 if [[ ! -d "$DEST_SHOW_PATH" ]]; then
-    log "Error: Destination folder '$SHOW_NAME' does not exist in $SYNOLOGY_DIR"
+    log "Error: Destination folder '$SHOW_NAME' does not exist in $DIR_SYNOLOGY_TV"
     exit 1
 fi
 
@@ -90,5 +87,5 @@ if [[ -d "$SOURCE_SHOW_PATH" ]]; then
         exit 1
     fi
 else
-    log "No source files found for '$SHOW_NAME' in $MEDIA_DIR. Nothing to do."
+    log "No source files found for '$SHOW_NAME' in $DIR_MEDIA_TV. Nothing to do."
 fi
