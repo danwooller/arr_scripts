@@ -46,7 +46,7 @@ if $DRY_RUN; then
     log "DRY RUN ENABLED."
     RSYNC_OPTS="-avhn"
 else
-    i[[ "$LOG_LEVEL" == "debug" ]] && log "PRODUCTION RUN. Moving files..."
+    [[ "$LOG_LEVEL" == "debug" ]] && log "PRODUCTION RUN. Moving files..."
     RSYNC_OPTS="-avh --remove-source-files"
 fi
 
