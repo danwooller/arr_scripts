@@ -327,27 +327,29 @@ update_plex_library() {
     local section_id="$1"
     local library_name="$2"
 
-    # Sanitize variables: strip any hidden whitespace or carriage returns
+    # Clean the variables from any hidden carriage returns or spaces
     local url=$(echo "$PLEX24_URL" | tr -d '\r' | xargs)
     local token=$(echo "$PLEX24_TOKEN" | tr -d '\r' | xargs)
 
-    if [[ -z "$token" ]] || [[ -z "$url" ]]; then
-        log "⚠️ Plex credentials missing in script environment. Skipping scan."
+    # If the URL is still empty here, the source/export failed
+    if [[ -z "$url" ]]; then
+        log "❌ ERROR: PLEX24_URL is empty. Check if common_keys is sourced correctly."
         return 1
     fi
 
     log "🎬 Triggering Plex scan: $library_name (Section $section_id)..."
     
-    # Use -g to prevent curl from misinterpreting brackets in the URL
+    # Construct the full URL for the API call
+    local request_url="http://$url/library/sections/$section_id/refresh"
+    
+    # Execute and capture the HTTP status code
     local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
-         "http://$url/library/sections/$section_id/refresh" \
+         "$request_url" \
          -H "X-Plex-Token: $token")
 
     if [[ "$response" == "200" ]]; then
-        log "✅ Plex scan request for '$library_name' successful."
+        log "✅ Plex scan request successful."
     else
-        log "❌ Plex returned error code $response for $library_name."
-        # Optional: log the attempted URL (safely) to debug
-        # log "Debug: Attempted http://$url/library/sections/$section_id/refresh"
+        log "❌ Plex returned error code $response. (Attempted: http://$url/...)"
     fi
 }
