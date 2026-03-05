@@ -45,9 +45,7 @@ if $DRY_RUN; then
     log "DRY RUN ENABLED."
     RSYNC_OPTS="-avhn"
 else
-    if [[ $LOG_LEVEL = "debug" ]]; then
-        log "PRODUCTION RUN. Moving files..."
-    fi
+    [[ $LOG_LEVEL == "debug" ]] && log "PRODUCTION RUN. Moving files..."
     RSYNC_OPTS="-avh --remove-source-files"
 fi
 
@@ -64,10 +62,7 @@ while true; do
             
             # Check if matching show folder exists in the source
             if [[ -d "$source_show_path" ]]; then
-                if [[ $LOG_LEVEL = "debug" ]]; then
-                    log "Match found: '$show_name'. Syncing..."
-                fi
-
+                [[ $LOG_LEVEL == "debug" ]] && log "Match found: '$show_name'. Syncing..."
                 if [[ $LOG_LEVEL = "debug" ]]; then
                     rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path" >> "$LOG_FILE" 2>&1
                 else
