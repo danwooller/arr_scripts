@@ -22,48 +22,34 @@ if [ ! -d "$DIR_MEDIA_COMPLETED" ]; then
     exit 1
 fi
 
-echo "Monitoring $DIR_MEDIA_COMPLETED for .mkv files..."
+while true; do
+    # 1. Check if SortTV is already running to avoid overlapping processes
+    if [ -f "$LOCK_FILE" ]; then
+        log "⚠️ SortTV is still running from a previous check. Skipping..."
+    else
+        # 2. Look for any .mkv files in the directory
+        # -iname makes it case-insensitive
+        MATCHES=$(find "$DIR_MEDIA_COMPLETED" -type f -iname "*.mkv" -print -quit)
 
-# Monitor recursively (-r) for move and close_write events
-#inotifywait -m -r -e close_write -e moved_to --format '%w%f' "$DIR_MEDIA_COMPLETED" | while read NEW_FILE
-inotifywait -m -r -e close_write -e moved_to --format '%w%f' /mnt/media/torrent/completed | while read NEW_FILE
-do
-    # Check if the file has an .mkv extension (case-insensitive)
-    if [[ "$NEW_FILE" == *.mkv ]]; then
-        echo "Detected MKV: $NEW_FILE"
+        if [ -n "$MATCHES" ]; then
+            log "📂 MKV files detected. Starting SortTV..."
+            touch "$LOCK_FILE"
+            
+            # --- YOUR SORTTV LOGIC START ---
+            OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1)
+            
+            if [ $? -eq 0 ]; then
+                log "✅ SortTV ran successfully."
+                # ... insert the rest of your Sonarr/Sync logic here ...
+            else
+                log "⚠️ SortTV encountered an error."
+            fi
+            # --- YOUR SORTTV LOGIC END ---
 
-        # Capture output and check for success
-        # Using 'tee' allows the output to appear in your logs while being captured
-        #OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
-        OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1)
-      
-      if [ $? -eq 0 ]; then
-          log "✅ SortTV ran successfully."
-          # 3. Extract the Series Folder from SortTV output
-          # It looks for the path after '--to-->' and stops before '/Season'
-          SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/Season)' | head -n 1)
-          if [ -n "$SERIES_FOLDER" ]; then
-              log "📂 Detected move to: $SERIES_FOLDER"
-              log "📡 Notifying Sonarr via DownloadedEpisodesScan..."
-              # Direct API call with the specific path for immediate import
-              curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                   -H "Content-Type: application/json" \
-                   -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
-                   "$SONARR_URL/api/v3/command" > /dev/null
-              # Strip the path to get just the folder name
-              SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
-              [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
-              sync_tv_show_synology "$SHOW_NAME_ONLY"
-              [[ $LOG_LEVEL == "debug" ]] && log "Sync process ended. Now notifying Sonarr..."
-              notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
-              update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
-          else
-              # Fallback to your shared function if no specific path was parsed
-              log "ℹ️ No specific show path parsed. Running general notification."
-              notify_media_managers
-          fi
-      else
-          log "⚠️ SortTV encountered an error during execution."
-      fi
+            rm "$LOCK_FILE"
+        fi
     fi
+
+    # 3. Wait before checking again
+    sleep "$CHECK_INTERVAL"
 done
