@@ -4,6 +4,8 @@
 # to install, includes fixes for really old code,
 # ensure /mnt/media/backup/$(hostname -s)/opt/sorttv exists
 # Run a manual scan: cd /opt/sorttv && ./sort-tv
+# Run cd ~/arr_scripts && sudo ./git_pull_install.sh DW_sort_tv.sh
+# to run as a service
 
 # --- Load Shared Functions ---
 # Checking existence to prevent 'set -e' from killing the script cryptically
