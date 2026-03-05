@@ -9,7 +9,7 @@ else
     exit 1
 fi
 
-check_dependencies "jq"
+check_dependencies "jq" "inotifywait"
 
 log_start
 
