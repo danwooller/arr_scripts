@@ -150,8 +150,8 @@ notify_media_managers() {
         echo "⚠️ RADARR_API_KEY not found. Skipping Radarr notify."
     fi
     # Update Plex server
-    update_plex_library "PLEX24_TV_SRC" "PLEX24_TV_NAME"
-    update_plex_library "PLEX24_MOVIES_SRC" "PLEX24_MOVIES_NAME"
+    update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
+    update_plex_library "$PLEX24_MOVIES_SRC" "$PLEX24_MOVIES_NAME"
 }
 
 notify_sonarr_targeted_rename() {
