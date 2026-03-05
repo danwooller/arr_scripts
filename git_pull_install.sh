@@ -55,8 +55,8 @@ fi
 if [ -f "$DEST_DIR/common_keys.txt" ]; then
     echo "Updating $COMMON_KEYS..."
     sudo cp "$COMMON_KEYS/common_keys.txt" "$BIN_DIR/"
-    sudo chmod +x "$BIN_DIR/DW_common_keys.txt"
-    sudo chown root:root "$BIN_DIR/DW_common_keys.txt"
+    sudo chmod +x "$BIN_DIR/common_keys.txt"
+    sudo chown root:root "$BIN_DIR/common_keys.txt"
 fi
 
 if [ -n "$FILENAME" ]; then
