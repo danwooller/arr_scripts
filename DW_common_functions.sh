@@ -150,8 +150,8 @@ notify_media_managers() {
         echo "⚠️ RADARR_API_KEY not found. Skipping Radarr notify."
     fi
     # Update Plex server
-    update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
-    update_plex_library "$PLEX24_MOVIES_SRC" "$PLEX24_MOVIES_NAME"
+    update_plex_library "$PLEX_TV_SRC" "$PLEX_TV_NAME"
+    update_plex_library "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
 }
 
 notify_sonarr_targeted_rename() {
@@ -328,12 +328,12 @@ update_plex_library() {
     local library_name="$2"
 
     # Clean the variables from any hidden carriage returns or spaces
-    local url=$(echo "$PLEX24_URL" | tr -d '\r' | xargs)
-    local token=$(echo "$PLEX24_TOKEN" | tr -d '\r' | xargs)
+    local url=$(echo "$PLEX_URL" | tr -d '\r' | xargs)
+    local token=$(echo "$PLEX_TOKEN" | tr -d '\r' | xargs)
 
     # If the URL is still empty here, the source/export failed
     if [[ -z "$url" ]]; then
-        log "❌ ERROR: PLEX24_URL is empty. Check if common_keys is sourced correctly."
+        log "❌ ERROR: PLEX_URL is empty. Check if common_keys is sourced correctly."
         return 1
     fi
 
