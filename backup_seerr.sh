@@ -1,7 +1,13 @@
 #!/bin/bash
 
-# --- Setup & Includes ---
-source "/usr/local/bin/DW_common_functions.sh"
+# --- Load Shared Functions ---
+# Checking existence to prevent 'set -e' from killing the script cryptically
+if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
+    source "/usr/local/bin/DW_common_functions.sh"
+else
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
+    exit 1
+fi
 
 # --- Variables ---
 DB_CONTAINER="seerr-db"
