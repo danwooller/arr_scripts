@@ -21,6 +21,7 @@ fi
 DEST_DIR="/home/$REAL_USER/arr_scripts"
 BIN_DIR="/usr/local/bin"
 FILENAME=$1
+COMMON_KEYS="/mnt/media/backup/ubuntu24/arr_scripts/common_keys.txt"
 SERVICE_FILE="$FILENAME.service"
 SERVICE_DIR="/etc/systemd/system/"
 
@@ -50,6 +51,12 @@ if [ -f "$DEST_DIR/DW_common_seerr_issue.sh" ]; then
     sudo cp "$DEST_DIR/DW_common_seerr_issue.sh" "$BIN_DIR/"
     sudo chmod +x "$BIN_DIR/DW_common_seerr_issue.sh"
     sudo chown root:root "$BIN_DIR/DW_common_seerr_issue.sh"
+fi
+if [ -f "$COMMON_KEYS" ]; then
+    echo "Updating $COMMON_KEYS..."
+    sudo cp "COMMON_KEYS" "$BIN_DIR/"
+    sudo chmod +x "$BIN_DIR/DW_common_keys.txt"
+    sudo chown root:root "$BIN_DIR/DW_common_keys.txt"
 fi
 
 if [ -n "$FILENAME" ]; then
