@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-# Checking existence to prevent 'set -e' from killing the script cryptically
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
@@ -11,69 +10,85 @@ fi
 
 LOCK_FILE="/tmp/sorttv_running.lock"
 
-check_dependencies "jq"
+# Ensure dependencies exist (Metric check: jq for API parsing)
+check_dependencies "jq" "curl"
 
 log_start
 
-# Ensure mounts are active
+# Ensure mounts are active (CIFS/TrueNAS)
 mount -a 2>/dev/null
 
 # Ensure the directory exists
 if [ ! -d "$DIR_MEDIA_COMPLETED" ]; then
-    echo "Error: Directory $DIR_MEDIA_COMPLETED does not exist."
+    log "❌ Error: Directory $DIR_MEDIA_COMPLETED does not exist."
     exit 1
 fi
 
+# Cleanup stale locks on start
+rm -f "$LOCK_FILE"
+
+log_start
+#log "🚀 Starting CIFS Polling Monitor (Interval: $CHECK_INTERVAL s)..."
+
 while true; do
-    # 1. Check if SortTV is already running to avoid overlapping processes
+    # 1. Check if SortTV is already running
     if [ -f "$LOCK_FILE" ]; then
-        log "⚠️ SortTV is still running from a previous check. Skipping..."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ SortTV is still running from a previous check. Skipping..."
     else
-        # 2. Look for any .mkv files in the directory
-        # -iname makes it case-insensitive
-        MATCHES=$(find "$DIR_MEDIA_COMPLETED" -type f -iname "*.mkv" -print -quit)
+        # 2. Look for any .mkv files (Case-insensitive)
+        MATCHES=$(find "$DIR_MEDIA_COMPLETED" -maxdepth 2 -type f -iname "*.mkv" -print -quit)
 
         if [ -n "$MATCHES" ]; then
-            log "📂 MKV files detected. Starting SortTV..."
+            [[ "$LOG_LEVEL" == "debug" ]] && log "📂 MKV files detected. Starting SortTV..."
             touch "$LOCK_FILE"
 
-            # --- YOUR SORTTV LOGIC START ---
-            OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1)
-            if [[ "$OUTPUT" == *"Error sorting"* ]]; then
-                log "❌ SortTV failed to identify the file. It might be a naming issue."
-                # Optional: Move the file to a 'manual_fix' folder
+            # --- EXECUTION BLOCK ---
+            # Capture output and display to stderr simultaneously
+            # PIPESTATUS[0] catches the Perl script, PIPESTATUS[1] catches tee
+            OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
+            SORTTV_EXIT_CODE=${PIPESTATUS[0]} 
+            # 3. Check for specific "Error sorting" string or a hard crash
+            if [[ "$OUTPUT" == *"Error sorting"* ]] || [ "$SORTTV_EXIT_CODE" -ne 0 ]; then
+                [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ SortTV failed to process some files (Exit Code: $SORTTV_EXIT_CODE)."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Falling back to general Sonarr scan for $DIR_MEDIA_COMPLETED..."
+                # Fallback: Tell Sonarr to handle what SortTV couldn't (Colbert/Daily Show)
+                curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+                     -H "Content-Type: application/json" \
+                     -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$DIR_MEDIA_COMPLETED\"}" \
+                     "$SONARR_URL/api/v3/command" > /dev/null
+                notify_media_managers
             else
-                if [ $? -eq 0 ]; then
-                    SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/Season)' | head -n 1)
-                    if [ -n "$SERIES_FOLDER" ]; then
-                        log "📂 Detected move to: $SERIES_FOLDER"
-                        log "📡 Notifying Sonarr via DownloadedEpisodesScan..."
-                        # Direct API call with the specific path for immediate import
-                        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                          -H "Content-Type: application/json" \
-                          -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
-                          "$SONARR_URL/api/v3/command" > /dev/null
-                        # Strip the path to get just the folder name
-                        SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
-                        [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
-                        sync_tv_show_synology "$SHOW_NAME_ONLY"
-                        [[ $LOG_LEVEL == "debug" ]] && log "Sync process ended. Now notifying Sonarr..."
-                        notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
-                        update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
-                    else
-                        # Fallback to your shared function if no specific path was parsed
-                        log "ℹ️ No specific show path parsed. Running general notification."
-                        notify_media_managers
-                    fi
+                # SUCCESS PATH: SortTV moved the file
+                [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
+                # Extract the Series Folder from SortTV output
+                SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/Season)' | head -n 1)
+                
+                if [ -n "$SERIES_FOLDER" ]; then
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
+
+                    # Notify Sonarr of the specific path
+                    curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+                         -H "Content-Type: application/json" \
+                         -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
+                         "$SONARR_URL/api/v3/command" > /dev/null
+
+                    SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
+                    [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
+
+                    # Metric-safe sync to Synology
+                    sync_tv_show_synology "$SHOW_NAME_ONLY"
+
+                    notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
+                    update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
                 else
-                    log "⚠️ SortTV encountered an error."
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Files moved, but no specific show path parsed. Running general notification."
+                    notify_media_managers
                 fi
             fi
-
-            rm "$LOCK_FILE"
+            # Always remove lock
+            rm -f "$LOCK_FILE"
         fi
     fi
-
-    # 3. Wait before checking again
+    # 4. Wait for next poll
     sleep "$CHECK_INTERVAL"
 done
