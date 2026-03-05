@@ -20,8 +20,7 @@ fi
 check_dependencies "ffmpeg" "find" "curl" "jq"
 
 # Use the first argument if provided; otherwise, use the default path
-TARGET_DIR="${1:-/mnt/media/Movies}"
-HOLD_DIR="/mnt/media/torrent/hold"
+TARGET_DIR="${1:-$DIR_MEDIA_MOVIES}"
 #LOG_LEVEL="debug"
 
 # Display help if requested
@@ -70,7 +69,7 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         issue_msg="Corruption detected in $file_name. Error: $error_msg"
         sync_seerr_issue "$media_name" "$media_type" "$issue_msg"
         
-        mv --backup=numbered "$file" "$HOLD_DIR/"
+        mv --backup=numbered "$file" "$DIR_MEDIA_HOLD/"
     else
         [[ "$LOG_LEVEL" == "debug" ]] && log "✅ HEALTHY: $file_name"
         resolve_seerr_issue "$media_name" "$media_type"
