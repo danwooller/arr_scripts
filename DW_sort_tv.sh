@@ -9,7 +9,7 @@ else
     exit 1
 fi
 
-check_dependencies "jq" "inotify-tools"
+check_dependencies "jq"
 
 log_start
 
