@@ -328,24 +328,21 @@ update_plex_library() {
     local library_name="$2"
 
     if [[ -z "$PLEX24_TOKEN" ]] || [[ -z "$PLEX24_URL" ]]; then
-        log "⚠️ Plex credentials (URL/Token) missing. Skipping scan."
-        return 1
-    fi
-
-    if [[ -z "$section_id" ]]; then
-        log "⚠️ No Section ID provided for Plex scan."
+        log "⚠️ Plex credentials missing. Skipping scan."
         return 1
     fi
 
     log "🎬 Triggering Plex scan: $library_name (Section $section_id)..."
     
-    # Trigger the scan via Plex API
-    curl -s -G "http://$PLEX24_URL/library/sections/$section_id/refresh" \
-         -H "X-Plex-Token: $PLEX24_TOKEN" > /dev/null
+    # We use -w "%{http_code}" to check the actual response from Plex
+    # We add -L to follow any redirects wooller.com might be using
+    local response=$(curl -s -L -o /dev/null -w "%{http_code}" \
+         "http://$PLEX24_URL/library/sections/$section_id/refresh" \
+         -H "X-Plex-Token: $PLEX24_TOKEN")
 
-    if [[ $? -eq 0 ]]; then
-        log "✅ Plex scan request for '$library_name' sent."
+    if [[ "$response" == "200" ]] || [[ "$response" == "201" ]]; then
+        log "✅ Plex scan request for '$library_name' successful."
     else
-        log "❌ Failed to reach Plex at $PLEX24_URL."
+        log "❌ Plex returned error code $response for $library_name."
     fi
 }
