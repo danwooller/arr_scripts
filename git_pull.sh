@@ -50,12 +50,10 @@ if [ -f "$DEST_DIR/DW_common_seerr_issue.sh" ]; then
     sudo chmod +x "$BIN_DIR/DW_common_seerr_issue.sh"
     sudo chown root:root "$BIN_DIR/DW_common_seerr_issue.sh"
 fi
-if [ -f "$DEST_DIR/common_keys.txt" ]; then
-    echo "Updating $COMMON_KEYS..."
-    sudo cp "$COMMON_KEYS/common_keys.txt" "$BIN_DIR/"
-    sudo chmod +x "$BIN_DIR/common_keys.txt"
-    sudo chown root:root "$BIN_DIR/common_keys.txt"
-fi
+echo "Updating $COMMON_KEYS..."
+sudo cp "$COMMON_KEYS/common_keys.txt" "$BIN_DIR/"
+sudo chmod +x "$BIN_DIR/common_keys.txt"
+sudo chown root:root "$BIN_DIR/common_keys.txt"
 
 # 4. Sync back to system bin if requested
 if [ -n "$FILENAME" ]; then
