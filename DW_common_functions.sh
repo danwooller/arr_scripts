@@ -319,3 +319,25 @@ update_ha_status() {
     # The JSON payload (-d) includes the state (online/offline) and the friendly name.
     # The final URL uses 'tr' to convert "Media Server" into "sensor.media_server" for HA compatibility.
 }
+
+update_plex_library() {
+    local section_id="$1" # Folder souce id
+    local library_name="$2" # Folder name
+
+    if [[ -z "$PLEX_TOKEN" ]] || [[ -z "$PLEX_URL" ]]; then
+        log "⚠️ Plex credentials missing. Skipping scan."
+        return 1
+    fi
+
+    log "🎬 Triggering Plex scan for $library_name (Section: $section_id)..."
+    
+    # Trigger the scan via Plex API
+    curl -s -G "$PLEX_URL/library/sections/$section_id/refresh" \
+         -H "X-Plex-Token: $PLEX_TOKEN" > /dev/null
+
+    if [[ $? -eq 0 ]]; then
+        log "✅ Plex scan request for $library_name sent."
+    else
+        log "❌ Failed to reach Plex at $PLEX_URL."
+    fi
+}
