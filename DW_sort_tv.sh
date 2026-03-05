@@ -25,7 +25,8 @@ fi
 echo "Monitoring $DIR_MEDIA_COMPLETED for .mkv files..."
 
 # Monitor recursively (-r) for move and close_write events
-inotifywait -m -r -e close_write -e moved_to --format '%w%f' "$DIR_MEDIA_COMPLETED" | while read NEW_FILE
+#inotifywait -m -r -e close_write -e moved_to --format '%w%f' "$DIR_MEDIA_COMPLETED" | while read NEW_FILE
+inotifywait -m -r -e close_write -e moved_to --format '%w%f' /mnt/media/torrent/completed | while read NEW_FILE
 do
     # Check if the file has an .mkv extension (case-insensitive)
     if [[ "$NEW_FILE" == *.mkv ]]; then
