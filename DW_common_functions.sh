@@ -327,22 +327,27 @@ update_plex_library() {
     local section_id="$1"
     local library_name="$2"
 
-    if [[ -z "$PLEX24_TOKEN" ]] || [[ -z "$PLEX24_URL" ]]; then
-        log "⚠️ Plex credentials missing. Skipping scan."
+    # Sanitize variables: strip any hidden whitespace or carriage returns
+    local url=$(echo "$PLEX24_URL" | tr -d '\r' | xargs)
+    local token=$(echo "$PLEX24_TOKEN" | tr -d '\r' | xargs)
+
+    if [[ -z "$token" ]] || [[ -z "$url" ]]; then
+        log "⚠️ Plex credentials missing in script environment. Skipping scan."
         return 1
     fi
 
     log "🎬 Triggering Plex scan: $library_name (Section $section_id)..."
     
-    # We use -w "%{http_code}" to check the actual response from Plex
-    # We add -L to follow any redirects wooller.com might be using
-    local response=$(curl -s -L -o /dev/null -w "%{http_code}" \
-         "http://$PLEX24_URL/library/sections/$section_id/refresh" \
-         -H "X-Plex-Token: $PLEX24_TOKEN")
+    # Use -g to prevent curl from misinterpreting brackets in the URL
+    local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
+         "http://$url/library/sections/$section_id/refresh" \
+         -H "X-Plex-Token: $token")
 
-    if [[ "$response" == "200" ]] || [[ "$response" == "201" ]]; then
+    if [[ "$response" == "200" ]]; then
         log "✅ Plex scan request for '$library_name' successful."
     else
         log "❌ Plex returned error code $response for $library_name."
+        # Optional: log the attempted URL (safely) to debug
+        # log "Debug: Attempted http://$url/library/sections/$section_id/refresh"
     fi
 }
