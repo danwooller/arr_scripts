@@ -54,7 +54,7 @@ if [ -f "$DEST_DIR/DW_common_seerr_issue.sh" ]; then
 fi
 if [ -f "$COMMON_KEYS" ]; then
     echo "Updating $COMMON_KEYS..."
-    sudo cp "COMMON_KEYS" "$BIN_DIR/"
+    sudo cp "$COMMON_KEYS" "$BIN_DIR/"
     sudo chmod +x "$BIN_DIR/DW_common_keys.txt"
     sudo chown root:root "$BIN_DIR/DW_common_keys.txt"
 fi
