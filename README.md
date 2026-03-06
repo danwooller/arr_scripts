@@ -23,6 +23,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_scan_corrupt_media.sh**](./DW_scan_corrupt_media.sh) | Scan directories in $1 looking for corrupted media files, marking an issue in Seer. |
 | [**DW_scan_missing_episodes.sh**](./DW_scan_missing_episodes.sh) | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. |
 | [**DW_scan_movie_year.sh**](./DW_scan_movie_year.sh) | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. |
+| [**DW_sort_tv.sh**](./DW_sort_tv.sh) | Wraps the Perl script sorttv in a service. Currently has problems with Daily Show/Colbert on Ubutnu 24.04. |
 | [**update-docker.sh**](./update-docker.sh) | Runs a linux update then backs up the containers to the network while updating. Includes a --no-backup flag. |
 | [**DW_usenet_org.sh**](./DW_usenet_org.sh) | Looks for media files without readable filenames and attempts to convert them using folder names. |
 
