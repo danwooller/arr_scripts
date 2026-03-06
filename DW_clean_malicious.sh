@@ -32,9 +32,8 @@ while true; do
 
             log "🗑️ Found junk: $FILENAME. Requesting remote delete for: $BASE_NAME"
 
-            if manage_remote_torrent "delete" "$BASE_NAME"; then
-                log "✅ Command issued for $BASE_NAME"
-                # Remove the trigger file so we don't process it again
+            if manage_remote_torrent "delete" "$BASE_NAME" "true"; then
+                log "✅ Command issued (with data wipe) for $BASE_NAME"
                 rm -f "$FULL_PATH"
             else
                 log "❌ Failed to issue delete for $BASE_NAME"
