@@ -10,6 +10,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | :--- | :--- |
 | [**DW_cert_monitor.sh**](./DW_cert_monitor.sh) | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. |
 | [**DW_check_media_stack.sh**](./DW_check_media_stack.sh) | Checks availability of docker services and reports to Home Assistant. |
+| [**DW_clean_malicious.sh**](./DW_clean_malicious.sh) | Scans convert directories looking for .exe. and .rar files, removes torrents and deletes files. |
 | [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. |
 | [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder, determines whether the file is 1080p or 4K and converts the file using HandBrakeCLI before copying back to the network for further sorting. |
 | [**DW_merge_forced_subtitles.sh**](./DW_merge_forced_subtitles.sh) | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
