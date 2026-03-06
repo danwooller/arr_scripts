@@ -30,7 +30,6 @@ fi
 CONVERT_DIR="$HOME_DIR/convert"
 WORKING_DIR="$HOME_DIR/${HOST}_done"
 #LOG_LEVEL="debug"
-TIMESTAMP=$(date +"%H-%M")
 
 # HandBrake Presets (Using system presets)
 PRESET_4K="H.265 MKV 2160p60"
@@ -57,6 +56,8 @@ log_start "$SOURCE_DIR"
 while true; do
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Polling $SOURCE_DIR for video files (age > ${MIN_FILE_AGE}m)..."
 
+    # --- Setup timestamp for original fimnished files ---
+    TIMESTAMP=$(date +"%H-%M")
     # --- Cleanup local Directories ---
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
