@@ -21,7 +21,7 @@ fi
 
 # --- Configuration ---
 HOST=$(hostname -s)
-SOURCE_DIR="/mnt/media/torrent/${HOST}_convert"
+SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}_convert"
 if [[ $HOST == "pi"* ]]; then
     HOME_DIR="/home/pi"
 else
@@ -29,9 +29,6 @@ else
 fi
 CONVERT_DIR="$HOME_DIR/convert"
 WORKING_DIR="$HOME_DIR/${HOST}_done"
-SUBTITLE_DIR="/mnt/media/backup/subtitles"
-FINISHED_DIR="/mnt/media/torrent/finished"
-COMPLETED_DIR="/mnt/media/torrent/completed"
 #LOG_LEVEL="debug"
 TIMESTAMP=$(date +"%H-%M")
 
@@ -48,7 +45,7 @@ POLL_INTERVAL=30
 MIN_FILE_AGE=5 
 
 # --- Setup Directories ---
-mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$SUBTITLE_DIR" "$FINISHED_DIR"
+mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$DIR_MEDIA_SUBTITLES" "$DIR_MEDIA_FINISHED"
 
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge"
@@ -79,8 +76,8 @@ while true; do
             log "ℹ️ Detected: $FILENAME"
         #fi
 
-        # --- 1. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
-        SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
+        # --- 1. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
+        SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."
         TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
         SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
@@ -123,8 +120,8 @@ while true; do
         HANDBRAKE_SUB_ARGS=""
         SUB_FILE_EXTRACTED=false
 
-        # --- 3. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
-        SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
+        # --- 3. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
+        SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."        
         TRACK_INFO=$(mkvmerge -J "$FILE_TO_PROCESS" 2>/dev/null)
         SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
@@ -187,16 +184,16 @@ while true; do
             log "✅ $FILENAME"
             
             # Move the completed file to the completed folder
-            mv "$OUTPUT_FILE" "$COMPLETED_DIR/"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $COMPLETED_DIR."
+            mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
 
             # Cleanup only if conversion was successful
             rm -f "$FILE_TO_PROCESS"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Deleted temporary copy in $CONVERT_DIR."
 
             # Move the original file to the finished folder
-            mv "$SOURCE_FILE" "$FINISHED_DIR/$BASE_NAME-$TIMESTAMP.$EXTENSION"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved original file to $FINISHED_DIR/$BASE_NAME_$TIMESTAMP.$EXTENSION."
+            mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$TIMESTAMP.$EXTENSION"
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved original file to $DIR_MEDIA_FINISHED/$BASE_NAME_$TIMESTAMP.$EXTENSION."
 
             # Search & Delete across all 5 servers
             manage_remote_torrent "delete" "$BASE_NAME"
