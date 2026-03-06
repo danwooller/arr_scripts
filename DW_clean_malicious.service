@@ -1,0 +1,16 @@
+[Unit]
+Description=Clean malicious files from convert and remove torrents
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash /usr/local/bin/DW_clean_malicious.sh
+Restart=always
+RestartSec=10
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
