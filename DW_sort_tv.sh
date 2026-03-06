@@ -27,9 +27,6 @@ fi
 # Cleanup stale locks on start
 rm -f "$LOCK_FILE"
 
-log_start
-#log "🚀 Starting CIFS Polling Monitor (Interval: $CHECK_INTERVAL s)..."
-
 while true; do
     # 1. Check if SortTV is already running
     if [ -f "$LOCK_FILE" ]; then
