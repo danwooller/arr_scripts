@@ -94,8 +94,8 @@ manage_remote_torrent() {
     #local search_regex=$(echo "${filename:0:25}" | sed 's/[^a-zA-Z0-9]/.*/g')
     # Takes the first 25 chars, then replaces all non-alphanumeric chars with '.*' (the regex wildcard).
     # We shorten the capture to 10 characters to avoid "BluRay/BrRip" mismatches
+    local delete_data="${3:-false}" # Defaults to false if no argument is provided
     local search_regex=$(echo "${filename:0:10}" | sed 's/[^a-zA-Z0-9]/.*/g')
-
     for server in "${QBT_SERVERS[@]}"; do
     # Loops through every server URL defined in your common_functions.sh array.
         local t_data=$(curl -s -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
@@ -114,7 +114,8 @@ manage_remote_torrent() {
             # Creates a local variable for the command to be sent to the qBittorrent API.
             [[ "$action" == "stop" ]] && q_cmd="pause"
             # Since the qBittorrent API uses '/pause' instead of '/stop', this translates the intent.
-            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=false"
+            #curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=false"
+            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=$delete_data" > /dev/null
             # Sends the POST request to the server to pause or delete the hash, ensuring files are kept safe.
             return 0
             # Exits the function with a 'success' code so the main script knows it can move on.
