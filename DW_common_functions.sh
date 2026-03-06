@@ -326,29 +326,23 @@ update_ha_status() {
 update_plex_library() {
     local section_id="$1"
     local library_name="$2"
-
     # Clean the variables from any hidden carriage returns or spaces
     local url=$(echo "$PLEX_URL" | tr -d '\r' | xargs)
     local token=$(echo "$PLEX_TOKEN" | tr -d '\r' | xargs)
-
     # If the URL is still empty here, the source/export failed
     if [[ -z "$url" ]]; then
         log "❌ ERROR: PLEX_URL is empty. Check if common_keys is sourced correctly."
         return 1
     fi
-
-    log "🎬 Triggering Plex scan: $library_name (Section $section_id)..."
-    
+    [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Triggering Plex scan: $library_name"
     # Construct the full URL for the API call
     local request_url="$url/library/sections/$section_id/refresh"
-    
     # Execute and capture the HTTP status code
     local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
          "$request_url" \
          -H "X-Plex-Token: $token")
-
     if [[ "$response" == "200" ]]; then
-        log "✅ Plex scan request successful."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan request successful."
     else
         log "❌ Plex returned error code $response. (Attempted: http://$url/...)"
     fi
