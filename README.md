@@ -19,6 +19,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_monitor_movie_subtitles.sh**](./DW_monitor_movie_subtitles.sh) | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
 | [**DW_move_movies_synology.sh**](./DW_move_movies_synology.sh) | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
 | [**DW_move_tv_shows_synology.sh**](./DW_move_tv_shows_synology.sh) | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
+| [**DW_rename_media.sh**](./DW_rename_media.sh) | Looks for obfuscated filesnames and tries to find NZB metadata to retore filename. |
 | [**DW_restart_vpn.sh**](./DW_restart_vpn.sh) | Restarts the VPN and associated torrent containers. |
 | [**DW_scan_corrupt_media.sh**](./DW_scan_corrupt_media.sh) | Scan directories in $1 looking for corrupted media files, marking an issue in Seer. |
 | [**DW_scan_missing_episodes.sh**](./DW_scan_missing_episodes.sh) | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. |
