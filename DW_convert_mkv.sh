@@ -24,7 +24,7 @@ FINISHED_DIR="/mnt/media/torrent/finished/"
 #LOG_LEVEL="debug"
 POLL_INTERVAL=30
 
-mkdir -p "$OUTPUT_DIR" "$EXT_VIDEO"
+mkdir -p "$DIR_MEDIA_COMPLETED" "$EXT_VIDEO"
 
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "jq" "mkvmerge" "mkvpropedit" "rename"
@@ -63,7 +63,7 @@ while true; do
                 # --- OVERWRITE CHECK ---
                 if [[ -f "$FINAL_OUTPUT" ]]; then
                     if [[ $LOG_LEVEL = "debug" ]]; then
-                        log "Skipping $FULL_FILE_NAME: Output exists in $OUTPUT_DIR."
+                        log "Skipping $FULL_FILE_NAME: Output exists in $DIR_MEDIA_COMPLETED."
                     fi
                     continue
                 fi
