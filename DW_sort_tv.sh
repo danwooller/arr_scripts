@@ -28,6 +28,8 @@ fi
 
 # --- Cleanup stale locks on start ---
 rm -f "$LOCK_FILE"
+# --- Grab the latest config ---
+cp ~/arr_scripts/sorttv.conf /opt
 
 while true; do
     # --- Check if SortTV is already running ---
