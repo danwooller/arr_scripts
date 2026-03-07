@@ -31,23 +31,6 @@ check_dependencies "curl" "jq" "sed" "grep"
 TARGET_DIR="${1:-/mnt/media/TV}"
 #LOG_LEVEL="debug"
 
-trigger_sonarr_search() {
-    local series_name="$1"
-    local sonarr_series=$(curl -s -X GET "$SONARR_URL/api/v3/series" -H "X-Api-Key: $SONARR_API_KEY")
-    local sonarr_data=$(echo "$sonarr_series" | jq -r --arg name "$series_name" \
-        '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
-
-    if [[ -n "$sonarr_data" ]]; then
-        local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
-        local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
-        if [[ "$s_monitored" == "true" ]]; then
-            log "🔍 Triggering Sonarr Search for $series_name..."
-            local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
-            curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
-        fi
-    fi
-}
-
 log_start "$TARGET_DIR"
 
 find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
