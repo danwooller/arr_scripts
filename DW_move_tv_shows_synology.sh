@@ -72,7 +72,8 @@ while true; do
                 notify_sonarr_targeted_rename "$show_name"
                 # Update Plex server
                 update_plex_library "$PLEX_TV_SRC" "$PLEX_TV_NAME"
-                if [[ $? -eq 0 ]]; then
+                #if [[ $? -eq 0 ]]; then
+                if [[ $RSYNC_EXIT -eq 0 || $RSYNC_EXIT -eq 23 || $RSYNC_EXIT -eq 24 ]]; then
                     log "✅ Sync completed for '$show_name'"
 
                     if ! $DRY_RUN; then
