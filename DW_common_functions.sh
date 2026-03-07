@@ -373,6 +373,6 @@ update_plex_library() {
     if [[ "$response" == "200" ]]; then
         [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan request successful."
     else
-        log "❌ Plex returned error code $response. (Attempted: http://$url/...)"
+        log "❌ Plex returned error code $response. (Attempted: $url/...)"
     fi
 }
