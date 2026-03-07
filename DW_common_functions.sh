@@ -132,6 +132,7 @@ manage_remote_torrent() {
 
 # --- Media Library Notification Function ---
 notify_media_managers() {
+    # DW_sort_tv.sh
     # Notify Sonarr
     if [ -n "$SONARR_API_KEY" ]; then
         echo "📡 Notifying Sonarr to scan for new downloads..."
@@ -160,6 +161,8 @@ notify_media_managers() {
 }
 
 notify_sonarr_targeted_rename() {
+    # DW_move_tv_shows_synology.sh
+    # DW_sort_tv.sh
     local search_path="$1"
     
     if [ -z "$SONARR_API_KEY" ]; then return 1; fi
@@ -204,8 +207,8 @@ notify_sonarr_targeted_rename() {
 }
 
 restart_vpn_containers() {
+    # DW_restart_vpn.sh
     log "🚀 Restarting VPN Containers..."
-
     # 1. Restart the VPN Container first
     # This ensures the network tunnel is ready for the dependent containers
     log "🔄 Restarting VPN: $VPN_CONTAINER"
@@ -250,8 +253,8 @@ restart_vpn_containers() {
 # --- Function to sync a specific TV show folder ---
 # Usage: sync_tv_show_synology "Show Name (Year)"
 sync_tv_show_synology() {
-    local SHOW_NAME="$1"
-    
+    # DW_sort_tv.sh
+    local SHOW_NAME="$1"    
     # Ensure variables are available (inherited from the calling script)
     local SYNOLOGY_DIR="${SYNOLOGY_DIR:-/mnt/synology/TV}"
     local MEDIA_DIR="${MEDIA_DIR:-/mnt/media/TV}"
@@ -328,6 +331,7 @@ trigger_sonarr_search() {
 }
 
 update_ha_status() {
+    # DW_check_media_stack.sh
     local service_name=$1
     # Assigns the human-readable name of the service (e.g., "Radarr" or "Plex") to a local variable.
     local status=$2 # Expects "online" or "offline"
@@ -346,6 +350,9 @@ update_ha_status() {
 }
 
 update_plex_library() {
+    # DW_move_movies_synology.sh
+    # DW_move_tv_shows_synology.sh
+    # DW_sort_tv.sh
     local section_id="$1"
     local library_name="$2"
     # Clean the variables from any hidden carriage returns or spaces
