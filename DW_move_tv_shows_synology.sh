@@ -40,10 +40,12 @@ log "Monitoring: $DIR_MEDIA_TV"
 # Configure rsync options
 if $DRY_RUN; then
     log "DRY RUN ENABLED."
-    RSYNC_OPTS="-avhn"
+    #RSYNC_OPTS="-avhn"
+    RSYNC_OPTS="-avhn --no-g --no-o"
 else
     [[ $LOG_LEVEL == "debug" ]] && log "PRODUCTION RUN. Moving files..."
-    RSYNC_OPTS="-avh --remove-source-files"
+    #RSYNC_OPTS="-avh --remove-source-files"
+    RSYNC_OPTS="-avh --remove-source-files --no-g --no-o"
 fi
 
 # === Main Service Loop ===
