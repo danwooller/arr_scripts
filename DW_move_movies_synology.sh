@@ -13,10 +13,7 @@ else
     exit 1
 fi
 
-# === Configuration ===
-HOST_NAME=$(hostname)
-SYNOLOGY_DIR="/mnt/synology/Movies"
-MEDIA_DIR="/mnt/media/Movies"
+# --- Configuration ---
 #LOG_LEVEL="debug"
 SLEEP_INTERVAL=300
 
@@ -24,14 +21,14 @@ SLEEP_INTERVAL=300
 DRY_RUN=false
 
 # --- Safety Checks ---
-if [ ! -d "$SYNOLOGY_DIR" ]; then
-    log "Error: Synology directory not found: $SYNOLOGY_DIR"
+if [ ! -d "$DIR_SYNOLOGY_MOVIES" ]; then
+    log "Error: Synology directory not found: $DIR_SYNOLOGY_MOVIES"
     exit 1
 fi
 
-if [ ! -d "$MEDIA_DIR" ]; then
+if [ ! -d "$DIR_MEDIA_MOVIES" ]; then
     if [[ $LOG_LEVEL = "debug" ]]; then
-        log "Error: Media directory not found: $MEDIA_DIR"
+        log "Error: Media directory not found: $DIR_MEDIA_MOVIES"
     fi
     exit 1
 fi
@@ -40,7 +37,7 @@ fi
 check_dependencies "rsync"
 
 log "--- Movie Sync Service Started ---"
-log "Monitoring: $MEDIA_DIR"
+log "Monitoring: $DIR_MEDIA_MOVIES"
 
 # Configure rsync options once
 if $DRY_RUN; then
@@ -58,11 +55,11 @@ while true; do
 #    log "Starting folder scan..."
 
     # Loop through each directory in the SYNOLOGY_DIR
-    for dest_movie_path in "$SYNOLOGY_DIR"/*/; do
+    for dest_movie_path in "$DIR_SYNOLOGY_MOVIES"/*/; do
 
         if [ -d "$dest_movie_path" ]; then
             movie_name=$(basename "$dest_movie_path")
-            source_movie_path="$MEDIA_DIR/$movie_name"
+            source_movie_path="$DIR_MEDIA_MOVIES/$movie_name"
             
             # Check if matching folder exists in the source MEDIA_DIR
             if [ -d "$source_movie_path" ]; then
