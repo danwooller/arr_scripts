@@ -71,6 +71,8 @@ while true; do
                 fi
                 # Tell Sonarr to update
                 notify_sonarr_targeted_rename "$show_name"
+                # Update Plex server
+                update_plex_library "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                 if [[ $? -eq 0 ]]; then
                     log "✅ Sync completed for '$show_name'"
 
