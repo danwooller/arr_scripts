@@ -20,21 +20,21 @@ log_start
 # Ensure mounts are active (CIFS/TrueNAS)
 mount -a 2>/dev/null
 
-# Ensure the directory exists
+# --- Ensure the directory exists ---
 if [ ! -d "$DIR_MEDIA_COMPLETED" ]; then
     log "❌ Error: Directory $DIR_MEDIA_COMPLETED does not exist."
     exit 1
 fi
 
-# Cleanup stale locks on start
+# --- Cleanup stale locks on start ---
 rm -f "$LOCK_FILE"
 
 while true; do
-    # 1. Check if SortTV is already running
+    # --- Check if SortTV is already running ---
     if [ -f "$LOCK_FILE" ]; then
         [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ SortTV is still running from a previous check. Skipping..."
     else
-        # 2. Look for any .mkv files (Case-insensitive)
+        # --- Look for any .mkv files (Case-insensitive) ---
         MATCHES=$(find "$DIR_MEDIA_COMPLETED" -maxdepth 2 -type f -iname "*.mkv" -print -quit)
 
         if [ -n "$MATCHES" ]; then
@@ -57,15 +57,13 @@ while true; do
                      "$SONARR_URL/api/v3/command" > /dev/null
                 notify_media_managers
             else
-                # SUCCESS PATH: SortTV moved the file
+                # --- SUCCESS PATH: SortTV moved the file ---
                 [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
                 # Extract the Series Folder from SortTV output
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/Season)' | head -n 1)
-                
                 if [ -n "$SERIES_FOLDER" ]; then
                     [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
-
-                    # Notify Sonarr of the specific path
+                    # --- Notify Sonarr of the specific path ---
                     curl -s -H "X-Api-Key: $SONARR_API_KEY" \
                          -H "Content-Type: application/json" \
                          -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
@@ -73,10 +71,8 @@ while true; do
 
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
-
-                    # Metric-safe sync to Synology
+                    # --- Metric-safe sync to Synology ---
                     sync_tv_show_synology "$SHOW_NAME_ONLY"
-
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
                 else
@@ -84,10 +80,10 @@ while true; do
                     notify_media_managers
                 fi
             fi
-            # Always remove lock
+            # --- Always remove lock ---
             rm -f "$LOCK_FILE"
         fi
     fi
-    # 4. Wait for next poll
+    # --- Wait for next poll ---
     sleep "$CHECK_INTERVAL"
 done
