@@ -55,7 +55,7 @@ while true; do
 
         if [[ -d "$dest_show_path" ]]; then
             show_name=$(basename "$dest_show_path")
-            source_show_path="$DIR_MEDIA/$show_name"
+            source_show_path="$DIR_MEDIA_TV/$show_name"
             
             # Check if matching show folder exists in the source
             if [[ -d "$source_show_path" ]]; then
