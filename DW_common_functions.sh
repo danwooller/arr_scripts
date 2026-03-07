@@ -87,6 +87,10 @@ check_dependencies() {
 }
 
 manage_remote_torrent() {
+    # DW_clean_malicious.sh
+    # DW_convert_mkv.sh
+    # DW_monitor_convert.sh
+    # DW_monitor_movie_subtitles.sh
     local action=$1
     # Assigns the first argument (stop/delete) to a local variable for clarity.
     local filename="$2"
