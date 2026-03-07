@@ -13,10 +13,7 @@ else
     exit 1
 fi
 
-# === Configuration ===
-HOST_NAME=$(hostname)
-SYNOLOGY_DIR="/mnt/synology/TV"
-MEDIA_DIR="/mnt/media/TV"
+# --- Configuration ---
 #LOG_LEVEL="debug"
 SLEEP_INTERVAL=60
 
@@ -27,18 +24,18 @@ DRY_RUN=false
 check_dependencies "rsync"
 
 # --- Safety Checks ---
-if [[ ! -d "$SYNOLOGY_DIR" ]]; then
-    log "Error: Synology TV directory not found: $SYNOLOGY_DIR"
+if [[ ! -d "$DIR_SYNOLOGY" ]]; then
+    log "Error: Synology TV directory not found: $DIR_SYNOLOGY"
     exit 1
 fi
 
-if [[ ! -d "$MEDIA_DIR" ]]; then
-    log "Error: Media TV directory not found: $MEDIA_DIR"
+if [[ ! -d "$DIR_MEDIA" ]]; then
+    log "Error: Media TV directory not found: $DIR_MEDIA"
     exit 1
 fi
 
 log "--- TV Show Sync Service Started ---"
-log "Monitoring: $MEDIA_DIR"
+log "Monitoring: $DIR_MEDIA"
 
 # Configure rsync options
 if $DRY_RUN; then
@@ -54,11 +51,11 @@ while true; do
 #    log "Starting TV folder scan..."
 
     # Loop through each directory in the SYNOLOGY_DIR
-    for dest_show_path in "$SYNOLOGY_DIR"/*/; do
+    for dest_show_path in "$DIR_SYNOLOGY"/*/; do
 
         if [[ -d "$dest_show_path" ]]; then
             show_name=$(basename "$dest_show_path")
-            source_show_path="$MEDIA_DIR/$show_name"
+            source_show_path="$DIR_MEDIA/$show_name"
             
             # Check if matching show folder exists in the source
             if [[ -d "$source_show_path" ]]; then
