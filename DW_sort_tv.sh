@@ -12,12 +12,12 @@ fi
 LOCK_FILE="/tmp/sorttv_running.lock"
 #LOG_LEVEL="debug"
 
-# Ensure dependencies exist (Metric check: jq for API parsing)
+# --- Ensure dependencies exist (Metric check: jq for API parsing) ---
 check_dependencies "jq" "curl"
 
 log_start
 
-# Ensure mounts are active (CIFS/TrueNAS)
+# --- Ensure mounts are active (CIFS/TrueNAS) ---
 mount -a 2>/dev/null
 
 # --- Ensure the directory exists ---
