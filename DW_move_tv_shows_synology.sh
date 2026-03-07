@@ -24,18 +24,18 @@ DRY_RUN=false
 check_dependencies "rsync"
 
 # --- Safety Checks ---
-if [[ ! -d "$DIR_SYNOLOGY" ]]; then
-    log "Error: Synology TV directory not found: $DIR_SYNOLOGY"
+if [[ ! -d "$DIR_SYNOLOGY_TV" ]]; then
+    log "Error: Synology TV directory not found: $DIR_SYNOLOGY_TV"
     exit 1
 fi
 
-if [[ ! -d "$DIR_MEDIA" ]]; then
-    log "Error: Media TV directory not found: $DIR_MEDIA"
+if [[ ! -d "$DIR_MEDIA_TV" ]]; then
+    log "Error: Media TV directory not found: $DIR_MEDIA_TV"
     exit 1
 fi
 
 log "--- TV Show Sync Service Started ---"
-log "Monitoring: $DIR_MEDIA"
+log "Monitoring: $DIR_MEDIA_TV"
 
 # Configure rsync options
 if $DRY_RUN; then
@@ -51,7 +51,7 @@ while true; do
 #    log "Starting TV folder scan..."
 
     # Loop through each directory in the SYNOLOGY_DIR
-    for dest_show_path in "$DIR_SYNOLOGY"/*/; do
+    for dest_show_path in "$DIR_SYNOLOGY_TV"/*/; do
 
         if [[ -d "$dest_show_path" ]]; then
             show_name=$(basename "$dest_show_path")
