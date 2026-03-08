@@ -319,7 +319,7 @@ plex_library_update() {
         log "❌ ERROR: PLEX_URL is empty. Check if common_keys is sourced correctly."
         return 1
     fi
-    [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Triggering Plex scan: <$library_name>"
+    [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Triggering Plex scan: $library_name"
     # Construct the full URL for the API call
     local request_url="$url/library/sections/$section_id/refresh"
     # Execute and capture the HTTP status code
