@@ -15,4 +15,4 @@ else
     exit 1
 fi
 
-restart_vpn_containers
+vpn_restart_containers
