@@ -76,7 +76,8 @@ while true; do
                     rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path"
                 fi
                 # Update Plex server
-                update_plex_library "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
+#delete                update_plex_library "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
+                plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
                 if [ $? -eq 0 ]; then
                     log "✅ Sync completed for '$movie_name'"
                     
