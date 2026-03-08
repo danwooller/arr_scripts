@@ -186,6 +186,8 @@ while true; do
             
             # Move the completed file to the completed folder
             mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
+            #erroneous mkv files in the root directory
+            mv /*.mkv "$DIR_MEDIA_COMPLETED/"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
 
             # Cleanup only if conversion was successful
