@@ -86,6 +86,25 @@ check_dependencies() {
     fi
 }
 
+ha_update_status() {
+    # DW_check_media_stack.sh
+    local service_name=$1
+    # Assigns the human-readable name of the service (e.g., "Radarr" or "Plex") to a local variable.
+    local status=$2 # Expects "online" or "offline"
+    # Assigns the current state of the service passed from the script to a local variable.
+    local icon="mdi:server"
+    # Sets a default Material Design Icon for the sensor in case the status check fails.
+    [[ "$status" == "online" ]] && icon="mdi:check-circle" || icon="mdi:alert-circle"
+    # A shorthand IF/ELSE: If status is 'online', use a green check; otherwise, use a red alert icon.
+    curl -X POST -H "Authorization: Bearer $HA_TOKEN" \
+         -H "Content-Type: application/json" \
+         -d "{\"state\": \"$status\", \"attributes\": {\"friendly_name\": \"$service_name Status\", \"icon\": \"$icon\"}}" \
+         "$HA_URL/api/states/sensor.media_$(echo $service_name | tr '[:upper:] ' '[:lower:]_')"
+    # Sends a POST request to your HA instance to create/update a sensor.
+    # The JSON payload (-d) includes the state (online/offline) and the friendly name.
+    # The final URL uses 'tr' to convert "Media Server" into "sensor.media_server" for HA compatibility.
+}
+
 manage_remote_torrent() {
     # DW_clean_malicious.sh
     # DW_convert_mkv.sh
@@ -284,25 +303,6 @@ trigger_sonarr_search() {
             curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
         fi
     fi
-}
-
-update_ha_status() {
-    # DW_check_media_stack.sh
-    local service_name=$1
-    # Assigns the human-readable name of the service (e.g., "Radarr" or "Plex") to a local variable.
-    local status=$2 # Expects "online" or "offline"
-    # Assigns the current state of the service passed from the script to a local variable.
-    local icon="mdi:server"
-    # Sets a default Material Design Icon for the sensor in case the status check fails.
-    [[ "$status" == "online" ]] && icon="mdi:check-circle" || icon="mdi:alert-circle"
-    # A shorthand IF/ELSE: If status is 'online', use a green check; otherwise, use a red alert icon.
-    curl -X POST -H "Authorization: Bearer $HA_TOKEN" \
-         -H "Content-Type: application/json" \
-         -d "{\"state\": \"$status\", \"attributes\": {\"friendly_name\": \"$service_name Status\", \"icon\": \"$icon\"}}" \
-         "$HA_URL/api/states/sensor.media_$(echo $service_name | tr '[:upper:] ' '[:lower:]_')"
-    # Sends a POST request to your HA instance to create/update a sensor.
-    # The JSON payload (-d) includes the state (online/offline) and the friendly name.
-    # The final URL uses 'tr' to convert "Media Server" into "sensor.media_server" for HA compatibility.
 }
 
 update_plex_library() {
