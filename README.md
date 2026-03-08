@@ -8,11 +8,11 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 ## 🛠 Core Media Tools
 | File | Description |
 | :--- | :--- |
-| [**DW_cert_monitor.sh**](./DW_cert_monitor.sh) | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. |
+| [**DW_cert_monitor.sh**](./DW_cert_monitor.sh) | Validates SSL certificates and generates `.p12` bundles for Plex Media Server.  _ubuntu24_ |
 | [**DW_check_media_stack.sh**](./DW_check_media_stack.sh) | Checks availability of docker services and reports to Home Assistant. |
 | [**DW_clean_malicious.sh**](./DW_clean_malicious.sh) | Scans convert directories looking for .exe. and .rar files, removes torrents and deletes files. |
 | [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. |
-| [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors for mmp4/m4v and converts them to mkv. |
+| [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors for mp4/m4v and converts them to mkv. |
 | [**DW_merge_forced_subtitles.sh**](./DW_merge_forced_subtitles.sh) | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
 | [**DW_mkv_set_eng.sh**](./DW_mkv_set_eng.sh) | Checks mkv files in $1 and sets audio and subtitles to English if they are unset. |
 | [**DW_monitor_convert.sh**](./DW_monitor_convert.sh) | Monitors folders for unconverted media, detects resolution (480p/576p/1080p/4K), and transcodes via HandBrakeCLI. |
