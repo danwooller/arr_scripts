@@ -8,19 +8,22 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 ## 🛠 Core Media Tools
 | File | Description |
 | :--- | :--- |
-| [**DW_cert_monitor.sh**](./DW_cert_monitor.sh) | Validates SSL certificates and generates `.p12` bundles for Plex Media Server.  _ubuntu24_ |
-| [**DW_check_media_stack.sh**](./DW_check_media_stack.sh) | Checks availability of docker services and reports to Home Assistant. |
-| [**DW_clean_malicious.sh**](./DW_clean_malicious.sh) | Scans convert directories looking for .exe. and .rar files, removes torrents and deletes files. |
-| [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. |
-| [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors for mp4/m4v and converts them to mkv. |
-| [**DW_merge_forced_subtitles.sh**](./DW_merge_forced_subtitles.sh) | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. |
-| [**DW_mkv_set_eng.sh**](./DW_mkv_set_eng.sh) | Checks mkv files in $1 and sets audio and subtitles to English if they are unset. |
-| [**DW_monitor_convert.sh**](./DW_monitor_convert.sh) | Monitors folders for unconverted media, detects resolution (480p/576p/1080p/4K), and transcodes via HandBrakeCLI. |
+| [**DW_cert_monitor.sh**](./DW_cert_monitor.sh) | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. _ubuntu24_ |
+| [**DW_check_media_stack.sh**](./DW_check_media_stack.sh) | Checks availability of docker services and reports to Home Assistant. _ubuntu9_ |
+| [**DW_clean_malicious.sh**](./DW_clean_malicious.sh) | Scans convert directories looking for .exe. and .rar files, removes torrents and deletes files. _ubuntu9_ |
+| [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. _ubuntu9_ |
+| [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors for mp4/m4v and converts them to mkv. _ubuntu9_ |
+| [**DW_merge_forced_subtitles.sh**](./DW_merge_forced_subtitles.sh) | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. _ubuntu9_ |
+| [**DW_mkv_movies_title.sh**](./DW_mkv_movies_title.sh) | Loops through TV directories and matched the video title to the parent directory name. _ubuntu9_ |
+| [**DW_mkv_set_eng.sh**](./DW_mkv_set_eng.sh) | Checks mkv files in $1 and sets audio and subtitles to English if they are unset. _ubuntu9_ |
+| [**DW_mkv_tv_shows_title.sh**](./DW_mkv_tv_shows_title.sh) | Loops through TV directories and matched the video title to the filename. _ubuntu9_ |
+| [**DW_monitor_convert.sh**](./DW_monitor_convert.sh) | Monitors folders for unconverted media, detects resolution (480p/576p/1080p/4K), and transcodes via HandBrakeCLI. _pi14 pi16 ubuntu9_ |
 | [**DW_monitor_movie_subtitles.sh**](./DW_monitor_movie_subtitles.sh) | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. |
-| [**DW_move_movies_synology.sh**](./DW_move_movies_synology.sh) | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. |
-| [**DW_move_tv_shows_synology.sh**](./DW_move_tv_shows_synology.sh) | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. |
+| [**DW_move_movies_synology.sh**](./DW_move_movies_synology.sh) | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. _ubuntu9_ |
+| [**DW_move_tv_shows_synology.sh**](./DW_move_tv_shows_synology.sh) | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. _ubuntu9_ |
+| [**DW_move_single_tv_show_synology.sh**](./DW_move_single_tv_show_synology.sh) | Moves the tv show folder specified by $1 and moves it to the secondary server (synology) only if it exists. _ubuntu9_ |
 | [**DW_rename_media.sh**](./DW_rename_media.sh) | Looks for obfuscated filesnames and tries to find NZB metadata to retore filename. |
-| [**DW_restart_vpn.sh**](./DW_restart_vpn.sh) | Restarts the VPN and associated torrent containers. |
+| [**DW_restart_vpn.sh**](./DW_restart_vpn.sh) | Restarts the VPN and associated torrent containers. _ubuntu9_ |
 | [**DW_scan_corrupt_media.sh**](./DW_scan_corrupt_media.sh) | Scan directories in $1 looking for corrupted media files, marking an issue in Seer. |
 | [**DW_scan_missing_episodes.sh**](./DW_scan_missing_episodes.sh) | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. |
 | [**DW_scan_movie_year.sh**](./DW_scan_movie_year.sh) | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. |
