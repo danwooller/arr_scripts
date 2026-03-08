@@ -77,7 +77,8 @@ while true; do
 #delete                    sync_tv_show_synology "$SHOW_NAME_ONLY"
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
-                    update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
+#delete                    update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
+                    plex_library_update "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Files moved, but no specific show path parsed. Running general notification."
                     notify_media_managers
