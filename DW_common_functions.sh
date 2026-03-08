@@ -226,8 +226,8 @@ notify_sonarr_targeted_rename() {
 }
 
 # --- Function to sync a specific TV show folder ---
-# Usage: sync_tv_show_synology "Show Name (Year)"
-sync_tv_show_synology() {
+# Usage: synology_tv_show_sync "Show Name (Year)"
+synology_tv_show_sync() {
     # DW_sort_tv.sh
     local SHOW_NAME="$1"    
     # Ensure variables are available (inherited from the calling script)
