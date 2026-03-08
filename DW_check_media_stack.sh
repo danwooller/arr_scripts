@@ -40,45 +40,45 @@ echo "--- Media Stack Connectivity Diagnostic ---"
 
 # Bazarr
 check_service "Bazarr" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/api/$BAZARR_API_VER/system/status"
-[[ $? -eq 0 ]] && update_ha_status "Bazarr" "online" || update_ha_status "Bazarr" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Bazarr" "online" || ha_update_status "Bazarr" "offline"
 
 # Dispatcharr
 check_service "Dispatcharr Tuner" "$DISPATCHARR_URL" "NONE" "/discover.json"
-[[ $? -eq 0 ]] && update_ha_status "Dispatcharr Tuner" "online" || update_ha_status "Dispatcharr Tuner" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Dispatcharr Tuner" "online" || ha_update_status "Dispatcharr Tuner" "offline"
 
 # Lidarr
 check_service "Lidarr" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && update_ha_status "Lidarr" "online" || update_ha_status "Lidarr" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Lidarr" "online" || ha_update_status "Lidarr" "offline"
 
 # Prowlarr
 check_service "Prowlarr" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && update_ha_status "Prowlarr" "online" || update_ha_status "Prowlarr" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Prowlarr" "online" || ha_update_status "Prowlarr" "offline"
 
 # Seerr
 check_service "Seerr" "$SEERR_API_BASE" "$SEERR_API_KEY" "/status"
-[[ $? -eq 0 ]] && update_ha_status "Seerr" "online" || update_ha_status "Seerr" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Seerr" "online" || ha_update_status "Seerr" "offline"
 
 # Sonarr & Sonarr 4K
 check_service "Sonarr" "$SONARR_API_BASE" "$SONARR_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && update_ha_status "Sonarr" "online" || update_ha_status "Sonarr" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Sonarr" "online" || ha_update_status "Sonarr" "offline"
 
 check_service "Sonarr 4K" "$SONARR4K_API_BASE" "$SONARR4K_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && update_ha_status "Sonarr 4K" "online" || update_ha_status "Sonarr 4K" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Sonarr 4K" "online" || ha_update_status "Sonarr 4K" "offline"
 
 # Radarr & Radarr 4K
 check_service "Radarr" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && update_ha_status "Radarr" "online" || update_ha_status "Radarr" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Radarr" "online" || ha_update_status "Radarr" "offline"
 
 check_service "Radarr 4K" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && update_ha_status "Radarr 4K" "online" || update_ha_status "Radarr 4K" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Radarr 4K" "online" || ha_update_status "Radarr 4K" "offline"
 
 # Tautulli
 check_service "Tautulli" "$TAUTULLI_API_BASE" "$TAUTULLI_API_KEY" "?apikey=$TAUTULLI_API_KEY&cmd=status"
-[[ $? -eq 0 ]] && update_ha_status "Tautulli" "online" || update_ha_status "Tautulli" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Tautulli" "online" || ha_update_status "Tautulli" "offline"
 
 # Wizarr
 check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/users"
-[[ $? -eq 0 ]] && update_ha_status "Wizarr" "online" || update_ha_status "Wizarr" "offline"
+[[ $? -eq 0 ]] && ha_update_status "Wizarr" "online" || ha_update_status "Wizarr" "offline"
 
 # Qbittorrent
 QBT_NAMES=("TV" "Movies" "Music" "4K TV" "4K Movies")
@@ -107,10 +107,10 @@ for i in "${!QBT_SERVERS[@]}"; do
 
     if [[ "$status" == "200" ]]; then
         echo -e "${GREEN}OK (HTTP 200)${NC}"
-        update_ha_status "$HA_ENTITY_NAME" "online"
+        ha_update_status "$HA_ENTITY_NAME" "online"
     else
         echo -e "${RED}FAILED (HTTP $status)${NC}"
-        update_ha_status "$HA_ENTITY_NAME" "offline"
+        ha_update_status "$HA_ENTITY_NAME" "offline"
         ((TOTAL_ERRORS++))
     fi
 done
