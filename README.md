@@ -11,8 +11,9 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_cert_monitor.sh**](./DW_cert_monitor.sh) | Validates SSL certificates and generates `.p12` bundles for Plex Media Server. _ubuntu24_ |
 | [**DW_check_media_stack.sh**](./DW_check_media_stack.sh) | Checks availability of docker services and reports to Home Assistant. _ubuntu9_ |
 | [**DW_clean_malicious.sh**](./DW_clean_malicious.sh) | Scans convert directories looking for .exe. and .rar files, removes torrents and deletes files. _ubuntu9_ |
-| [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. _ubuntu9_ |
+| [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. _ubuntu9 ubuntu24_ |
 | [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors for mp4/m4v and converts them to mkv. _ubuntu9_ |
+| [**DW_install_sort_tv.sh**](./DW_install_sort_tv.sh) | Installs a custome sorttv as a service. Includes patched for Ubutnu 24.04. _ubuntu24_ |
 | [**DW_merge_forced_subtitles.sh**](./DW_merge_forced_subtitles.sh) | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. _ubuntu9_ |
 | [**DW_mkv_movies_title.sh**](./DW_mkv_movies_title.sh) | Loops through TV directories and matched the video title to the parent directory name. _ubuntu9_ |
 | [**DW_mkv_set_eng.sh**](./DW_mkv_set_eng.sh) | Checks mkv files in $1 and sets audio and subtitles to English if they are unset. _ubuntu9_ |
@@ -24,12 +25,13 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_move_single_tv_show_synology.sh**](./DW_move_single_tv_show_synology.sh) | Moves the tv show folder specified by $1 and moves it to the secondary server (synology) only if it exists. _ubuntu9_ |
 | [**DW_rename_media.sh**](./DW_rename_media.sh) | Looks for obfuscated filesnames and tries to find NZB metadata to retore filename. |
 | [**DW_restart_vpn.sh**](./DW_restart_vpn.sh) | Restarts the VPN and associated torrent containers. _ubuntu9_ |
-| [**DW_scan_corrupt_media.sh**](./DW_scan_corrupt_media.sh) | Scan directories in $1 looking for corrupted media files, marking an issue in Seer. |
-| [**DW_scan_missing_episodes.sh**](./DW_scan_missing_episodes.sh) | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. |
-| [**DW_scan_movie_year.sh**](./DW_scan_movie_year.sh) | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. |
-| [**DW_sort_tv.sh**](./DW_sort_tv.sh) | Wraps the Perl script sorttv in a service. Currently has problems with Daily Show/Colbert on Ubutnu 24.04. |
-| [**update-docker.sh**](./update-docker.sh) | Runs a linux update then backs up the containers to the network while updating. Includes a --no-backup flag. |
-| [**DW_usenet_org.sh**](./DW_usenet_org.sh) | Looks for media files without readable filenames and attempts to convert them using folder names. |
+| [**DW_scan_corrupt_media.sh**](./DW_scan_corrupt_media.sh) | Scan directories in $1 looking for corrupted media files, marking an issue in Seer. _ubuntu24_ |
+| [**DW_scan_duplicate_episodes.sh**](./DW_scan_duplicate_episodes.sh) | Scan directories looking for duplicate episodes, marking an issue in Seer. _ubuntu24_ |
+| [**DW_scan_missing_episodes.sh**](./DW_scan_missing_episodes.sh) | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. _ubuntu24_ |
+| [**DW_scan_movie_year.sh**](./DW_scan_movie_year.sh) | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. _ubuntu24_ |
+| [**DW_sort_tv.sh**](./DW_sort_tv.sh) | Wraps the Perl script sorttv in a service. Currently has problems with Daily Show/Colbert on Ubutnu 24.04. _ubuntu24_ |
+| [**update-docker.sh**](./update-docker.sh) | Runs a linux update then backs up the containers to the network while updating. Includes a --no-backup flag. _ubuntu9 ubuntu24_ |
+| [**DW_usenet_org.sh**](./DW_usenet_org.sh) | Looks for media files without readable filenames and attempts to convert them using folder names. _ubuntu9_ |
 
 ### 🔧 System & Maintenance Tools
 | File | Description |
