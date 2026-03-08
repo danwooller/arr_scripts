@@ -305,7 +305,7 @@ trigger_sonarr_search() {
     fi
 }
 
-update_plex_library() {
+plex_library_update() {
     # DW_move_movies_synology.sh
     # DW_move_tv_shows_synology.sh
     # DW_sort_tv.sh
