@@ -201,7 +201,7 @@ notify_sonarr_targeted_rename() {
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
         
         # 1. Trigger Refresh (Disk Scan)
-        log "🔄 Triggering Sonarr Refresh for ID $series_id (Scanning disk...)"
+        log "🔄 Triggering Sonarr refresh for $show_name"
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
@@ -213,7 +213,7 @@ notify_sonarr_targeted_rename() {
         sleep 5 
 
         # 3. Trigger Rename
-        log "📝 Triggering RenameSeries for ID $series_id..."
+        log "📝 Triggering Sonarr rename for $show_name"
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
@@ -298,7 +298,7 @@ trigger_sonarr_search() {
         local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
         local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
         if [[ "$s_monitored" == "true" ]]; then
-            log "🔍 Triggering Sonarr Search for $series_name..."
+            log "🔍 Triggering Sonarr Search for $series_name"
             local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
             curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
         fi
@@ -319,7 +319,7 @@ plex_library_update() {
         log "❌ ERROR: PLEX_URL is empty. Check if common_keys is sourced correctly."
         return 1
     fi
-    [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Triggering Plex scan: $library_name"
+    [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Triggering Plex scan: <$library_name>"
     # Construct the full URL for the API call
     local request_url="$url/library/sections/$section_id/refresh"
     # Execute and capture the HTTP status code
