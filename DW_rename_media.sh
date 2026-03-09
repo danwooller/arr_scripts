@@ -10,7 +10,7 @@ else
 fi
 
 # --- Configuration ---
-CONVERT_DIR="/mnt/media/torrent/${HOST_NAME}_convert"
+CONVERT_DIR="/mnt/media/torrent/${HOST}_convert"
 SLEEP_INTERVAL=60
 
 # Ensure script exits immediately if any command fails (except for handled errors)
