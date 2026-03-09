@@ -78,7 +78,7 @@ while true; do
                 if [ -f "$file" ]; then
                     log "Moving: $(basename "$file")"
                     # The trailing slash ensures it treats the destination as a directory
-                    mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/"
+                    mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/$file"
                 fi
             done
         fi
