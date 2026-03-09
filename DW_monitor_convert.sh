@@ -29,7 +29,6 @@ else
 fi
 CONVERT_DIR="$HOME_DIR/convert"
 WORKING_DIR="$HOME_DIR/${HOST}_done"
-shopt -s nullglob
 #LOG_LEVEL="debug"
 
 # HandBrake Presets (Using system presets)
@@ -64,6 +63,7 @@ while true; do
     rm -f $WORKING_DIR/*
 
     # --- Check for weekly shows and move them for subtitle stripping ---
+    shopt -s nullglob
     for pattern in "${WEEKLY_SHOWS[@]}"; do
 #        [[ $LOG_LEVEL == "debug" ]] && log "📂 Checking files matching: $pattern"
 #        # Check if any files matching the pattern exist to avoid "no such file" errors
@@ -84,6 +84,7 @@ while true; do
             done
         fi
     done
+    shopt -u nullglob
 
     # Use 'find' with -name filters
     find "$SOURCE_DIR" -type f \
