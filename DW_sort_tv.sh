@@ -45,38 +45,35 @@ while true; do
             touch "$LOCK_FILE"
 
             # --- EXECUTION BLOCK ---
+            set -o pipefail
             OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
-            
-            if [ $? -eq 0 ]; then
+            EXIT_CODE=$?
+
+            SERIES_NAME=$(echo "$OUTPUT" | grep -oP '(?<=trying to move ).*(?= season)' | head -n 1)
+
+            if [ $EXIT_CODE -eq 0 ] && [ -z "$(echo "$OUTPUT" | grep "WARN: Error sorting")" ]; then
                 log "✅ SortTV ran successfully."
-                # 3. Extract the Series Folder from SortTV output
-                # It looks for the path after '--to-->' and stops before '/Season'
-                SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/Season)' | head -n 1)
-                if [ -n "$SERIES_FOLDER" ]; then
-                    log "📂 Detected move to: $SERIES_FOLDER"
-                    log "📡 Notifying Sonarr via DownloadedEpisodesScan..."
-                    # Direct API call with the specific path for immediate import
+                
+                if [ -n "$SERIES_NAME" ]; then
+                    # Map to your TV root
+                    SERIES_FOLDER="/mnt/media/TV/$SERIES_NAME"
+                    log "📂 Detected move for: $SERIES_NAME"
+                    
+                    # Notify Sonarr with specific path
                     curl -s -H "X-Api-Key: $SONARR_API_KEY" \
                          -H "Content-Type: application/json" \
                          -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
                          "$SONARR_URL/api/v3/command" > /dev/null
-                    # Strip the path to get just the folder name
+            
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
-                    [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
-                    [[ $LOG_LEVEL == "debug" ]] && log "Sync process ended. Now notifying Sonarr..."
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "PLEX24_TV_SRC" "PLEX24_TV_NAME"
-                else
-                    # Fallback to your shared function if no specific path was parsed
-                    log "ℹ️ No specific show path parsed. Running general notification."
-                    notify_media_managers
                 fi
             else
-                log "⚠️ SortTV encountered an error during execution."
+                log "⚠️ SortTV encountered an error. The file might be locked by the torrent client."
+                # Optional: If you want to force a scan anyway, keep notify_media_managers here
             fi
-
-            
             # --- Always remove lock ---
             rm -f "$LOCK_FILE"
         fi
