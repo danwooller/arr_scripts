@@ -75,6 +75,7 @@ while true; do
                     # so we append it directly to the log file.
                     rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path"
                 fi
+                notify_media_managers
                 # Update Plex server
                 plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
                 if [ $? -eq 0 ]; then
