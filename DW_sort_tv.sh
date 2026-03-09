@@ -46,7 +46,8 @@ while true; do
             # --- EXECUTION BLOCK ---
             # Capture output and display to stderr simultaneously
             # PIPESTATUS[0] catches the Perl script, PIPESTATUS[1] catches tee
-            OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
+            #OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
+            OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl /opt/sorttv/sorttv.conf 2>&1 | tee /dev/stderr)
             SORTTV_EXIT_CODE=${PIPESTATUS[0]} 
             # 3. Check for specific "Error sorting" string or a hard crash
             if [[ "$OUTPUT" == *"Error sorting"* ]] || [ "$SORTTV_EXIT_CODE" -ne 0 ]; then
