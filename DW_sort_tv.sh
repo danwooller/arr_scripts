@@ -67,6 +67,7 @@ while true; do
                          "$SONARR_URL/api/v3/command" > /dev/null
             
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
+                    sleep 5
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "PLEX24_TV_SRC" "PLEX24_TV_NAME"
