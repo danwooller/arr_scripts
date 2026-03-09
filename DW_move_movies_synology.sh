@@ -68,8 +68,7 @@ while true; do
                 fi
 
                 if [[ $LOG_LEVEL = "debug" ]]; then
-#                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> "$LOG_FILE" 2>&1
-                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> log 2>&1
+                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> "$LOG_FILE" 2>&1
                 else
                     # Use rsync to "move-and-merge"
                     # Redirecting rsync output to log via the log function can be messy, 
@@ -77,7 +76,6 @@ while true; do
                     rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path"
                 fi
                 # Update Plex server
-#delete                update_plex_library "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
                 plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
                 if [ $? -eq 0 ]; then
                     log "✅ Sync completed for '$movie_name'"
@@ -95,7 +93,7 @@ while true; do
                         fi
                     fi
                 else
-                    log "[ERROR] rsync failed for '$movie_name'. Check log for details."
+                    log "[ERROR] rsync failed for '$movie_name' with exit code $RSYNC_EXIT"
                 fi
             fi
         fi
