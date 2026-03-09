@@ -44,44 +44,38 @@ while true; do
             touch "$LOCK_FILE"
 
             # --- EXECUTION BLOCK ---
-            # Capture output and display to stderr simultaneously
-            # PIPESTATUS[0] catches the Perl script, PIPESTATUS[1] catches tee
             OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1 | tee /dev/stderr)
-            SORTTV_EXIT_CODE=${PIPESTATUS[0]} 
-            # 3. Check for specific "Error sorting" string or a hard crash
-            if [[ "$OUTPUT" == *"Error sorting"* ]] || [ "$SORTTV_EXIT_CODE" -ne 0 ]; then
-                [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ SortTV failed to process some files (Exit Code: $SORTTV_EXIT_CODE)."
-                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Falling back to general Sonarr scan for $DIR_MEDIA_COMPLETED..."
-                # Fallback: Tell Sonarr to handle what SortTV couldn't (Colbert/Daily Show)
-                curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                     -H "Content-Type: application/json" \
-                     -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$DIR_MEDIA_COMPLETED\"}" \
-                     "$SONARR_URL/api/v3/command" > /dev/null
-                notify_media_managers
-            else
-                # --- SUCCESS PATH: SortTV moved the file ---
-                [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
-                # Extract the Series Folder from SortTV output
+            
+            if [ $? -eq 0 ]; then
+                log "✅ SortTV ran successfully."
+                # 3. Extract the Series Folder from SortTV output
+                # It looks for the path after '--to-->' and stops before '/Season'
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/Season)' | head -n 1)
                 if [ -n "$SERIES_FOLDER" ]; then
-                    [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
-                    # --- Notify Sonarr of the specific path ---
+                    log "📂 Detected move to: $SERIES_FOLDER"
+                    log "📡 Notifying Sonarr via DownloadedEpisodesScan..."
+                    # Direct API call with the specific path for immediate import
                     curl -s -H "X-Api-Key: $SONARR_API_KEY" \
                          -H "Content-Type: application/json" \
                          -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
                          "$SONARR_URL/api/v3/command" > /dev/null
-
+                    # Strip the path to get just the folder name
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
-                    # --- Metric-safe sync to Synology ---
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
+                    [[ $LOG_LEVEL == "debug" ]] && log "Sync process ended. Now notifying Sonarr..."
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
-                    plex_library_update "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
+                    plex_library_update "PLEX24_TV_SRC" "PLEX24_TV_NAME"
                 else
-                    [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Files moved, but no specific show path parsed. Running general notification."
+                    # Fallback to your shared function if no specific path was parsed
+                    log "ℹ️ No specific show path parsed. Running general notification."
                     notify_media_managers
                 fi
+            else
+                log "⚠️ SortTV encountered an error during execution."
             fi
+
+            
             # --- Always remove lock ---
             rm -f "$LOCK_FILE"
         fi
