@@ -8,12 +8,22 @@ else
     exit 1
 fi
 
-check_dependencies "jq"
+# --- Configuration ---
+#LOG_LEVEL="debug"
+
+# --- Ensure dependencies exist (Metric check: jq for API parsing) ---
+check_dependencies "curl" "jq"
 
 log_start
 
 # 1. Ensure mounts are active
 mount -a 2>/dev/null
+
+# --- Ensure the directory exists ---
+if [ ! -d "$DIR_MEDIA_COMPLETED" ]; then
+    log "❌ Error: Directory $DIR_MEDIA_COMPLETED does not exist."
+    exit 1
+fi
 
 # 2. Check mount point before proceeding
 if mountpoint -q /mnt/media; then
@@ -36,16 +46,8 @@ if mountpoint -q /mnt/media; then
                  "$SONARR_URL/api/v3/command" > /dev/null
             # Strip the path to get just the folder name
             SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
-# fails if not moving to synology
-#            if sync_tv_show_synology "$SHOW_NAME_ONLY"; then
-#                log "Sync successful. Proceeding to Sonarr notification."
-#                notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
-#            else
-#                log "Sync failed for $SHOW_NAME_ONLY. Skipping Sonarr notification."
-#                # Optional: exit 1 if you want the whole script to stop here
-#            fi
             [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
-            sync_tv_show_synology "$SHOW_NAME_ONLY"
+            synology_tv_show_sync "$SHOW_NAME_ONLY"
             [[ $LOG_LEVEL == "debug" ]] && log "Sync process ended. Now notifying Sonarr..."
             notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
             plex_library_update "PLEX24_TV_SRC" "PLEX24_TV_NAME"
