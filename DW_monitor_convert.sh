@@ -66,7 +66,6 @@ while true; do
     # Enable case-insensitive matching and nullglob
     shopt -s nocaseglob
     shopt -s nullglob
-    
     for pattern in "${WEEKLY_SHOWS[@]}"; do
         # Expand to array
         FILES=("$SOURCE_DIR"/$pattern)
@@ -78,13 +77,12 @@ while true; do
                 if [ -f "$file" ]; then
                     log "Moving: $(basename "$file")"
                     # The trailing slash ensures it treats the destination as a directory
-                    log "mv -v $file $DIR_MEDIA_TORRENT/completed_movies/$file"
+                    log "mv -v $file $DIR_MEDIA_TORRENT/completed_movies/$(basename "$file")"
                     #mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/$file"
                 fi
             done
         fi
     done
-    
     # Reset shell options
     shopt -u nocaseglob
     shopt -u nullglob
