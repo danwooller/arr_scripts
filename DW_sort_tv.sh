@@ -56,7 +56,8 @@ while true; do
                 
                 if [ -n "$SERIES_NAME" ]; then
                     # Map to your TV root
-                    SERIES_FOLDER="/mnt/media/TV/$SERIES_NAME"
+                    #SERIES_FOLDER="/mnt/media/TV/$SERIES_NAME"
+                    SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
                     log "📂 Detected move for: $SERIES_NAME"
                     
                     # Notify Sonarr with specific path
