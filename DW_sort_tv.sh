@@ -50,9 +50,14 @@ while true; do
             EXIT_CODE=$?
 
             SERIES_NAME=$(echo "$OUTPUT" | grep -oP '(?<=trying to move ).*(?= season)' | head -n 1)
-log "----1----"
-            if [ $EXIT_CODE -eq 0 ] && [ -z "$(echo "$OUTPUT" | grep "WARN: Error sorting")" ]; then
-log "----2----"
+if [ $EXIT_CODE -ne 0 ]; then
+    log "⚠️ Perl reported a non-zero exit code ($EXIT_CODE). Checking output..."
+fi
+
+# Instead of relying on $EXIT_CODE and the 'WARN' string, 
+# look for the "MOVE EPISODE" or "--to-->" success indicator
+if echo "$OUTPUT" | grep -q "MOVE EPISODE" || echo "$OUTPUT" | grep -q "--to-->"; then
+    log "----2----"
                 log "✅ SortTV ran successfully."
                 
                 if [ -n "$SERIES_NAME" ]; then
