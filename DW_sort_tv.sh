@@ -55,37 +55,28 @@ while true; do
                 log "✅ SortTV ran successfully."
                 
                 if [ -n "$SERIES_NAME" ]; then
-                    # Map to your TV root
-                    #SERIES_FOLDER="/mnt/media/TV/$SERIES_NAME"
-                    SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
-              #      log "📂 Detected move for: $SERIES_NAME"     
-                    # Notify Sonarr with specific path
-              #      curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-              #           -H "Content-Type: application/json" \
-              #           -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
-              #           "$SONARR_URL/api/v3/command" > /dev/null
-            
-                    SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
+                    # 1. Clean up the name for searching (e.g., "Paradise 2025")
+                    CLEAN_NAME=$(echo "$SERIES_NAME" | sed 's/[^a-zA-Z0-9 ]//g')
+                    log "📡 Searching Sonarr for: $CLEAN_NAME"
+                
+                    # 2. Get the internal Series ID from Sonarr
                     SERIES_ID=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | \
-                                    jq -r ".[] | select(.title | ascii_downcase == \"${SHOW_NAME_ONLY,,}\") | .id")
-                    
-                        if [ -n "$SERIES_ID" ] && [ "$SERIES_ID" != "null" ]; then
-                            log "📡 Triggering targeted Rescan for $SHOW_NAME_ONLY (ID: $SERIES_ID)..."
-                            curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                                 -H "Content-Type: application/json" \
-                                 -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $SERIES_ID}" \
-                                 "$SONARR_URL/api/v3/command" > /dev/null
-                        else
-                            log "⚠️ Could not find ID for '$SHOW_NAME_ONLY'. Running general DownloadedEpisodesScan."
-                            curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                                 -H "Content-Type: application/json" \
-                                 -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
-                                 "$SONARR_URL/api/v3/command" > /dev/null
-                        fi
-                    sleep 5
-                    synology_tv_show_sync "$SHOW_NAME_ONLY"
-                    notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
-                    plex_library_update "PLEX24_TV_SRC" "PLEX24_TV_NAME"
+                                jq -r ".[] | select(.title | ascii_downcase == \"${CLEAN_NAME,,}\") | .id")
+                
+                    if [ -n "$SERIES_ID" ] && [ "$SERIES_ID" != "null" ]; then
+                        log "✅ Found ID $SERIES_ID. Triggering targeted Rescan..."
+                        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+                             -H "Content-Type: application/json" \
+                             -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $SERIES_ID}" \
+                             "$SONARR_URL/api/v3/command" > /dev/null
+                    else
+                        log "⚠️ Could not find ID for '$CLEAN_NAME'. Running fallback scan."
+                        # Keep the old method as a backup
+                        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+                             -H "Content-Type: application/json" \
+                             -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"/mnt/media/TV/$SERIES_NAME\"}" \
+                             "$SONARR_URL/api/v3/command" > /dev/null
+                    fi
                 fi
             else
                 log "⚠️ SortTV encountered an error. The file might be locked by the torrent client."
