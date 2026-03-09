@@ -33,9 +33,11 @@ log_end() {
 # Universal Graceful Exit
 #trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
 cleanup() {
-    log "🛑 Service stopping. Removing lock file."
     if [ -f "$LOCK_FILE" ]; then
+        log "🛑 Service stopping. Removing lock file."
         rm -f "$LOCK_FILE"
+    else
+        log "🛑 Service stopping."
     fi
     exit
 }
