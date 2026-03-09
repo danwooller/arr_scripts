@@ -10,7 +10,7 @@ fi
 
 # --- Configuration ---
 LOCK_FILE="/tmp/sorttv_running.lock"
-#LOG_LEVEL="debug"
+LOG_LEVEL="debug"
 
 # --- Ensure dependencies exist (Metric check: jq for API parsing) ---
 check_dependencies "jq" "curl"
