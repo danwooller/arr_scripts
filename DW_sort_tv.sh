@@ -25,12 +25,12 @@ LOCK_FILE="/tmp/sorttv_service.lock"
 CHECK_INTERVAL=300 # 5 minutes
 
 # Function to handle graceful exit
-cleanup() {
-    log "🛑 Service stopping. Removing lock file."
-    rm -f "$LOCK_FILE"
-    exit
-}
-trap cleanup SIGTERM SIGINT
+#cleanup() {
+#    log "🛑 Service stopping. Removing lock file."
+#    rm -f "$LOCK_FILE"
+#    exit
+#}
+#trap cleanup SIGTERM SIGINT
 
 # --- Grab the latest config ---
 cp /home/dan/arr_scripts/sorttv.conf /opt/sorttv
@@ -51,13 +51,13 @@ while true; do
             EXIT_CODE=$?
             
             if [ $EXIT_CODE -eq 0 ]; then
-                log "✅ SortTV ran successfully."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
                 
                 # 4. Extract folder and trigger Sonarr logic
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
                 
                 if [ -n "$SERIES_FOLDER" ]; then
-                    log "📂 Detected move to: $SERIES_FOLDER"
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     
                     # Using your original working functions
@@ -65,7 +65,7 @@ while true; do
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "PLEX24_TV_SRC" "PLEX24_TV_NAME"
                 else
-                    log "ℹ️ No specific show path parsed. Running general notification."
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No specific show path parsed. Running general notification."
                     notify_media_managers
                 fi
             else
