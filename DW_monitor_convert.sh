@@ -62,6 +62,15 @@ while true; do
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
 
+    # --- Check for weekly shows and move them for subtitle stripping ---
+    for pattern in "${WEEKLY_SHOWS[@]}"; do
+        # Check if any files matching the pattern exist to avoid "no such file" errors
+        if ls "$WORKING_DIR"/$pattern 1> /dev/null 2>&1; then
+            log "📂 Moving files matching: $pattern"
+            mv "$WORKING_DIR"/$pattern "$DIR_MEDIA_TORRENT/completed_movies"
+        fi
+    done
+
     # Use 'find' with -name filters
     find "$SOURCE_DIR" -type f \
         -mmin +$MIN_FILE_AGE \
