@@ -68,8 +68,8 @@ SUFFIX=$(echo "$SERIES_NAME" | tail -c 7)
 CLEAN_NAME=$(echo "$BASE_NAME" | sed 's/[^a-zA-Z0-9 ]//g' | xargs | tr '[:upper:]' '[:lower:]')
 CLEAN_NAME="${CLEAN_NAME} ${SUFFIX}"
                     log "📡 Searching Sonarr for: $CLEAN_NAME"
-notify_sonarr_targeted_rename "$SERIES_NAME"
-                    SEARCH_TERM=$(echo "$SERIES_NAME" | cut -d' ' -f1) 
+notify_sonarr_targeted_rename "$CLEAN_NAME"
+                    #SEARCH_TERM=$(echo "$SERIES_NAME" | cut -d' ' -f1) 
 
                     log "📡 Searching Sonarr for series containing: $SEARCH_TERM"
                     
