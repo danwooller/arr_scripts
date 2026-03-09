@@ -71,7 +71,6 @@ while true; do
                 # Tell Sonarr to update
                 notify_sonarr_targeted_rename "$show_name"
                 # Update Plex server
-#delete                update_plex_library "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
                 plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                 #if [[ $? -eq 0 ]]; then
                 if [[ $RSYNC_EXIT -eq 0 || $RSYNC_EXIT -eq 23 || $RSYNC_EXIT -eq 24 ]]; then
