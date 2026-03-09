@@ -87,6 +87,11 @@ if echo "$OUTPUT" | grep -q "MOVE EPISODE" || echo "$OUTPUT" | grep -q "--to-->"
                              -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"/mnt/media/TV/$SERIES_NAME\"}" \
                              "$SONARR_URL/api/v3/command" > /dev/null
                     fi
+                    # Trigger a rename for all episodes in the series
+                    curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+                         -H "Content-Type: application/json" \
+                         -X POST -d "{\"name\": \"RenameFiles\", \"seriesIds\": [$SERIES_ID]}" \
+                         "$SONARR_URL/api/v3/command" > /dev/null
                 fi
             else
                 log "⚠️ SortTV encountered an error. The file might be locked by the torrent client."
