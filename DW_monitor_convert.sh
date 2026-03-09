@@ -66,10 +66,10 @@ while true; do
     for pattern in "${WEEKLY_SHOWS[@]}"; do
         log "📂 Checking files matching: $pattern"
         # Check if any files matching the pattern exist to avoid "no such file" errors
-        log "ls $WORKING_DIR/$pattern"
-        if ls "$WORKING_DIR"/$pattern 1> /dev/null 2>&1; then
+        log "ls $SOURCE_DIR/$pattern"
+        if ls "$SOURCE_DIR"/$pattern 1> /dev/null 2>&1; then
             log "📂 Moving files matching: $pattern"
-            mv "$WORKING_DIR"/$pattern "$DIR_MEDIA_TORRENT/completed_movies"
+            mv "$SOURCE_DIR"/$pattern "$DIR_MEDIA_TORRENT/completed_movies"
         fi
     done
 
