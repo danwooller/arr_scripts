@@ -61,12 +61,15 @@ if echo "$OUTPUT" | grep -q "MOVE EPISODE" || echo "$OUTPUT" | grep -q "--to-->"
                 log "✅ SortTV ran successfully."
                 
                 if [ -n "$SERIES_NAME" ]; then
-                    # 1. Clean up the name for searching (e.g., "Paradise 2025")
-                    CLEAN_NAME=$(echo "$SERIES_NAME" | sed 's/[^a-zA-Z0-9 ]//g')
+                    # 1. Clean up the name for searching.
+#                    CLEAN_NAME=$(echo "$SERIES_NAME" | sed 's/[^a-zA-Z0-9 ]//g')
+BASE_NAME=$(echo "$SERIES_NAME" | head -c -7)
+SUFFIX=$(echo "$SERIES_NAME" | tail -c 7)
+CLEAN_NAME=$(echo "$BASE_NAME" | sed 's/[^a-zA-Z0-9 ]//g' | xargs | tr '[:upper:]' '[:lower:]')
+CLEAN_NAME="${CLEAN_NAME} ${SUFFIX}"
                     log "📡 Searching Sonarr for: $CLEAN_NAME"
-
-                    SEARCH_TERM=$(echo "$SERIES_NAME" | cut -d' ' -f1) 
 notify_sonarr_targeted_rename "$SERIES_NAME"
+                    SEARCH_TERM=$(echo "$SERIES_NAME" | cut -d' ' -f1) 
 
                     log "📡 Searching Sonarr for series containing: $SEARCH_TERM"
                     
