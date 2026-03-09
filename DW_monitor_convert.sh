@@ -78,7 +78,7 @@ while true; do
                     log "Moving: $(basename "$file")"
                     # The trailing slash ensures it treats the destination as a directory
                     log "mv -v $file $DIR_MEDIA_TORRENT/completed_movies/$(basename "$file")"
-                    #mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/$file"
+                    mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/$(basename "$file")"
                 fi
             done
         fi
