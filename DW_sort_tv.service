@@ -7,7 +7,7 @@ User=root
 Group=root
 
 Type=simple
-ExecStart=/bin/bash /usr/local/bin/DW_sort_tv.sh
+ExecStart=/bin/bash /usr/local/bin/DW_sort_tv.sh /opt/sorttv.conf
 Restart=always
 RestartSec=10
 
