@@ -64,35 +64,35 @@ if echo "$OUTPUT" | grep -q "MOVE EPISODE" || echo "$OUTPUT" | grep -q "--to-->"
                     # 1. Clean up the name for searching (e.g., "Paradise 2025")
                     CLEAN_NAME=$(echo "$SERIES_NAME" | sed 's/[^a-zA-Z0-9 ]//g')
                     log "📡 Searching Sonarr for: $CLEAN_NAME"
-#notify_sonarr_targeted_rename "$SERIES_NAME"
 
                     SEARCH_TERM=$(echo "$SERIES_NAME" | cut -d' ' -f1) 
+notify_sonarr_targeted_rename "$SERIES_NAME"
 
                     log "📡 Searching Sonarr for series containing: $SEARCH_TERM"
                     
                     # 2. Updated JQ: Select by 'contains' rather than exact equality
-                    SERIES_ID=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | \
-                                jq -r ".[] | select(.title | ascii_downcase | contains(\"${SEARCH_TERM,,}\")) | .id" | head -n 1)
-                    
-                    if [ -n "$SERIES_ID" ] && [ "$SERIES_ID" != "null" ]; then
-                        log "✅ Found ID $SERIES_ID. Triggering targeted Rescan..."
-                        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                             -H "Content-Type: application/json" \
-                             -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $SERIES_ID}" \
-                             "$SONARR_URL/api/v3/command" > /dev/null
-                    else
-                        log "⚠️ Could not find ID for '$SEARCH_TERM'. Falling back to folder scan..."
-                        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                             -H "Content-Type: application/json" \
-                             -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"/mnt/media/TV/$SERIES_NAME\"}" \
-                             "$SONARR_URL/api/v3/command" > /dev/null
-                    fi
-                    # Trigger a rename for all episodes in the series
-                    curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                         -H "Content-Type: application/json" \
-                         -X POST -d "{\"name\": \"RenameFiles\", \"seriesIds\": [$SERIES_ID]}" \
-                         "$SONARR_URL/api/v3/command" > /dev/null
-                fi
+#                    SERIES_ID=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | \
+#                                jq -r ".[] | select(.title | ascii_downcase | contains(\"${SEARCH_TERM,,}\")) | .id" | head -n 1)
+#                    
+#                    if [ -n "$SERIES_ID" ] && [ "$SERIES_ID" != "null" ]; then
+#                        log "✅ Found ID $SERIES_ID. Triggering targeted Rescan..."
+#                        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+#                             -H "Content-Type: application/json" \
+#                             -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $SERIES_ID}" \
+#                             "$SONARR_URL/api/v3/command" > /dev/null
+#                    else
+#                        log "⚠️ Could not find ID for '$SEARCH_TERM'. Falling back to folder scan..."
+#                        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+#                             -H "Content-Type: application/json" \
+#                             -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"/mnt/media/TV/$SERIES_NAME\"}" \
+#                             "$SONARR_URL/api/v3/command" > /dev/null
+#                    fi
+#                    # Trigger a rename for all episodes in the series
+#                    curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+#                         -H "Content-Type: application/json" \
+#                         -X POST -d "{\"name\": \"RenameFiles\", \"seriesIds\": [$SERIES_ID]}" \
+#                         "$SONARR_URL/api/v3/command" > /dev/null
+#                fi
             else
                 log "⚠️ SortTV encountered an error. The file might be locked by the torrent client."
                 # Optional: If you want to force a scan anyway, keep notify_media_managers here
