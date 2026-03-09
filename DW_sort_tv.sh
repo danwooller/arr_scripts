@@ -10,10 +10,10 @@ fi
 
 # --- Configuration ---
 LOCK_FILE="/tmp/sorttv_running.lock"
-LOG_LEVEL="debug"
+#LOG_LEVEL="debug"
 
 # --- Ensure dependencies exist (Metric check: jq for API parsing) ---
-check_dependencies "jq" "curl"
+check_dependencies "curl" "jq"
 
 log_start
 
@@ -29,7 +29,7 @@ fi
 # --- Cleanup stale locks on start ---
 rm -f "$LOCK_FILE"
 # --- Grab the latest config ---
-cp ~/arr_scripts/sorttv.conf /opt
+cp ~/arr_scripts/sorttv.conf /opt/sorttv
 
 while true; do
     # --- Check if SortTV is already running ---
@@ -74,10 +74,8 @@ while true; do
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
                     # --- Metric-safe sync to Synology ---
-#delete                    sync_tv_show_synology "$SHOW_NAME_ONLY"
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
-#delete                    update_plex_library "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
                     plex_library_update "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Files moved, but no specific show path parsed. Running general notification."
