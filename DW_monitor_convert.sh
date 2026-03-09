@@ -64,6 +64,7 @@ while true; do
 
     # --- Check for weekly shows and move them for subtitle stripping ---
     for pattern in "${WEEKLY_SHOWS[@]}"; do
+        log "📂 Checking files matching: $pattern"
         # Check if any files matching the pattern exist to avoid "no such file" errors
         if ls "$WORKING_DIR"/$pattern 1> /dev/null 2>&1; then
             log "📂 Moving files matching: $pattern"
