@@ -58,15 +58,30 @@ while true; do
                     # Map to your TV root
                     #SERIES_FOLDER="/mnt/media/TV/$SERIES_NAME"
                     SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
-                    log "📂 Detected move for: $SERIES_NAME"
-                    
+              #      log "📂 Detected move for: $SERIES_NAME"     
                     # Notify Sonarr with specific path
-                    curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-                         -H "Content-Type: application/json" \
-                         -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
-                         "$SONARR_URL/api/v3/command" > /dev/null
+              #      curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+              #           -H "Content-Type: application/json" \
+              #           -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
+              #           "$SONARR_URL/api/v3/command" > /dev/null
             
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
+                    SERIES_ID=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_URL/api/v3/series" | \
+                                    jq -r ".[] | select(.title | ascii_downcase == \"${SHOW_NAME_ONLY,,}\") | .id")
+                    
+                        if [ -n "$SERIES_ID" ] && [ "$SERIES_ID" != "null" ]; then
+                            log "📡 Triggering targeted Rescan for $SHOW_NAME_ONLY (ID: $SERIES_ID)..."
+                            curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+                                 -H "Content-Type: application/json" \
+                                 -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $SERIES_ID}" \
+                                 "$SONARR_URL/api/v3/command" > /dev/null
+                        else
+                            log "⚠️ Could not find ID for '$SHOW_NAME_ONLY'. Running general DownloadedEpisodesScan."
+                            curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+                                 -H "Content-Type: application/json" \
+                                 -X POST -d "{\"name\": \"DownloadedEpisodesScan\", \"path\": \"$SERIES_FOLDER\"}" \
+                                 "$SONARR_URL/api/v3/command" > /dev/null
+                        fi
                     sleep 5
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
