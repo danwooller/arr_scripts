@@ -69,7 +69,7 @@ while true; do
         if ls "$SOURCE_DIR"/$pattern 1> /dev/null 2>&1; then
             [[ $LOG_LEVEL == "debug" ]] && log "📂 Moving files matching: $pattern"
             log "mv $SOURCE_DIR/$pattern $DIR_MEDIA_TORRENT/completed_movies"
-            mv "$SOURCE_DIR/$pattern" "$DIR_MEDIA_TORRENT/completed_movies"
+            mv "$SOURCE_DIR"/$pattern "$DIR_MEDIA_TORRENT/completed_movies/"
         fi
     done
 
