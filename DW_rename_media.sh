@@ -10,10 +10,7 @@ else
 fi
 
 # --- Configuration ---
-HOST_NAME=$(hostname)
 CONVERT_DIR="/mnt/media/torrent/${HOST_NAME}_convert"
-NZB_DIR="/mnt/media/torrent/nzb-get/nzb"
-LOG_FILE="/mnt/media/torrent/${HOST_NAME}.log"
 SLEEP_INTERVAL=60
 
 # Ensure script exits immediately if any command fails (except for handled errors)
@@ -21,7 +18,7 @@ set -e
 
 log "--- Starting Media Renamer Script (Continuous Mode) ---"
 #log "Target Video Directory: $CONVERT_DIR"
-#log "Metadata Directory: $NZB_DIR"
+#log "Metadata Directory: $DIR_MEDIA_NZB"
 #log "Log File: $LOG_FILE"
 #log "-------------------------------------------------------"
 
@@ -30,8 +27,8 @@ if [[ ! -d "$CONVERT_DIR" ]]; then
     log "Error: Video directory not found: $CONVERT_DIR" >&2
     exit 1
 fi
-if [[ ! -d "$NZB_DIR" ]]; then
-    log "Error: Metadata directory not found: $NZB_DIR" >&2
+if [[ ! -d "$DIR_MEDIA_NZB" ]]; then
+    log "Error: Metadata directory not found: $DIR_MEDIA_NZB" >&2
     exit 1
 fi
 
@@ -60,7 +57,7 @@ while true; do
 #        log "  -> Passed filter. Searching for metadata..."
 
         # --- 2. Search for metadata match ---
-        METADATA_FILE=$(grep -r -l -F "<meta type=\"title\">$FILENAME_WITH_EXT</meta>" "$NZB_DIR" 2>/dev/null | head -n 1)
+        METADATA_FILE=$(grep -r -l -F "<meta type=\"title\">$FILENAME_WITH_EXT</meta>" "$DIR_MEDIA_NZB" 2>/dev/null | head -n 1)
 
         if [[ -n "$METADATA_FILE" ]]; then
 #            log "  -> MATCH FOUND in $METADATA_FILE"
@@ -92,7 +89,7 @@ while true; do
                 log "  -> WARNING: Metadata file found, but could not extract <meta type=\"name\"> content."
             fi
 #        else
-#            log "  -> No metadata match found in $NZB_DIR"
+#            log "  -> No metadata match found in $DIR_MEDIA_NZB"
         fi
 #        log "-------------------------------------"
 
