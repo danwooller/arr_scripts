@@ -92,7 +92,7 @@ notify_sonarr_targeted_rename "$SERIES_NAME"
 #                         -H "Content-Type: application/json" \
 #                         -X POST -d "{\"name\": \"RenameFiles\", \"seriesIds\": [$SERIES_ID]}" \
 #                         "$SONARR_URL/api/v3/command" > /dev/null
-#                fi
+                fi
             else
                 log "⚠️ SortTV encountered an error. The file might be locked by the torrent client."
                 # Optional: If you want to force a scan anyway, keep notify_media_managers here
