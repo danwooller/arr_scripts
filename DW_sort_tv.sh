@@ -50,9 +50,9 @@ while true; do
             EXIT_CODE=$?
 
             SERIES_NAME=$(echo "$OUTPUT" | grep -oP '(?<=trying to move ).*(?= season)' | head -n 1)
-echo "----1----"
+log "----1----"
             if [ $EXIT_CODE -eq 0 ] && [ -z "$(echo "$OUTPUT" | grep "WARN: Error sorting")" ]; then
-echo "----2----"
+log "----2----"
                 log "✅ SortTV ran successfully."
                 
                 if [ -n "$SERIES_NAME" ]; then
