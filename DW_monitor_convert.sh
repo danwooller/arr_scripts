@@ -62,27 +62,30 @@ while true; do
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
 
-    # --- Check for weekly shows and move them for subtitle stripping ---
+    # --- Move weekly shows (Case-Insensitive) ---
+    # Enable case-insensitive matching and nullglob
+    shopt -s nocaseglob
     shopt -s nullglob
+    
     for pattern in "${WEEKLY_SHOWS[@]}"; do
-        SEARCH_PATH="$SOURCE_DIR/$pattern"
-        
-        # DEBUG: See what Bash actually sees
-        echo "DEBUG: Looking for $SEARCH_PATH"
-        ls -l "$SEARCH_PATH" 2>/dev/null 
-        
-        FILES=($SEARCH_PATH)
+        # Expand to array
+        FILES=("$SOURCE_DIR"/$pattern)
         
         if [ ${#FILES[@]} -gt 0 ]; then
-            log "📂 Found ${#FILES[@]} file(s) matching: $pattern"
+            log "📂 Found ${#FILES[@]} match(es) for: $pattern"
             for file in "${FILES[@]}"; do
-                log "Moving: $(basename "$file") to $DIR_MEDIA_TORRENT/completed_movies/"
-                mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/"
+                # Final check: Ensure it is a file before moving
+                if [ -f "$file" ]; then
+                    log "Moving: $(basename "$file")"
+                    # The trailing slash ensures it treats the destination as a directory
+                    mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/"
+                fi
             done
-        else
-            log "⚠️ No files found for pattern: $pattern (Checked in $SOURCE_DIR)"
         fi
     done
+    
+    # Reset shell options
+    shopt -u nocaseglob
     shopt -u nullglob
 
     # Use 'find' with -name filters
