@@ -65,23 +65,22 @@ while true; do
     # --- Check for weekly shows and move them for subtitle stripping ---
     shopt -s nullglob
     for pattern in "${WEEKLY_SHOWS[@]}"; do
-#        [[ $LOG_LEVEL == "debug" ]] && log "📂 Checking files matching: $pattern"
-#        # Check if any files matching the pattern exist to avoid "no such file" errors
-#        if ls "$SOURCE_DIR"/$pattern 1> /dev/null 2>&1; then
-#            [[ $LOG_LEVEL == "debug" ]] && log "📂 Moving files matching: $pattern"
-#            log "mv $SOURCE_DIR/$pattern $DIR_MEDIA_TORRENT/completed_movies"
-#            mv "$SOURCE_DIR"/$pattern "$DIR_MEDIA_TORRENT/completed_movies/"
-#        fi
-        # Create the full search path
         SEARCH_PATH="$SOURCE_DIR/$pattern"
-        # Expand the files into an array
+        
+        # DEBUG: See what Bash actually sees
+        echo "DEBUG: Looking for $SEARCH_PATH"
+        ls -l "$SEARCH_PATH" 2>/dev/null 
+        
         FILES=($SEARCH_PATH)
+        
         if [ ${#FILES[@]} -gt 0 ]; then
             log "📂 Found ${#FILES[@]} file(s) matching: $pattern"
             for file in "${FILES[@]}"; do
-                log "Moving: $(basename "$file")"
-                mv "$file" "$DIR_MEDIA_TORRENT/completed_movies/"
+                log "Moving: $(basename "$file") to $DIR_MEDIA_TORRENT/completed_movies/"
+                mv -v "$file" "$DIR_MEDIA_TORRENT/completed_movies/"
             done
+        else
+            log "⚠️ No files found for pattern: $pattern (Checked in $SOURCE_DIR)"
         fi
     done
     shopt -u nullglob
