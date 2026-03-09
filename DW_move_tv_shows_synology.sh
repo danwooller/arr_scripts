@@ -90,7 +90,7 @@ while true; do
                         fi
                     fi
                 else
-                    log "[ERROR] rsync failed for '$show_name'. Check log for details."
+                    log "[ERROR] rsync failed for '$show_name' with exit code $RSYNC_EXIT"
                 fi
             fi
         fi
