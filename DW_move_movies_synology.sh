@@ -20,6 +20,9 @@ SLEEP_INTERVAL=300
 # Set to "true" for a dry run. No files will be moved.
 DRY_RUN=false
 
+# --- Run Dependency Check using the shared function ---
+check_dependencies "rsync"
+
 # --- Safety Checks ---
 if [ ! -d "$DIR_SYNOLOGY_MOVIES" ]; then
     log "Error: Synology directory not found: $DIR_SYNOLOGY_MOVIES"
@@ -32,9 +35,6 @@ if [ ! -d "$DIR_MEDIA_MOVIES" ]; then
     fi
     exit 1
 fi
-
-# --- Run Dependency Check using the shared function ---
-check_dependencies "rsync"
 
 log "--- Movie Sync Service Started ---"
 log "Monitoring: $DIR_MEDIA_MOVIES"
@@ -68,7 +68,8 @@ while true; do
                 fi
 
                 if [[ $LOG_LEVEL = "debug" ]]; then
-                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> "$LOG_FILE" 2>&1
+#                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> "$LOG_FILE" 2>&1
+                    rsync $RSYNC_OPTS "$source_movie_path/" "$dest_movie_path" >> log 2>&1
                 else
                     # Use rsync to "move-and-merge"
                     # Redirecting rsync output to log via the log function can be messy, 
