@@ -31,8 +31,15 @@ log_end() {
 }
 
 # Universal Graceful Exit
-trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
-# This will now apply to any script that sources this file
+#trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
+cleanup() {
+    log "🛑 Service stopping. Removing lock file."
+    if [ -f "$LOCK_FILE" ]; then
+        rm -f "$LOCK_FILE"
+    fi
+    exit
+}
+trap cleanup SIGTERM SIGINT
 
 # --- Load External Configuration ---
 CONFIG_FILE="/usr/local/bin/common_keys.txt"
