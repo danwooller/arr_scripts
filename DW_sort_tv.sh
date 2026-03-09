@@ -33,7 +33,7 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # --- Grab the latest config ---
-cp ~/arr_scripts/sorttv.conf /opt/sorttv
+cp /home/dan/arr_scripts/sorttv.conf /opt/sorttv
 
 # --- Service Loop ---
 while true; do
