@@ -23,6 +23,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_move_movies_synology.sh**](./DW_move_movies_synology.sh) | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. _Running on ubuntu24_ |
 | [**DW_move_tv_shows_synology.sh**](./DW_move_tv_shows_synology.sh) | Monitors the tv shows folder on the secondary server (synology) and checks the primary (truenas) for duplicate show folders (indicating a REPACK or new episodes) and moves them. _Running on ubuntu24_ |
 | [**DW_move_single_tv_show_synology.sh**](./DW_move_single_tv_show_synology.sh) | Moves the tv show folder specified by $1 and moves it to the secondary server (synology) only if it exists. _Running on ubuntu9 & ubuntu24_ |
+| [**DW_plex_update.sh**](./DW_plex_update.sh) | Triggers a library update on Plex, $1 is section ID and $2 is library name. _Running on ubuntu24_ |
 | [**DW_rename_media.sh**](./DW_rename_media.sh) | Looks for obfuscated filesnames and tries to find NZB metadata to retore filename. _Running on ubuntu9_ |
 | [**DW_restart_vpn.sh**](./DW_restart_vpn.sh) | Restarts the VPN and associated torrent containers. _Running on ubuntu9_ |
 | [**DW_scan_corrupt_media.sh**](./DW_scan_corrupt_media.sh) | Scan directories in $1 looking for corrupted media files, marking an issue in Seer. _Running on ubuntu24_ |
