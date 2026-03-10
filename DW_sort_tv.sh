@@ -69,8 +69,7 @@ while true; do
                     mv -v "$file" "$dest/"
                     [[ "$LOG_LEVEL" == "debug" ]] && log "Updating Sonarr for: $dest"
                     notify_sonarr_targeted_rename "$dest"
-                    SHOW_NAME="${dest##*/}"
-                    manage_remote_torrent "delete" "$SHOW_NAME"
+                    manage_remote_torrent "delete" "$file"
                 done
             done
 
