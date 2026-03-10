@@ -45,33 +45,6 @@ while true; do
             [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Service already running. Skipping."
         else
             touch "$LOCK_FILE"
-
-            # 3. Enable case-insensitive globbing
-            shopt -s nocaseglob
-            
-            # 4. Define the mapping (Pattern -> Destination)
-            declare -A LIBRARY_MAP=(
-                ["stephen.colbert"]=" /mnt/media/TV/The Late Show with Stephen Colbert (2015)"
-                ["last.week.tonight"]=" /mnt/media/TV/Last Week Tonight with John Oliver"
-                ["daily.show"]=" /mnt/media/TV/The Daily Show"
-            )
-            
-            # 5. Iterate through the mapping
-            for pattern in "${!LIBRARY_MAP[@]}"; do
-                dest="${LIBRARY_MAP[$pattern]}"
-                
-                # Find files/folders matching the pattern
-                # We use -maxdepth 1 to look only in the current directory
-                for item in *"$pattern"*.*; do
-                    [ -e "$item" ] || continue # Skip if nothing matches
-                    
-                    log "Moving: '$item' -> '$dest'"
-                    mv -v "$item" "$dest/"
-                done
-            done
-            
-            # 6. Cleanup
-            shopt -u nocaseglob
             
             # 7. Run SortTV and capture output
             OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1)
