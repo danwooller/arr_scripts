@@ -64,7 +64,7 @@ while true; do
                 # Use find to locate files case-insensitively
                 # -maxdepth 1 limits to current folder; adjust if searching subfolders
                 # -iname ensures case is ignored for both the pattern and the filename
-                find . -maxdepth 1 -type f -iname "*$pattern*.mkv" -print0 | while IFS= read -r -d '' file; do
+                find "$DIR_MEDIA_COMPLETED" -maxdepth 1 -type f -iname "*$pattern*.mkv" -print0 | while IFS= read -r -d '' file; do
                     log "Moving: '$file' -> '$dest/'"
                     mv -v "$file" "$dest/"
                 done
