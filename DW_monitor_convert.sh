@@ -19,9 +19,6 @@ else
     exit 1
 fi
 
-# --- copy common_keys.txt ---
-cp $DIR_MEDIA_BACKUP/ubuntu24/arr_scripts/common_keys.txt /usr/local/bin
-
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}_convert"
@@ -40,6 +37,9 @@ MIN_FILE_AGE=5
 
 # --- Setup Directories ---
 mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$DIR_MEDIA_SUBTITLES" "$DIR_MEDIA_FINISHED"
+
+# --- copy common_keys.txt ---
+cp $DIR_MEDIA_BACKUP/ubuntu24/arr_scripts/common_keys.txt /usr/local/bin
 
 # --- Run Dependency Check using the shared function ---
 check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge"
