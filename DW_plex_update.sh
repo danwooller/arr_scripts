@@ -8,7 +8,7 @@ else
     exit 1
 fi
 
-PLEX24_SRC=${1:-1}
+PLEX24_SRC=${1:-2}
 PLEX24_NAME=${2:-TV Shows}
 
 plex_library_update "$PLEX24_SRC" "$PLEX24_NAME"
