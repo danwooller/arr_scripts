@@ -1,8 +1,19 @@
 #!/bin/bash
 
-# Load your modular library files
-source "/usr/local/bin/DW_common_functions.sh"
-source "/usr/local/bin/DW_common_seerr_issue.sh"
+# --- Load Shared Functions ---
+# Checking existence to prevent 'set -e' from killing the script cryptically
+if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
+    source "/usr/local/bin/DW_common_functions.sh"
+else
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
+    exit 1
+fi
+if [ -f "/usr/local/bin/DW_common_seerr_issue.sh" ]; then
+    source "/usr/local/bin/DW_common_seerr_issue.sh"
+else
+    echo "⚠️ /usr/local/bin/DW_common_seerr_issue.sh missing. Exiting."
+    exit 1
+fi
 
 # Colors for readability
 GREEN='\033[0;32m'
