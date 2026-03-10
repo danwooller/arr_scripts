@@ -67,6 +67,8 @@ while true; do
                 find "$DIR_MEDIA_COMPLETED" -maxdepth 1 -type f -iname "*$pattern*.mkv" -print0 | while IFS= read -r -d '' file; do
                     log "Moving: '$file' -> '$dest/'"
                     mv -v "$file" "$dest/"
+                    SHOW_NAME_ONLY="${dest##*/}"
+                    notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
                 done
             done
 #            for pattern in "${!LIBRARY_MAP[@]}"; do
