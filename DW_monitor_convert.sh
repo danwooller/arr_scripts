@@ -19,6 +19,9 @@ else
     exit 1
 fi
 
+# --- copy common_keys.txt ---
+cp $DIR_MEDIA_BACKUP/ubuntu24/arr_scripts/common_keys.txt /usr/local/bin
+
 # --- Configuration ---
 HOST=$(hostname -s)
 SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}_convert"
@@ -30,14 +33,6 @@ fi
 CONVERT_DIR="$HOME_DIR/convert"
 WORKING_DIR="$HOME_DIR/${HOST}_done"
 #LOG_LEVEL="debug"
-
-# HandBrake Presets (Using system presets)
-PRESET_4K="H.265 MKV 2160p60"
-PRESET_1080P="Very Fast 1080p30"
-PRESET_1080P_X265="H.265 MKV 1080p30"
-PRESET_720P="Very Fast 720p30"
-PRESET_576P="Very Fast 576p25"
-PRESET_SD="Very Fast 480p30"
 
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
