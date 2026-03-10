@@ -65,24 +65,14 @@ while true; do
                 # -maxdepth 1 limits to current folder; adjust if searching subfolders
                 # -iname ensures case is ignored for both the pattern and the filename
                 find "$DIR_MEDIA_COMPLETED" -maxdepth 1 -type f -iname "*$pattern*.mkv" -print0 | while IFS= read -r -d '' file; do
-                    log "Moving: '$file' -> '$dest/'"
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "Moving: '$file' -> '$dest/'"
                     mv -v "$file" "$dest/"
                     SHOW_NAME_ONLY="${dest##*/}"
-                    log "Updating Sonarr for: $SHOW_NAME_ONLY"
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "Updating Sonarr for: $SHOW_NAME_ONLY"
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
                 done
             done
-#            for pattern in "${!LIBRARY_MAP[@]}"; do
-#                dest="${LIBRARY_MAP[$pattern]}"
-                # Find files/folders matching the pattern
-                # We use -maxdepth 1 to look only in the current directory
-#                for item in *"$pattern"*.*; do
-#                    [ -e "$item" ] || continue # Skip if nothing matches
-#                    log "Moving: '$item' -> '$dest'"
-#                    mv -v "$item" "$dest/"
-#                done
-#            done
-            
+
             # 6. Cleanup
             shopt -u nocaseglob
 
