@@ -67,9 +67,7 @@ while true; do
                 find "$DIR_MEDIA_COMPLETED" -maxdepth 1 -type f -iname "*$pattern*.mkv" -print0 | while IFS= read -r -d '' file; do
                     [[ "$LOG_LEVEL" == "debug" ]] && log "Moving: '$file' -> '$dest/'"
                     mv -v "$file" "$dest/"
-                    SHOW_NAME_ONLY="${dest##*/}"
-                    [[ "$LOG_LEVEL" == "debug" ]] && log "Updating Sonarr for: $SHOW_NAME_ONLY"
-                    #notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "Updating Sonarr for: $dest"
                     notify_sonarr_targeted_rename "$dest"
                 done
             done
