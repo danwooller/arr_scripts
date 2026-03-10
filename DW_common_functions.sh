@@ -206,7 +206,8 @@ notify_sonarr_targeted_rename() {
     # Fetch Series ID
     local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
         jq -r ".[] | select(.path | endswith(\"/$show_name\")) | .id")
-log "$series_id"
+log "curl -s -H  X-Api-Key: $SONARR_API_KEY  $SONARR_API_BASE/series  | \
+        jq -r  .[] | select(.path | endswith(\ /$show_name\)) | .id"
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
         
         # 1. Trigger Refresh (Disk Scan)
