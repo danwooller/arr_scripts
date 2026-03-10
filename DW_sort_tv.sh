@@ -69,7 +69,8 @@ while true; do
                     mv -v "$file" "$dest/"
                     SHOW_NAME_ONLY="${dest##*/}"
                     [[ "$LOG_LEVEL" == "debug" ]] && log "Updating Sonarr for: $SHOW_NAME_ONLY"
-                    notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
+                    #notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
+                    notify_sonarr_targeted_rename "$dest"
                 done
             done
 
