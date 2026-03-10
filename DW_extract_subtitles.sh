@@ -12,8 +12,7 @@ else
 fi
 
 # --- Configuration ---
-HOST=$(hostname -s)
-SOURCE_DIR="/mnt/media/torrent/${HOST}/subtitles/extract"
+SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/extract"
 
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
@@ -35,7 +34,7 @@ while true; do
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
         
-        log "✅ Detected video file: $FILENAME"
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Detected video file: $FILENAME"
 
         # Reset HandBrake subtitle argument.
         HANDBRAKE_SUB_ARGS=""
@@ -43,16 +42,16 @@ while true; do
 
         # --- 3. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
         SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
-        log "   -> Checking for English forced subtitles..."
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."
         TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
         SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         echo "Extracted Forced Track ID: $SUB_TRACK_ID"
 
         if [[ -n "$SUB_TRACK_ID" ]]; then
-            log "   -> English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
             mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
         else
-            log "   -> No suitable English forced subtitle track found in the source file."
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No suitable English forced subtitle track found in the source file."
         fi
     done
     
