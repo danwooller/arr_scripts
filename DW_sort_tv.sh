@@ -56,19 +56,29 @@ while true; do
                 ["daily.show"]=" /mnt/media/TV/The Daily Show"
             )
             
-            # 5. Iterate through the mapping
+            # 5. Iterate through the mappin
             for pattern in "${!LIBRARY_MAP[@]}"; do
                 dest="${LIBRARY_MAP[$pattern]}"
-                
-                # Find files/folders matching the pattern
-                # We use -maxdepth 1 to look only in the current directory
-                for item in *"$pattern"*.*; do
-                    [ -e "$item" ] || continue # Skip if nothing matches
-                    
-                    log "Moving: '$item' -> '$dest'"
-                    mv -v "$item" "$dest/"
+                # Create destination if it doesn't exist (20 meters of files? No problem!)
+                mkdir -p "$dest"
+                # Use find to locate files case-insensitively
+                # -maxdepth 1 limits to current folder; adjust if searching subfolders
+                # -iname ensures case is ignored for both the pattern and the filename
+                find . -maxdepth 1 -type f -iname "*$pattern*.mkv" -print0 | while IFS= read -r -d '' file; do
+                    log "Moving: '$file' -> '$dest/'"
+                    mv -v "$file" "$dest/"
                 done
             done
+#            for pattern in "${!LIBRARY_MAP[@]}"; do
+#                dest="${LIBRARY_MAP[$pattern]}"
+                # Find files/folders matching the pattern
+                # We use -maxdepth 1 to look only in the current directory
+#                for item in *"$pattern"*.*; do
+#                    [ -e "$item" ] || continue # Skip if nothing matches
+#                    log "Moving: '$item' -> '$dest'"
+#                    mv -v "$item" "$dest/"
+#                done
+#            done
             
             # 6. Cleanup
             shopt -u nocaseglob
