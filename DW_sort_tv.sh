@@ -51,7 +51,7 @@ while true; do
             
             # 4. Define the mapping (Pattern -> Destination)
             declare -A LIBRARY_MAP=(
-                ["stephen.colbert"]="/mnt/media/TV/The Late Show with Stephen Colbert (2015)"
+                ["stephen.colbert"]="/mnt/media/TV/The Late Show with Stephen Colbert"
                 ["last.week.tonight"]="/mnt/media/TV/Last Week Tonight with John Oliver"
                 ["daily.show"]="/mnt/media/TV/The Daily Show"
             )
