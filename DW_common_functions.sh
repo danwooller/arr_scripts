@@ -185,6 +185,7 @@ notify_media_managers() {
     fi
     # Update Plex server
     plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
+    sleep 5
     plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
 }
 
