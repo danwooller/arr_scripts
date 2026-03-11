@@ -322,7 +322,8 @@ plex_library_update() {
     local section_id="$1"
     local library_name="$2"
     # Clean the variables from any hidden carriage returns or spaces
-    local url=$(echo "$PLEX_URL" | tr -d '\r' | xargs)
+    #local url=$(echo "$PLEX_URL" | tr -d '\r' | xargs)
+    local url=$(echo "$PLEX_URL_LOCAL" | tr -d '\r' | xargs)
     local token=$(echo "$PLEX_TOKEN" | tr -d '\r' | xargs)
     # If the URL is still empty here, the source/export failed
     if [[ -z "$url" ]]; then
