@@ -321,28 +321,32 @@ plex_library_update() {
     # DW_sort_tv.sh
     local section_id="$1"
     local library_name="$2"
-    # Clean the variables from any hidden carriage returns or spaces
-    #local url=$(echo "$PLEX_URL" | tr -d '\r' | xargs)
-    local url=$(echo "$PLEX_URL_LOCAL" | tr -d '\r' | xargs)
-    local token=$(echo "$PLEX_TOKEN" | tr -d '\r' | xargs)
-    # If the URL is still empty here, the source/export failed
-    if [[ -z "$url" ]]; then
-        log "❌ ERROR: PLEX_URL is empty. Check if common_keys is sourced correctly."
-        return 1
-    fi
-    [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Triggering Plex scan for $library_name"
-    # Construct the full URL for the API call
-    local request_url="$url/library/sections/$section_id/refresh"
-    # Execute and capture the HTTP status code
-    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Token length is ${#token}"
-    local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
-        "$request_url" \
-        -H "X-Plex-Token: $token" \
-        -H "Accept: application/json")
-    if [[ "$response" == "200" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan request successful."
-    else
-        log "❌ Plex returned error code $response. (Attempted: $url/...)"
+    local url="$PLEX_URL"
+    local token="$PLEX_TOKEN"
+    local max_retries=3
+    local attempt=1
+    local success=false
+
+    while [ $attempt -le $max_retries ]; do
+        local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
+            "$url/library/sections/$section_id/refresh" \
+            -H "X-Plex-Token: $token" \
+            -H "Accept: application/json" \
+            --max-time 10) # Added timeout to prevent hanging
+
+        if [[ "$response" == "200" ]]; then
+            [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan successful for $library_name (Attempt $attempt)."
+            success=true
+            break
+        else
+            log "⚠️ Plex scan attempt $attempt failed for $library_name with code $response. Retrying..."
+            sleep 5
+            ((attempt++))
+        fi
+    done
+
+    if [ "$success" = false ]; then
+        log "❌ ERROR: Plex scan failed after $max_retries attempts for $library_name."
     fi
 }
 
