@@ -321,7 +321,7 @@ plex_library_update() {
     # DW_sort_tv.sh
 
 #TEMP
-    if ! nc -z -w 2 192.168.1.50 32400; then
+    if ! nc -z -w 2 192.168.0.24 32400; then
         log "❌ Plex server port 32400 is not reachable. Skipping scan."
         return 1
     fi
