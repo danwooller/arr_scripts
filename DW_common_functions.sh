@@ -336,8 +336,10 @@ plex_library_update() {
     # Execute and capture the HTTP status code
     [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Token length is ${#token}"
     local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
-         "$request_url" \
-         -H "X-Plex-Token: $token")
+        "$request_url" \
+#        -H "X-Plex-Token: $token")
+        -H "X-Plex-Token: $token" \
+        -H "Accept: application/json")
     if [[ "$response" == "200" ]]; then
         [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan request successful."
     else
