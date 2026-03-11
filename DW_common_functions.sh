@@ -337,7 +337,6 @@ plex_library_update() {
     [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Token length is ${#token}"
     local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
         "$request_url" \
-#        -H "X-Plex-Token: $token")
         -H "X-Plex-Token: $token" \
         -H "Accept: application/json")
     if [[ "$response" == "200" ]]; then
