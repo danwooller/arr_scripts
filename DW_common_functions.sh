@@ -334,7 +334,7 @@ plex_library_update() {
     # Construct the full URL for the API call
     local request_url="$url/library/sections/$section_id/refresh"
     # Execute and capture the HTTP status code
-    log "DEBUG: Token length is ${#token}"
+    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Token length is ${#token}"
     local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
          "$request_url" \
          -H "X-Plex-Token: $token")
