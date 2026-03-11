@@ -39,23 +39,19 @@ cp /home/dan/arr_scripts/sorttv.conf /opt/sorttv
 while true; do
     # 1. Check if mount is active
     if mountpoint -q $DIR_MEDIA; then
-        
         # 2. Prevent overlapping runs
         if [ -f "$LOCK_FILE" ]; then
             [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Service already running. Skipping."
         else
             touch "$LOCK_FILE"
-
             # 3. Enable case-insensitive globbing
             shopt -s nocaseglob
-            
             # 4. Define the mapping (Pattern -> Destination)
             declare -A LIBRARY_MAP=(
                 ["stephen.colbert"]="/mnt/media/TV/The Late Show with Stephen Colbert"
                 ["last.week.tonight"]="/mnt/media/TV/Last Week Tonight with John Oliver"
                 ["daily.show"]="/mnt/media/TV/The Daily Show"
             )
-            
             # 5. Iterate through the mappin
             for pattern in "${!LIBRARY_MAP[@]}"; do
                 dest="${LIBRARY_MAP[$pattern]}"
@@ -73,25 +69,18 @@ while true; do
                     manage_remote_torrent "delete" "$SHOW_NAME"
                 done
             done
-
             # 6. Cleanup
             shopt -u nocaseglob
-
             # 7. Run SortTV and capture output
             OUTPUT=$(/usr/bin/perl /opt/sorttv/sorttv.pl 2>&1)
             EXIT_CODE=$?
-            
             if [ $EXIT_CODE -eq 0 ]; then
                 [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
-                
                 # 8. Extract folder and trigger Sonarr logic
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
-                
                 if [ -n "$SERIES_FOLDER" ]; then
                     [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
-                    
-                    # Using your original working functions
                     sync_tv_show_synology "$SHOW_NAME_ONLY"
                     notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
@@ -102,7 +91,6 @@ while true; do
             else
                 log "⚠️ SortTV encountered an error during execution."
             fi
-            
             rm -f "$LOCK_FILE"
         fi
     else
