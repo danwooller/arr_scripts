@@ -140,7 +140,7 @@ manage_remote_torrent() {
             # Extracts the unique 40-character torrent hash from the first part of the string.
             local t_name=$(echo "$t_data" | cut -d'|' -f2)
             # Extracts the actual torrent name as it appears in qBittorrent for logging purposes.
-            log "ℹ️ Match Found: [$t_name]. Sending $action..."
+            log "ℹ️ Torrent Found: [$t_name]. Sending $action..."
             # Records the successful match and the intended action to your host-specific log file.
             local q_cmd="${action}"
             # Creates a local variable for the command to be sent to the qBittorrent API.
