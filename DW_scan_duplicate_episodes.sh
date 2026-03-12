@@ -10,8 +10,8 @@ else
 fi
 
 # --- Load External Configuration ---
-CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
-[[ -f "$CONFIG_FILE" ]] && source <(sed 's/\r$//' "$CONFIG_FILE")
+#CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
+#[[ -f "$CONFIG_FILE" ]] && source <(sed 's/\r$//' "$CONFIG_FILE")
 
 check_dependencies "curl" "jq" "sed" "grep"
 
