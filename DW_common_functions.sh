@@ -343,7 +343,7 @@ plex_library_update() {
             success=true
             break
         else
-            log "⚠️ Plex scan attempt $attempt failed for $library_name with code $response. Retrying..."
+            [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Plex scan attempt $attempt failed for $library_name with code $response. Retrying..."
             sleep 5
             ((attempt++))
         fi
