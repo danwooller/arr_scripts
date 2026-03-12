@@ -10,15 +10,15 @@ else
 fi
 
 # --- Load External Configuration ---
-CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
-if [[ -f "$CONFIG_FILE" ]]; then
-    # Source the file, but strip any trailing Windows CR characters on the fly
-    source <(sed 's/\r$//' "$CONFIG_FILE")
-else
-    log "WARN: Config file $CONFIG_FILE not found."
-    EXCLUDE_DIRS=()
-    declare -A MANUAL_MAPS
-fi
+#CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
+#if [[ -f "$CONFIG_FILE" ]]; then
+#    # Source the file, but strip any trailing Windows CR characters on the fly
+#    source <(sed 's/\r$//' "$CONFIG_FILE")
+#else
+#    log "WARN: Config file $CONFIG_FILE not found."
+#    EXCLUDE_DIRS=()
+#    declare -A MANUAL_MAPS
+#fi
 
 check_dependencies "curl" "jq" "sed" "grep"
 
