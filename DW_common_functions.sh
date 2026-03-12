@@ -334,6 +334,9 @@ plex_library_update() {
             "$url/library/sections/$section_id/refresh" \
             -H "X-Plex-Token: $token" \
             -H "Accept: application/json" \
+            --no-keepalive \
+            --connect-timeout 5 \
+            --retry 2 \
             --max-time 10) # Added timeout to prevent hanging
 
         if [[ "$response" == "200" ]]; then
