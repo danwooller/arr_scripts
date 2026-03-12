@@ -40,18 +40,11 @@ if ! sudo -u "$REAL_USER" git pull origin main; then
 fi
 
 # 3. Always update common files
-if [ -f "$DEST_DIR/DW_common_functions.sh" ]; then
-    echo "Updating $BIN_DIR/DW_common_functions.sh..."
-    sudo cp "$DEST_DIR/DW_common_functions.sh" "$BIN_DIR/"
-    sudo chmod +x "$BIN_DIR/DW_common_functions.sh"
-    sudo chown root:root "$BIN_DIR/DW_common_functions.sh"
-fi
-if [ -f "$DEST_DIR/DW_common_seerr_issue.sh" ]; then
-    echo "Updating $BIN_DIR/DW_common_seerr_issue.sh..."
-    sudo cp "$DEST_DIR/DW_common_seerr_issue.sh" "$BIN_DIR/"
-    sudo chmod +x "$BIN_DIR/DW_common_seerr_issue.sh"
-    sudo chown root:root "$BIN_DIR/DW_common_seerr_issue.sh"
-fi
+echo "Updating $BIN_DIR/DW_common_functions.sh..."
+sudo cp "$DEST_DIR/DW_common_functions.sh" "$BIN_DIR/"
+sudo chmod +x "$BIN_DIR/DW_common_functions.sh"
+sudo chown root:root "$BIN_DIR/DW_common_functions.sh"
+    
 echo "Updating $COMMON_KEYS..."
 sudo cp "$COMMON_KEYS/common_keys.txt" "$BIN_DIR/"
 sudo chmod +x "$BIN_DIR/common_keys.txt"
