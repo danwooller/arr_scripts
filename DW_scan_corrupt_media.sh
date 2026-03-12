@@ -8,12 +8,6 @@ else
     echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
     exit 1
 fi
-if [ -f "/usr/local/bin/DW_common_seerr_issue.sh" ]; then
-    source "/usr/local/bin/DW_common_seerr_issue.sh"
-else
-    echo "⚠️ /usr/local/bin/DW_common_seerr_issue.sh missing. Exiting."
-    exit 1
-fi
 
 # Run dependency check from shared library
 # Ensure 'ffmpeg' and 'findutils' are in your check_deps list
@@ -67,12 +61,12 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         log "❌ CORRUPT: $file_name ($error_msg)"
         
         issue_msg="Corruption detected in $file_name. Error: $error_msg"
-        sync_seerr_issue "$media_name" "$media_type" "$issue_msg"
+        seerr_sync_issue "$media_name" "$media_type" "$issue_msg"
         
         mv --backup=numbered "$file" "$DIR_MEDIA_HOLD/"
     else
         [[ "$LOG_LEVEL" == "debug" ]] && log "✅ HEALTHY: $file_name"
-        resolve_seerr_issue "$media_name" "$media_type"
+        seerr_resolve_issue "$media_name" "$media_type"
     fi
 done
 
