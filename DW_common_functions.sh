@@ -331,6 +331,8 @@ plex_library_update() {
         log "❌ plex_library_update called with missing arguments. (ID: '$section_id', Name: '$library_name')"
         return 1
     fi
+    # --- Check if Plex is busy ---
+    plex_busy
     while [ $attempt -le $max_retries ]; do
         local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
             "$url/library/sections/$section_id/refresh" \
