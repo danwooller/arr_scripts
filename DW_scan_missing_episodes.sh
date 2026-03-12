@@ -8,12 +8,6 @@ else
     echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
     exit 1
 fi
-if [ -f "/usr/local/bin/DW_common_seerr_issue.sh" ]; then
-    source "/usr/local/bin/DW_common_seerr_issue.sh"
-else
-    echo "⚠️ /usr/local/bin/DW_common_seerr_issue.sh missing. Exiting."
-    exit 1
-fi
 
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
@@ -59,7 +53,7 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
     fi
 
     if [[ -n "$missing_in_series" ]]; then
-        sync_seerr_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
+        seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
     else
         # If NO episodes are missing, we call the NEW surgical resolver
         [[ $LOG_LEVEL == "debug" ]] && log "✨ Nothing missing for $series_name. Checking for Seerr issues to resolve..."
@@ -67,7 +61,7 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
         # We need to loop through the seasons found to resolve them individually
         # because Seerr issues are season-specific.
         find "$series_path" -maxdepth 1 -type d -name "Season*" | while read -r season_folder; do
-             resolve_seerr_issue "$season_folder"
+             seerr_resolve_issue "$season_folder"
         done
     fi
 
