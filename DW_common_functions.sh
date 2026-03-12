@@ -314,6 +314,8 @@ trigger_sonarr_search() {
     fi
 }
 
+# --- PLEX SECTION ---
+
 plex_library_update() {
     # DW_move_movies_synology.sh
     # DW_move_tv_shows_synology.sh
@@ -354,6 +356,23 @@ plex_library_update() {
     fi
 }
 
+plex_busy() {
+    local url="http://192.168.1.50:32400"
+    local token="$PLEX_TOKEN"
+
+    # Query the activity endpoint
+    local activity=$(curl -s -H "X-Plex-Token: $token" "$url/status/sessions")
+    
+    # Check if there is an active scanner task
+    # (Plex reports scanning status via the 'scan' field in metadata updates)
+    if [[ "$activity" == *"scan"* ]]; then
+        return 0 # Plex is busy
+    else
+        return 1 # Plex is idle
+    fi
+}
+
+# --- END PLEX SECTION ---
 # --- SEERR SECTION ---
 
 seerr_resolve_issue() {
