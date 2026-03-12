@@ -352,7 +352,7 @@ plex_library_update() {
     done
 
     if [ "$success" = false ]; then
-        log "❌ ERROR: Plex scan failed after $max_retries attempts for $library_name."
+        log "❌ Plex scan failed after $max_retries attempts for $library_name."
     fi
 }
 
@@ -366,6 +366,7 @@ plex_busy() {
     # Check if there is an active scanner task
     # (Plex reports scanning status via the 'scan' field in metadata updates)
     if [[ "$activity" == *"scan"* ]]; then
+        log "⚠️ Plex returned a busy signal."
         return 0 # Plex is busy
     else
         return 1 # Plex is idle
