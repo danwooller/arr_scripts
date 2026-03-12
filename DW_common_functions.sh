@@ -338,10 +338,8 @@ plex_library_update() {
             --connect-timeout 5 \
             --retry 2 \
             --max-time 10) # Added timeout to prevent hanging
-
         if [[ "$response" == "200" ]]; then
             [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan successful for $library_name (Attempt $attempt)."
-            log "✅ Plex scan successful for $library_name (Attempt $attempt)."
             success=true
             break
         else
