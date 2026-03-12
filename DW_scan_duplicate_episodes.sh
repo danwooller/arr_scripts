@@ -8,12 +8,6 @@ else
     echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
     exit 1
 fi
-if [ -f "/usr/local/bin/DW_common_seerr_issue.sh" ]; then
-    source "/usr/local/bin/DW_common_seerr_issue.sh"
-else
-    echo "⚠️ /usr/local/bin/DW_common_seerr_issue.sh missing. Exiting."
-    exit 1
-fi
 
 # --- Load External Configuration ---
 CONFIG_FILE="/mnt/media/torrent/ubuntu24_sonarr_mapping.txt"
