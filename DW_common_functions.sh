@@ -334,11 +334,11 @@ plex_library_update() {
     # --- Check if Plex is busy ---
 
     if plex_busy; then
-        log "⚠️ Plex returned a busy signal."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Plex returned a busy signal."
         return 0 # Exit gracefully, don't trigger the failure log
     fi
     if plex_active_streams; then
-        log "ℹ️ User is streaming. Skipping Plex scan for $library_name to preserve playback quality."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ User is streaming. Skipping Plex scan for $library_name to preserve playback quality."
         return 0 # Exit gracefully, don't trigger the failure log
     fi
     while [ $attempt -le $max_retries ]; do
