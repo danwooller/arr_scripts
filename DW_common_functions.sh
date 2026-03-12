@@ -338,6 +338,7 @@ plex_library_update() {
 
         if [[ "$response" == "200" ]]; then
             [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan successful for $library_name (Attempt $attempt)."
+            log "✅ Plex scan successful for $library_name (Attempt $attempt)."
             success=true
             break
         else
