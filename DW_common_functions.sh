@@ -357,7 +357,7 @@ plex_library_update() {
 }
 
 plex_busy() {
-    local url="http://192.168.1.50:32400"
+    local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
 
     # Query the activity endpoint
