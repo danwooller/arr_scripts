@@ -332,16 +332,20 @@ plex_library_update() {
         return 1
     fi
     # --- Check if Plex is busy ---
-    plex_busy
+
+    if plex_busy; then
+        log "⚠️ Plex returned a busy signal."
+        return 0 # Exit gracefully, don't trigger the failure log
+    fi
+    if plex_active_streams; then
+        log "ℹ️ User is streaming. Skipping Plex scan for $library_name to preserve playback quality."
+        return 0 # Exit gracefully, don't trigger the failure log
+    fi
     while [ $attempt -le $max_retries ]; do
         local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
             "$url/library/sections/$section_id/refresh" \
             -H "X-Plex-Token: $token" \
-            -H "Accept: application/json" \
-            --no-keepalive \
-            --connect-timeout 5 \
-            --retry 2 \
-            --max-time 10) # Added timeout to prevent hanging
+            -H "Accept: application/json")
         if [[ "$response" == "200" ]]; then
             [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan successful for $library_name (Attempt $attempt)."
             success=true
@@ -358,6 +362,20 @@ plex_library_update() {
     fi
 }
 
+plex_active_streams() {
+    local url="$PLEX_URL"
+    local token="$PLEX_TOKEN"
+    
+    # Get active sessions and count them
+    local count=$(curl -s -H "X-Plex-Token: $token" "$url/status/sessions" | grep -c "<Video" || echo 0)
+    
+    if [ "$count" -gt 0 ]; then
+        return 0 # Streams are active
+    else
+        return 1 # No streams
+    fi
+}
+
 plex_busy() {
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
@@ -368,7 +386,6 @@ plex_busy() {
     # Check if there is an active scanner task
     # (Plex reports scanning status via the 'scan' field in metadata updates)
     if [[ "$activity" == *"scan"* ]]; then
-        log "⚠️ Plex returned a busy signal."
         return 0 # Plex is busy
     else
         return 1 # Plex is idle
