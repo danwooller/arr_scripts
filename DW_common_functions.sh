@@ -185,7 +185,6 @@ notify_media_managers() {
     fi
     # Update Plex server
     plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
-    sleep 5
     plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
 }
 
@@ -319,13 +318,6 @@ plex_library_update() {
     # DW_move_movies_synology.sh
     # DW_move_tv_shows_synology.sh
     # DW_sort_tv.sh
-
-#TEMP
-    if ! nc -z -w 2 192.168.0.24 32400; then
-        log "❌ Plex server port 32400 is not reachable. Skipping scan."
-        return 1
-    fi
-
     local section_id="$1"
     local library_name="$2"
     local url="$PLEX_URL"
@@ -333,7 +325,10 @@ plex_library_update() {
     local max_retries=3
     local attempt=1
     local success=false
-
+    if [[ -z "$section_id" || -z "$library_name" ]]; then
+        log "❌ plex_library_update called with missing arguments. (ID: '$section_id', Name: '$library_name')"
+        return 1
+    fi
     while [ $attempt -le $max_retries ]; do
         local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
             "$url/library/sections/$section_id/refresh" \
