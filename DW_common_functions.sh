@@ -297,23 +297,6 @@ synology_tv_show_sync() {
     fi
 }
 
-trigger_sonarr_search() {
-    local series_name="$1"
-    local sonarr_series=$(curl -s -X GET "$SONARR_URL/api/v3/series" -H "X-Api-Key: $SONARR_API_KEY")
-    local sonarr_data=$(echo "$sonarr_series" | jq -r --arg name "$series_name" \
-        '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
-
-    if [[ -n "$sonarr_data" ]]; then
-        local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
-        local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
-        if [[ "$s_monitored" == "true" ]]; then
-            log "🔍 Triggering Sonarr Search for $series_name"
-            local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
-            curl -s -o /dev/null -X POST "$SONARR_URL/api/v3/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
-        fi
-    fi
-}
-
 # --- PLEX SECTION ---
 
 plex_library_update() {
@@ -624,6 +607,41 @@ seerr_sync_issue() {
 }
 
 # --- END SEERR SECTION ---
+# --- SONARR SECTION ---
+
+sonarr_search() {
+    # UNUSED
+    local series_name="$1"
+    local sonarr_series=$(curl -s -X GET "$SONARR_API_BASE/series" -H "X-Api-Key: $SONARR_API_KEY")
+    local sonarr_data=$(echo "$sonarr_series" | jq -r --arg name "$series_name" \
+        '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
+
+    if [[ -n "$sonarr_data" ]]; then
+        local s_id=$(echo "$sonarr_data" | cut -d'|' -f1)
+        local s_monitored=$(echo "$sonarr_data" | cut -d'|' -f2)
+        if [[ "$s_monitored" == "true" ]]; then
+            log "🔍 Triggering Sonarr Search for $series_name"
+            local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
+            curl -s -o /dev/null -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
+        fi
+    fi
+}
+
+sonarr_missing_episodes() {
+    local sonarr_missing=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SONARR_API_BASE/command" \
+         -H "Content-Type: application/json" \
+         -H "X-Api-Key: $SONARR_API_KEY" \
+         -d '{"name": "MissingEpisodeSearch"}')
+    if [ "$sonarr_missing" -eq 201 ] || [ "$response" -eq 200 ]; then
+            log "Success: Search triggered (HTTP $response)."
+        else
+            log "Error: Failed to trigger search (HTTP $response)."
+            return 1
+        fi
+}
+
+# --- END SONARR SECTION ---
+# --- VPN SECTION ---
 
 vpn_restart_containers() {
     # DW_restart_vpn.sh
@@ -668,3 +686,5 @@ vpn_restart_containers() {
     done
     log "🏁 VPN Container Restart Complete."
 }
+
+# --- END VPN SECTION ---
