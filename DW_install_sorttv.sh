@@ -91,8 +91,7 @@ log "ℹ️ Restoring config..."
 # Copy the config file from Github
 cd /home/$REAL_USER/arr_scripts && ./git_pull.sh sorttv.conf
 cd /home/$REAL_USER/arr_scripts && ./git_pull.sh DW_sort_tv.sh
-cp -a "/home/$REAL_USER/arr_scripts/sorttv.conf" /opt/sorttv/
-cp -a "/home/$REAL_USER/arr_scripts/DW_sort_tv.sh" /opt/sorttv/
+cp -a "/home/$REAL_USER/arr_scripts/sorttv.conf" "/opt/sorttv"
 log "ℹ️ Verifying permissions and paths..."
 # Get the actual user who called sudo, defaulting to 'dan' if not found
 chown -R "$REAL_USER":"$REAL_USER" /opt/sorttv
