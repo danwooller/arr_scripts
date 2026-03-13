@@ -83,7 +83,7 @@ while true; do
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     sync_tv_show_synology "$SHOW_NAME_ONLY"
                     sonarr_targeted_rename "$SHOW_NAME_ONLY"
-                    plex_library_update "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
+                    plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No specific show path parsed. Running general notification."
                     notify_media_managers
