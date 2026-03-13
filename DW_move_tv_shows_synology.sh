@@ -69,7 +69,7 @@ while true; do
                     rsync $RSYNC_OPTS "$source_show_path/" "$dest_show_path"
                 fi
                 # Tell Sonarr to update
-                notify_sonarr_targeted_rename "$show_name"
+                sonarr_targeted_rename "$show_name"
                 # Update Plex server
                 plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                 #if [[ $? -eq 0 ]]; then
