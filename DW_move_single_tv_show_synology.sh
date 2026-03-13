@@ -68,7 +68,7 @@ if [[ -d "$SOURCE_SHOW_PATH" ]]; then
         rsync $RSYNC_OPTS "$SOURCE_SHOW_PATH/" "$DEST_SHOW_PATH"
     fi
     # Tell Sonarr to update
-    notify_sonarr_targeted_rename "$show_name"
+    sonarr_targeted_rename "$show_name"
     # Update Plex server
 #delete update_plex_library "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
     plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
