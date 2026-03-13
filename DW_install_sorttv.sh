@@ -27,27 +27,41 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# --- Flag Handling ---
+SKIP_UPDATE=false
+if [[ "$1" == "--no-backup-update" ]]; then
+    SKIP_UPDATE=true
+fi
+
 # 2. Update and Install System Dependencies
-log "ℹ️ Updating system packages..."
-apt update
-apt install -y build-essential libxml-sax-expat-perl make wget unzip rar
+if [ "$SKIP_UPDATE" = false ]; then
+    log "ℹ️ Updating system packages..."
+    apt update
+    apt install -y build-essential libxml-sax-expat-perl make wget unzip rar
+fi
 
 # 3. Install Perl Modules (Apt)
-log "ℹ️ Installing Perl libraries via apt..."
-apt install -y libfile-copy-recursive-perl libwww-perl libxml-simple-perl \
-               libjson-parse-perl libgetopt-long-descriptive-perl libswitch-perl
+if [ "$SKIP_UPDATE" = false ]; then
+    log "ℹ️ Installing Perl libraries via apt..."
+    apt install -y libfile-copy-recursive-perl libwww-perl libxml-simple-perl \
+        libjson-parse-perl libgetopt-long-descriptive-perl libswitch-perl
+fi
 
 # 4. Install Perl Modules (CPAN)
-log "ℹ️ Installing CPAN modules..."
-# Initialize CPAN config and install modules non-interactively
-export PERL_MM_USE_DEFAULT=1
-perl -MCPAN -e 'CPAN::HandleConfig->load(); CPAN::Config->commit();'
-cpan TVDB::API WWW::TheMovieDB
+if [ "$SKIP_UPDATE" = false ]; then
+    log "ℹ️ Installing CPAN modules..."
+    # Initialize CPAN config and install modules non-interactively
+    export PERL_MM_USE_DEFAULT=1
+    perl -MCPAN -e 'CPAN::HandleConfig->load(); CPAN::Config->commit();'
+    cpan TVDB::API WWW::TheMovieDB
+fi
 
 # 5. Directory Setup
-log "ℹ️ Preparing /opt/sorttv..."
-mkdir -p /opt/sorttv
-mkdir -p /opt/sorttv/lib/IO/Uncompress/
+if [ "$SKIP_UPDATE" = false ]; then
+    log "ℹ️ Preparing /opt/sorttv..."
+    mkdir -p /opt/sorttv
+    mkdir -p /opt/sorttv/lib/IO/Uncompress/
+fi
 
 # 6. Restore Configuration and Scripts from Backup
 SOURCE_PATH="/mnt/media/backup/$(hostname -s)/opt/sorttv"
