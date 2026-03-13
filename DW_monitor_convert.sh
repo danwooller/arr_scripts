@@ -191,7 +191,7 @@ while true; do
             # Search & Delete across all 5 servers
             manage_remote_torrent "delete" "$BASE_NAME"
         else
-            log "   -> ❌ Failed: $CONVERSION_EXIT_CODE for $FILENAME."
+            log "❌ Failed: $CONVERSION_EXIT_CODE for $FILENAME."
             # Clean up working file if conversion failed
             rm -f "$OUTPUT_FILE"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
@@ -199,6 +199,8 @@ while true; do
     done
     # trigger sonarr search if there's noting going on
     if [ "$FOUND_FILE" = false ]; then
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Sonarr missing episodes search"
+        log "ℹ️ Sonarr missing episodes search"
         sonarr_missing_episodes
     fi
     # Wait for the next poll cycle
