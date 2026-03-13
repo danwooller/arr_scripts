@@ -13,4 +13,4 @@ PLEX24_NAME=${2:-TV Shows}
 
 plex_library_update "$PLEX24_SRC" "$PLEX24_NAME"
 
-log "Plex uppdate for $PLEX24_NAME"
+log "ℹ️ Plex update for $PLEX24_NAME"
