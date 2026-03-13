@@ -9,4 +9,4 @@ else
 fi
 
 sonarr_missing_episodes
-log "ℹ️ Sonaarr search for missing episodes"
+log "ℹ️ Sonarr search for missing episodes"
