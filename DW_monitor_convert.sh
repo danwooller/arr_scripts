@@ -200,7 +200,7 @@ while true; do
     # trigger sonarr search if there's noting going on
     if [ "$FOUND_FILE" = false ]; then
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Sonarr missing episodes search"
-        log "ℹ️ Sonarr missing episodes search"
+        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Sonarr missing episodes search"
         sonarr_missing_episodes
     fi
     # Wait for the next poll cycle
