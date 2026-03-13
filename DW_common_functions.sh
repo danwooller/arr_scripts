@@ -188,52 +188,6 @@ notify_media_managers() {
     plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
 }
 
-notify_sonarr_targeted_rename() {
-    # DW_move_tv_shows_synology.sh
-    # DW_sort_tv.sh
-    local search_path="$1"
-    
-    if [ -z "$SONARR_API_KEY" ]; then return 1; fi
-
-    # Normalize the path (remove trailing slash)
-    search_path="${search_path%/}"
-    
-    # Get just the show folder name
-    local show_name=$(basename "$search_path")
-
-    log "🔍 Requesting Sonarr ID for: $show_name"
-
-    # Fetch Series ID
-    local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-        jq -r ".[] | select(.path | contains(\"/$show_name\")) | .id")
-
-    if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
-        
-        # 1. Trigger Refresh (Disk Scan)
-        log "🔄 Triggering Sonarr refresh for $show_name"
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
-             "$SONARR_API_BASE/command" > /dev/null
-
-        # 2. Brief Wait
-        # Sonarr needs a moment to pick up the files from the disk. 
-        # For a few episodes, 5s is usually plenty.
-        sleep 5 
-
-        # 3. Trigger Rename
-        log "📝 Triggering Sonarr rename for $show_name"
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
-             "$SONARR_API_BASE/command" > /dev/null
-        
-        log "✅ Sonarr tasks (Refresh + Rename) queued."
-    else
-        log "⚠️ Could not map '$show_name' to a Sonarr Series ID."
-    fi
-}
-
 # --- Function to sync a specific TV show folder ---
 # Usage: synology_tv_show_sync "Show Name (Year)"
 synology_tv_show_sync() {
@@ -609,6 +563,19 @@ seerr_sync_issue() {
 # --- END SEERR SECTION ---
 # --- SONARR SECTION ---
 
+sonarr_missing_episodes() {
+    local sonarr_missing=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SONARR_API_BASE/command" \
+         -H "Content-Type: application/json" \
+         -H "X-Api-Key: $SONARR_API_KEY" \
+         -d '{"name": "MissingEpisodeSearch"}')
+    if [ "$sonarr_missing" -eq 201 ] || [ "$sonarr_missing" -eq 200 ]; then
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Sonarr search triggered (HTTP $sonarr_missing)."
+        else
+            log "❌ Failed to trigger search (HTTP $sonarr_missing)."
+            return 1
+        fi
+}
+
 sonarr_search() {
     # UNUSED
     local series_name="$1"
@@ -627,17 +594,46 @@ sonarr_search() {
     fi
 }
 
-sonarr_missing_episodes() {
-    local sonarr_missing=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SONARR_API_BASE/command" \
-         -H "Content-Type: application/json" \
-         -H "X-Api-Key: $SONARR_API_KEY" \
-         -d '{"name": "MissingEpisodeSearch"}')
-    if [ "$sonarr_missing" -eq 201 ] || [ "$sonarr_missing" -eq 200 ]; then
-            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Sonarr search triggered (HTTP $sonarr_missing)."
-        else
-            log "❌ Failed to trigger search (HTTP $sonarr_missing)."
-            return 1
-        fi
+sonarr_targeted_rename() {
+    # DW_move_tv_shows_synology.sh
+    # DW_sort_tv.sh
+    local search_path="$1"
+    
+    if [ -z "$SONARR_API_KEY" ]; then return 1; fi
+
+    # Normalize the path (remove trailing slash)
+    search_path="${search_path%/}"
+    
+    # Get just the show folder name
+    local show_name=$(basename "$search_path")
+
+    log "🔍 Requesting Sonarr ID for: $show_name"
+
+    # Fetch Series ID
+    local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+        jq -r ".[] | select(.path | contains(\"/$show_name\")) | .id")
+
+    if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
+        
+        # 1. Trigger Refresh (Disk Scan)
+        log "🔄 Triggering Sonarr refresh for $show_name"
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
+             "$SONARR_API_BASE/command" > /dev/null
+        # 2. Brief Wait
+        # Sonarr needs a moment to pick up the files from the disk. 
+        # For a few episodes, 5s is usually plenty.
+        sleep 5 
+        # 3. Trigger Rename
+        log "📝 Triggering Sonarr rename for $show_name"
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
+             "$SONARR_API_BASE/command" > /dev/null
+    else
+        log "⚠️ Could not map '$show_name' to a Sonarr Series ID."
+    fi
 }
 
 # --- END SONARR SECTION ---
