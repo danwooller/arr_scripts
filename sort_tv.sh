@@ -49,7 +49,7 @@ if mountpoint -q /mnt/media; then
             [[ $LOG_LEVEL == "debug" ]] && log "Starting Sync for $SHOW_NAME_ONLY..."
             synology_tv_show_sync "$SHOW_NAME_ONLY"
             [[ $LOG_LEVEL == "debug" ]] && log "Sync process ended. Now notifying Sonarr..."
-            notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
+            sonarr_targeted_rename "$SHOW_NAME_ONLY"
             plex_library_update "PLEX24_TV_SRC" "PLEX24_TV_NAME"
         else
             # Fallback to your shared function if no specific path was parsed
