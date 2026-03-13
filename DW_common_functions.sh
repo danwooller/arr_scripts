@@ -632,10 +632,10 @@ sonarr_missing_episodes() {
          -H "Content-Type: application/json" \
          -H "X-Api-Key: $SONARR_API_KEY" \
          -d '{"name": "MissingEpisodeSearch"}')
-    if [ "$sonarr_missing" -eq 201 ] || [ "$response" -eq 200 ]; then
-            log "Success: Search triggered (HTTP $response)."
+    if [ "$sonarr_missing" -eq 201 ] || [ "$sonarr_missing" -eq 200 ]; then
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Sonarr search triggered (HTTP $sonarr_missing)."
         else
-            log "Error: Failed to trigger search (HTTP $response)."
+            log "❌ Failed to trigger search (HTTP $sonarr_missing)."
             return 1
         fi
 }
