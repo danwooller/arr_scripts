@@ -70,8 +70,6 @@ if [ -d "$SOURCE_PATH" ]; then
     log "ℹ️ Restoring files from $SOURCE_PATH..."
     # Using -a (archive) is often better for preserving permissions/timestamps
     cp -a "$SOURCE_PATH/." /opt/sorttv/
-    # Copy the config file from Github
-    cp -a "/home/$REAL_USER/arr_scripts/sorttv.conf" /opt/sorttv/
     chmod +x /opt/sorttv/sorttv.pl
     log "ℹ️ Restoration complete."
 else
@@ -88,9 +86,12 @@ if [ -f "$TVDB_API" ]; then
     log "✅ TVDB::API crash protection applied."
 fi
 
+REAL_USER=${SUDO_USER:-dan}
+log "ℹ️ Restoring config..."
+# Copy the config file from Github
+cp -a "/home/$REAL_USER/arr_scripts/sorttv.conf" /opt/sorttv/
 log "ℹ️ Verifying permissions and paths..."
 # Get the actual user who called sudo, defaulting to 'dan' if not found
-REAL_USER=${SUDO_USER:-dan}
 chown -R "$REAL_USER":"$REAL_USER" /opt/sorttv
 chmod -R 755 /opt/sorttv/lib
 
