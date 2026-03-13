@@ -64,7 +64,7 @@ while true; do
                     [[ "$LOG_LEVEL" == "debug" ]] && log "Moving: '$file' -> '$dest/'"
                     mv -v "$file" "$dest/"
                     [[ "$LOG_LEVEL" == "debug" ]] && log "Updating Sonarr for: $dest"
-                    notify_sonarr_targeted_rename "$dest"
+                    sonarr_targeted_rename "$dest"
                     SHOW_NAME="${file##*/}"
                     manage_remote_torrent "delete" "$SHOW_NAME"
                 done
@@ -82,7 +82,7 @@ while true; do
                     [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     sync_tv_show_synology "$SHOW_NAME_ONLY"
-                    notify_sonarr_targeted_rename "$SHOW_NAME_ONLY"
+                    sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "$PLEX24_TV_SRC" "$PLEX24_TV_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No specific show path parsed. Running general notification."
