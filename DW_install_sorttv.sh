@@ -29,7 +29,7 @@ fi
 
 # --- Flag Handling ---
 SKIP_UPDATE=false
-if [[ "$1" == "--no-backup-update" ]]; then
+if [[ "$1" == "--no-update" ]]; then
     SKIP_UPDATE=true
 fi
 
