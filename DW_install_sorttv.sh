@@ -71,7 +71,7 @@ if [ -d "$SOURCE_PATH" ]; then
     # Using -a (archive) is often better for preserving permissions/timestamps
     cp -a "$SOURCE_PATH/." /opt/sorttv/
     # Copy the config file from Github
-    cp -a "~/arr_scripts/sorttv.conf" /opt/sorttv/
+    cp -a "/home/$REAL_USER/arr_scripts/sorttv.conf" /opt/sorttv/
     chmod +x /opt/sorttv/sorttv.pl
     log "ℹ️ Restoration complete."
 else
