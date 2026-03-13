@@ -44,6 +44,7 @@ log_start "$SOURCE_DIR"
 # --- Main Monitoring Loop (Polling) ---
 while true; do
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Polling $SOURCE_DIR for video files (age > ${MIN_FILE_AGE}m)..."
+    FOUND_FILE=false
     # --- Setup timestamp for original fimnished files ---
     TIMESTAMP=$(date +"%H-%M")
     # --- Cleanup local Directories ---
@@ -76,6 +77,8 @@ while true; do
         -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.flv" -o -iname "*.webm" \) \
         -print0 | while IFS= read -r -d $'\0' SOURCE_FILE; do
+        # Set found to avoid sonarr search
+        FOUND_FILE=true
         # Get filename and base name
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
@@ -194,6 +197,10 @@ while true; do
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
         fi
     done
+    # trigger sonarr search if there's noting going on
+    if [ "$FOUND_FILE" = false ]; then
+        sonarr_missing_episodes
+    fi
     # Wait for the next poll cycle
     [[ $LOG_LEVEL == "debug" ]] && log "Sleeping for $POLL_INTERVAL seconds"
     sleep "$POLL_INTERVAL"
