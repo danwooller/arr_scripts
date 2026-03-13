@@ -28,8 +28,6 @@ WORKING_DIR="$HOME_DIR/${HOST}_done"
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
 MIN_FILE_AGE=5
-counter=0
-TRIGGER=10
 
 # --- Setup Directories ---
 mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$DIR_MEDIA_SUBTITLES" "$DIR_MEDIA_FINISHED"
@@ -46,7 +44,6 @@ log_start "$SOURCE_DIR"
 # --- Main Monitoring Loop (Polling) ---
 while true; do
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Polling $SOURCE_DIR for video files (age > ${MIN_FILE_AGE}m)..."
-    FOUND_FILE=false
     # --- Setup timestamp for original fimnished files ---
     TIMESTAMP=$(date +"%H-%M")
     # --- Cleanup local Directories ---
@@ -79,9 +76,6 @@ while true; do
         -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.flv" -o -iname "*.webm" \) \
         -print0 | while IFS= read -r -d $'\0' SOURCE_FILE; do
-        # Set found to avoid sonarr search
-        FOUND_FILE=true
-        ((counter++))
         # Get filename and base name
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
@@ -200,17 +194,6 @@ while true; do
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
         fi
     done
-    # trigger sonarr search if there's noting going on and the counter matches
-    if [ "$FOUND_FILE" = false ]; then
-        log "ℹ️ Counter: $counter"
-        if (( counter % TRIGGER_EVERY == 0 )); then
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Sonarr missing episodes search"
-            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Sonarr missing episodes search"
-            sonarr_missing_episodes
-        fi
-    else
-        counter=0
-    fi
     # Wait for the next poll cycle
     [[ $LOG_LEVEL == "debug" ]] && log "Sleeping for $POLL_INTERVAL seconds"
     sleep "$POLL_INTERVAL"
