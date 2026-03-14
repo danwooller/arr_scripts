@@ -609,9 +609,9 @@ sonarr_targeted_rename() {
 
     log "🔍 Requesting Sonarr ID for: $show_name"
 
-    # Fetch Series ID
+# Fetch Series ID with Case-Insensitive matching
     local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-        jq -r ".[] | select(.path | contains(\"/$show_name\")) | .id")
+        jq -r ".[] | select(.path | ascii_downcase | contains(\"/$show_name\" | ascii_downcase)) | .id" | head -n 1)
 
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
         
@@ -622,8 +622,6 @@ sonarr_targeted_rename() {
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
              "$SONARR_API_BASE/command" > /dev/null
         # 2. Brief Wait
-        # Sonarr needs a moment to pick up the files from the disk. 
-        # For a few episodes, 5s is usually plenty.
         sleep 5 
         # 3. Trigger Rename
         log "📝 Triggering Sonarr rename for $show_name"
