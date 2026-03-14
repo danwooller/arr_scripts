@@ -116,7 +116,7 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
-📇 OS update & backup
+### 6. OS update & backup
 ```bash
 cd /usr/local/bin && sudo ./update-docker.sh
 cd /usr/local/bin && sudo ./update-docker.sh --no-backup-update # skips OS update and backup
