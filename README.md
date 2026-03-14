@@ -116,13 +116,6 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
-### 6. OS update & backup
-```bash
-cd /usr/local/bin && sudo ./update-docker.sh
-cd /usr/local/bin && sudo ./update-docker.sh --no-backup-update # skips OS update and backup
-cd /usr/local/bin && sudo ./update-docker.sh --no-update # skips OS update
-cd /usr/local/bin && sudo ./update-docker.sh --no-backup # skips backup
-```
 
 📝 Troubleshooting
 Logs: View live service output: journalctl -xefu <service_name> -f
