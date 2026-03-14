@@ -598,17 +598,12 @@ sonarr_targeted_rename() {
     # DW_move_tv_shows_synology.sh
     # DW_sort_tv.sh
     local search_path="$1"
-    
     if [ -z "$SONARR_API_KEY" ]; then return 1; fi
-
     # Normalize the path (remove trailing slash)
     search_path="${search_path%/}"
-    
     # Get just the show folder name
     local show_name=$(basename "$search_path")
-
-    log "🔍 Requesting Sonarr ID for: $show_name"
-
+    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Sonarr ID for: $show_name"
     # Fetch Series ID with Case-Insensitive matching
     #local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
     #    jq -r ".[] | select(.path | ascii_downcase | contains(\"/$show_name\" | ascii_downcase)) | .id" | head -n 1)
@@ -617,23 +612,21 @@ sonarr_targeted_rename() {
         jq -r --arg name "$show_name" '.[] | select(.path | test("/" + $name + "([ ]\\(\\d{4}\\))?$"; "i")) | .id' | head -n 1)
     # --- Fallback: Try matching by Title if Path failed ---
     if [ -z "$series_id" ] || [ "$series_id" = "null" ]; then
-        log "PATH match failed for '$show_name', trying TITLE match..."
+        [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$show_name', trying TITLE match..."
         series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
             jq -r ".[] | select(.title | ascii_downcase == \"$show_name\" or .title | test(\"^$show_name( \\\\(\\\\d{4}\\\\))?$\"; \"i\")) | .id" | head -n 1)
     fi
-
-    if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
-        
-        # 1. Trigger Refresh (Disk Scan)
-        log "🔄 Triggering Sonarr refresh for $show_name"
+    if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then  
+        # --- Trigger Refresh ---
+        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Sonarr refresh for $show_name"
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
              "$SONARR_API_BASE/command" > /dev/null
-        # 2. Brief Wait
+        # --- Brief Wait ---
         sleep 5 
-        # 3. Trigger Rename
-        log "📝 Triggering Sonarr rename for $show_name"
+        # --- Trigger Rename ---
+        [[ $LOG_LEVEL == "debug" ]] && log "📝 Triggering Sonarr rename for $show_name"
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
