@@ -31,12 +31,14 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_scan_missing_episodes.sh**](./DW_scan_missing_episodes.sh) | Scan directories in $1 looking for gaps in episode numbering, marking an issue in Seer. _ubuntu24_ |
 | [**DW_scan_movie_year.sh**](./DW_scan_movie_year.sh) | Scan directories in $1 looking for mismatches between the movie folder year and Radarr. Corrects folder and updates Radarr. _ubuntu24_ |
 | [**DW_sort_tv.sh**](./DW_sort_tv.sh) | Wraps the Perl script sorttv in a service. Currently has problems with Daily Show/Colbert on Ubutnu 24.04. _ubuntu24_ |
-| [**update-docker.sh**](./update-docker.sh) | Runs a linux update then backs up the containers to the network while updating.```bash
+| [**update-docker.sh**](./update-docker.sh) | Runs a linux update then backs up the containers to the network while updating.
+```bash
 cd /usr/local/bin && sudo ./update-docker.sh
 cd /usr/local/bin && sudo ./update-docker.sh --no-backup-update # skips OS update and backup
 cd /usr/local/bin && sudo ./update-docker.sh --no-update # skips OS update
 cd /usr/local/bin && sudo ./update-docker.sh --no-backup # skips backup
-``` _ubuntu9 ubuntu24_ |
+```
+ _ubuntu9 ubuntu24_ |
 | [**DW_usenet_org.sh**](./DW_usenet_org.sh) | Looks for media files without readable filenames and attempts to convert them using folder names. _ubuntu9_ |
 
 ### 🔧 System & Maintenance Tools
