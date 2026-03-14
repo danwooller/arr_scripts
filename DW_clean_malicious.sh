@@ -31,7 +31,7 @@ while true; do
                 log "✅ Deleted $BASE_NAME"
                 rm -f "$FULL_PATH"
             else
-                log "❌ Failed to issue delete for $BASE_NAME"
+                log "❌ Failed delete for $BASE_NAME"
             fi
         done
     done
