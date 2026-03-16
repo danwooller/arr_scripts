@@ -84,23 +84,23 @@ while true; do
             log "ℹ️ Detected: $FILENAME"
         #fi
         # --- 1. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
-        SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."
-        TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
-        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
-        echo "Extracted Forced Track ID: $SUB_TRACK_ID"
-        if [[ -n "$SUB_TRACK_ID" ]]; then
-            log "ℹ️ Forced subtitles (ID: $SUB_TRACK_ID): $BASE_NAME..."
-            mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
-            if [[ $? -eq 0 ]]; then
-                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
-                SUB_FILE_EXTRACTED=true
-            else
-                [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Subtitle extraction failed. Will NOT embed subtitles."
-            fi
-        else
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No suitable English forced subtitle track found in the source file."
-        fi
+#        SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
+#        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."
+#        TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
+#        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
+#        echo "Extracted Forced Track ID: $SUB_TRACK_ID"
+#        if [[ -n "$SUB_TRACK_ID" ]]; then
+#            log "ℹ️ Forced subtitles (ID: $SUB_TRACK_ID): $BASE_NAME..."
+#            mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
+#            if [[ $? -eq 0 ]]; then
+#                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
+#                SUB_FILE_EXTRACTED=true
+#            else
+#                [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Subtitle extraction failed. Will NOT embed subtitles."
+#            fi
+#        else
+#            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No suitable English forced subtitle track found in the source file."
+#        fi
         # --- 2. Copy the file to the conversion folder ---
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Copying to $CONVERT_DIR..."
         #Copying to local directory.
