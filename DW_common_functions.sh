@@ -202,7 +202,7 @@ synology_tv_show_sync() {
     local SOURCE_SHOW_PATH="$MEDIA_DIR/$SHOW_NAME"
 
     if [[ -z "$SHOW_NAME" ]]; then
-        log "Error: No show name provided to sync_tv_show function."
+        log "ℹ️ No show name provided to sync_tv_show function."
         return 1
     fi
 
