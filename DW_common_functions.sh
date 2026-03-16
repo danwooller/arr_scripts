@@ -624,8 +624,8 @@ sonarr_targeted_rename() {
     #local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
     #    jq -r --arg name "$show_name" '.[] | select(.path | test("/" + $name + "([ ]\\(\\d{4}\\))?$"; "i")) | .id' | head -n 1)
     #try3
-    curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-        jq -r --arg name "$show_name" '.[] | select(.path | ascii_downcase | contains("/" + ($name | ascii_downcase))) | .id' | head -n 1
+    local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+        jq -r --arg name "$show_name" '.[] | select(.path | ascii_downcase | contains("/" + ($name | ascii_downcase))) | .id' | head -n 1)
     # --- Fallback: Try matching by Title if Path failed ---
     if [ -z "$series_id" ] || [ "$series_id" = "null" ]; then
         [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$show_name', trying TITLE match..."
