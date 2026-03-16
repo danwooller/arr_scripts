@@ -616,11 +616,16 @@ sonarr_targeted_rename() {
     local show_name=$(basename "$search_path")
     [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Sonarr ID for: $show_name"
     # Fetch Series ID with Case-Insensitive matching
+    #try1
     #local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
     #    jq -r ".[] | select(.path | ascii_downcase | contains(\"/$show_name\" | ascii_downcase)) | .id" | head -n 1)
     # --- Code to cope withe year in brackets ---
-    local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-        jq -r --arg name "$show_name" '.[] | select(.path | test("/" + $name + "([ ]\\(\\d{4}\\))?$"; "i")) | .id' | head -n 1)
+    #try2
+    #local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+    #    jq -r --arg name "$show_name" '.[] | select(.path | test("/" + $name + "([ ]\\(\\d{4}\\))?$"; "i")) | .id' | head -n 1)
+    #try3
+    curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+        jq -r --arg name "$show_name" '.[] | select(.path | ascii_downcase | contains("/" + ($name | ascii_downcase))) | .id' | head -n 1
     # --- Fallback: Try matching by Title if Path failed ---
     if [ -z "$series_id" ] || [ "$series_id" = "null" ]; then
         [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$show_name', trying TITLE match..."
