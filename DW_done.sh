@@ -15,10 +15,10 @@ MAX_FILES=10
 
 while true; do
   clear
-  printf "┌%${INNER}s┐\n" | tr ' ' '─'
+  printf "┌"; printf '─%.0s' $(seq 1 $INNER); printf "┐\n"
   header="$(hostname) [$(date +%H:%M:%S)]"
   printf "│%-${INNER}s│\n" "$header"
-  printf "├%${INNER}s┤\n" | tr ' ' '─'
+  printf "┌"; printf '─%.0s' $(seq 1 $INNER); printf "┐\n"
 
   print_section() {
     local dir=$1
@@ -50,7 +50,7 @@ while true; do
   print_section "$LOCAL_CONVERT_FOLDER"
   print_section "$REMOTE_CONVERT_FOLDER"
 
-  printf "└%${INNER}s┘\n" | tr ' ' '─'
+  printf "┌"; printf '─%.0s' $(seq 1 $INNER); printf "┐\n"
 
   for ((i=REFRESH_INTERVAL; i>0; i--)); do
     printf "\r  Refresh in: %2d seconds... (Ctrl+C to stop)" "$i"
