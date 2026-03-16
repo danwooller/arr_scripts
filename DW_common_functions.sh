@@ -209,10 +209,10 @@ synology_tv_show_sync() {
     log "--- TV Show Sync Started for: $SHOW_NAME ---"
 
     # Check if the destination exists
-    if [[ ! -d "$DEST_SHOW_PATH" ]]; then
-        log "ℹ️ Destination folder '$SHOW_NAME' not found in $SYNOLOGY_DIR"
-        return 1
-    fi
+#    if [[ ! -d "$DEST_SHOW_PATH" ]]; then
+#        log "ℹ️ Destination folder '$SHOW_NAME' not found in $SYNOLOGY_DIR"
+#        return 1
+#    fi
 
     # Check if the source exists
     if [[ -d "$SOURCE_SHOW_PATH" ]]; then
