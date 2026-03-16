@@ -303,13 +303,24 @@ plex_active_streams() {
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
     
-    # Get active sessions and count them
-    local count=$(curl -s -H "X-Plex-Token: $token" "$url/status/sessions" | grep -c "<Video" || echo 0)
+    # Fetch data and count video sessions
+    # We redirect stderr to /dev/null so curl errors don't clutter your logs
+    local response
+    response=$(curl -s -H "X-Plex-Token: $token" "$url/status/sessions" 2>/dev/null)
     
-    if [ "$count" -gt 0 ]; then
-        return 0 # Streams are active
+    # Count occurrences of "<Video"
+    local count=$(echo "$response" | grep -c "<Video" || echo 0)
+    
+    # Validate: check if count is actually a number
+    if [[ "$count" =~ ^[0-9]+$ ]]; then
+        if [ "$count" -gt 0 ]; then
+            return 0 # Streams active
+        else
+            return 1 # No streams
+        fi
     else
-        return 1 # No streams
+        # Handle the case where the API call failed or returned bad data
+        return 1
     fi
 }
 
