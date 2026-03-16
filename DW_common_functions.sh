@@ -206,13 +206,7 @@ synology_tv_show_sync() {
         return 1
     fi
 
-    log "--- TV Show Sync Started for: $SHOW_NAME ---"
-
-    # Check if the destination exists
-#    if [[ ! -d "$DEST_SHOW_PATH" ]]; then
-#        log "ℹ️ Destination folder '$SHOW_NAME' not found in $SYNOLOGY_DIR"
-#        return 1
-#    fi
+    log "ℹ️ Synology Sync Started for: $SHOW_NAME"
 
     # Check if the source exists
     if [[ -d "$SOURCE_SHOW_PATH" ]]; then
@@ -229,7 +223,7 @@ synology_tv_show_sync() {
         rsync $RSYNC_OPTS "$SOURCE_SHOW_PATH/" "$DEST_SHOW_PATH"
         
         if [[ $? -eq 0 ]]; then
-            log "✅ Sync completed for '$SHOW_NAME'"
+            log "ℹ️ Sync completed for '$SHOW_NAME'"
 
             if ! $DRY_RUN; then
                 # Clean up empty sub-directories
