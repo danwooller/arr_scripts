@@ -173,7 +173,7 @@ while true; do
             --aencoder copy --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
             --audio-fallback aac \
             --optimize \
-            $HANDBRAKE_SUB_ARGS 
+            $HANDBRAKE_SUB_ARGS < /dev/null
         #Set the subtitle name.
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
