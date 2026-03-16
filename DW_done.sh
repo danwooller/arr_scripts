@@ -18,7 +18,7 @@ while true; do
   printf "┌"; printf '─%.0s' $(seq 1 $INNER); printf "┐\n"
   header="$(hostname) [$(date +%H:%M:%S)]"
   printf "│%-${INNER}s│\n" "$header"
-  printf "┌"; printf '─%.0s' $(seq 1 $INNER); printf "┐\n"
+  printf "├"; printf '─%.0s' $(seq 1 $INNER); printf "┤\n"
 
   print_section() {
     local dir=$1
@@ -50,7 +50,7 @@ while true; do
   print_section "$LOCAL_CONVERT_FOLDER"
   print_section "$REMOTE_CONVERT_FOLDER"
 
-  printf "┌"; printf '─%.0s' $(seq 1 $INNER); printf "┐\n"
+  printf "└"; printf '─%.0s' $(seq 1 $INNER); printf "┘\n"
 
   for ((i=REFRESH_INTERVAL; i>0; i--)); do
     printf "\r  Refresh in: %2d seconds... (Ctrl+C to stop)" "$i"
