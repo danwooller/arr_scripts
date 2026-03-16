@@ -210,7 +210,7 @@ synology_tv_show_sync() {
 
     # Check if the destination exists
     if [[ ! -d "$DEST_SHOW_PATH" ]]; then
-        log "Error: Destination folder '$SHOW_NAME' not found in $SYNOLOGY_DIR"
+        log "ℹ️ Destination folder '$SHOW_NAME' not found in $SYNOLOGY_DIR"
         return 1
     fi
 
