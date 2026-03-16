@@ -81,7 +81,7 @@ while true; do
                 if [ -n "$SERIES_FOLDER" ]; then
                     [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
-                    sync_tv_show_synology "$SHOW_NAME_ONLY"
+                    synology_tv_show_sync "$SHOW_NAME_ONLY"
                     sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                 else
