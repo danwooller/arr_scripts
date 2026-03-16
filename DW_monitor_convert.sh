@@ -124,21 +124,29 @@ while true; do
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."        
         TRACK_INFO=$(mkvmerge -J "$FILE_TO_PROCESS" 2>/dev/null)
-        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
-        echo "Extracted Forced Track ID: $SUB_TRACK_ID"
+        SUB_TRACK_ID=$(mkvmerge -J "$FILE_TO_PROCESS" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         if [[ -n "$SUB_TRACK_ID" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
-            mkvextract tracks "$FILE_TO_PROCESS" "$SUB_TRACK_ID:$SUB_FILE"
-            if [[ $? -eq 0 ]]; then
-                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
-                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
-                SUB_FILE_EXTRACTED=true
-            else
-               [[ $LOG_LEVEL == "debug" ]] && log "❌ Subtitle extraction failed. Will NOT embed subtitles."
-            fi
+            log "✅ Found forced subtitle track: $SUB_TRACK_ID"
+            HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-forced"
         else
-            [[ $LOG_LEVEL == "debug" ]] && log "⚠️ No suitable English forced subtitle track found in the source file."
+            log "ℹ️ No English forced subtitles found."
+            HANDBRAKE_SUB_ARGS=""
         fi
+#        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
+#        echo "Extracted Forced Track ID: $SUB_TRACK_ID"
+#        if [[ -n "$SUB_TRACK_ID" ]]; then
+#            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
+#            mkvextract tracks "$FILE_TO_PROCESS" "$SUB_TRACK_ID:$SUB_FILE"
+#            if [[ $? -eq 0 ]]; then
+#                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
+#                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
+#                SUB_FILE_EXTRACTED=true
+#            else
+#               [[ $LOG_LEVEL == "debug" ]] && log "❌ Subtitle extraction failed. Will NOT embed subtitles."
+#            fi
+#        else
+#            [[ $LOG_LEVEL == "debug" ]] && log "⚠️ No suitable English forced subtitle track found in the source file."
+#        fi
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Determining preset based on filename content..."
         # --- 4. Determine Preset (Wrapped in quotes to prevent "Very" error) ---
         LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
