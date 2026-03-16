@@ -10,7 +10,7 @@ LOCAL_DONE_FOLDER="${1:-$HOME_DIR/$(hostname)_done}"
 LOCAL_CONVERT_FOLDER="$HOME_DIR/convert"
 REMOTE_CONVERT_FOLDER="/mnt/media/torrent/$(hostname)_convert"
 
-REFRESH_INTERVAL=5
+REFRESH_INTERVAL=30
 MAX_FILES=10
 
 while true; do
