@@ -25,7 +25,7 @@ while true; do
     #local count=$(ls -1 "$dir" 2>/dev/null | wc -l)
     # Faster counting for large directories
     local count=$(find "$dir" -maxdepth 1 -type f | wc -l)
-    printf "│ %-76s │\n" "$dir ($count files)"
+    printf "│%-${INNER}s│\n" "$dir ($count files)"
 
     ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
         # Extract size (col 5) and name (everything after col $MAX_FILES)
