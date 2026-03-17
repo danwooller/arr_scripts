@@ -43,7 +43,8 @@ while true; do
         # Print the string followed by spaces, then the closing border
         printf "│%s%${pad_len}s│\n" "$info_string" ""
     fi
-    printf "│%78s│\n" ""
+    #printf "│%78s│\n" ""
+    printf "│%$INNERs│\n" ""
   }
 
   print_section "$LOCAL_DONE_FOLDER"
