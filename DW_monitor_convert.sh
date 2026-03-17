@@ -129,7 +129,7 @@ while true; do
             log "✅ Found forced subtitle track: $SUB_TRACK_ID"
             HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-forced"
         else
-            log "ℹ️ No English forced subtitles found."
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No English forced subtitles found."
             HANDBRAKE_SUB_ARGS=""
         fi
 #        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
@@ -163,7 +163,7 @@ while true; do
         else
             PRESET="$PRESET_SD"
         fi
-        log "ℹ️ Using preset: $PRESET"
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Using preset: $PRESET"
         HandBrakeCLI \
             --preset "$PRESET" \
             -q 24.0 \
@@ -181,7 +181,7 @@ while true; do
         CONVERSION_EXIT_CODE=$?
         # --- 6. Post-Conversion Cleanup and Move ---
         if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
-            log "✅ $FILENAME"
+            [[ $LOG_LEVEL == "debug" ]] && log "✅ $FILENAME"
             # Move the completed file to the completed folder
             mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
             #erroneous mkv files in the root directory
@@ -196,7 +196,7 @@ while true; do
             # Search & Delete across all 5 servers
             manage_remote_torrent "delete" "$BASE_NAME"
         else
-            log "❌ Failed: $CONVERSION_EXIT_CODE for $FILENAME."
+            log "❌ $CONVERSION_EXIT_CODE for $FILENAME."
             # Clean up working file if conversion failed
             rm -f "$OUTPUT_FILE"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
