@@ -6,7 +6,7 @@ INNER="$((WIDTH-2))"
 
 # Configuration
 if [[ $HOSTNAME == "pi"* ]]; then HOME_DIR="/home/pi"; else HOME_DIR="/home/dan"; fi
-LOCAL_DONE_FOLDER="$HOME_DIR/$(hostname)_done}"
+LOCAL_DONE_FOLDER="$HOME_DIR/$(hostname)_done"
 LOCAL_CONVERT_FOLDER="$HOME_DIR/convert"
 REMOTE_CONVERT_FOLDER="/mnt/media/torrent/$(hostname)_convert"
 
