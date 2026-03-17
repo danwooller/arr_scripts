@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Hard-code the width for consistency
-WIDTH=80
-INNER=78
+WIDTH=${1:-80}
+INNER="$((WIDTH-2))"
 
 # Configuration
 if [[ $HOSTNAME == "pi"* ]]; then HOME_DIR="/home/pi"; else HOME_DIR="/home/dan"; fi
-LOCAL_DONE_FOLDER="${1:-$HOME_DIR/$(hostname)_done}"
+LOCAL_DONE_FOLDER="$HOME_DIR/$(hostname)_done}"
 LOCAL_CONVERT_FOLDER="$HOME_DIR/convert"
 REMOTE_CONVERT_FOLDER="/mnt/media/torrent/$(hostname)_convert"
 
