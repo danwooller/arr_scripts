@@ -2,7 +2,7 @@
 
 # A script to check and update the "Title" field in an MKV file
 # using mkvinfo and mkvpropedit. The desired title is set to match
-# the name of the immediate containing folder.
+# the name of the filename.
 
 # --- Load Shared Functions ---
 # Checking existence to prevent 'set -e' from killing the script cryptically
