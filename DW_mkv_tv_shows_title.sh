@@ -19,16 +19,10 @@ check_dependencies "mkvmerge"
 # --- Configuration ---
 # Set the MKV extension to check for
 MKV_EXTENSION=".mkv"
-
 # Set the default directory to scan if no files are provided as arguments
 # This default is used if the user doesn't specify a directory or files.
 DEFAULT_TARGET_DIR="/mnt/media/TV"
 #LOG_LEVEL="debug"
-
-# --- Dependencies ---
-check_dependencies "mkvmerge"
-
-# --- Helper Function ---
 
 # Function to process a single MKV file
 process_mkv() {
