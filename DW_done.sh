@@ -44,7 +44,7 @@ while true; do
         printf "│%s%${pad_len}s│\n" "$info_string" ""
     fi
     #printf "│%78s│\n" ""
-    printf "│%$INNERs│\n" ""
+    printf "│%-${INNER}s│\n" ""
   }
 
   print_section "$LOCAL_DONE_FOLDER"
