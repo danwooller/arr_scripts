@@ -82,7 +82,7 @@ while true; do
                 # 8. Extract folder and trigger Sonarr logic
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
                 if [ -n "$SERIES_FOLDER" ]; then
-                    [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Detected move to: $SERIES_FOLDER"
+                    log "📂 Moved to $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     sonarr_targeted_rename "$SHOW_NAME_ONLY"
