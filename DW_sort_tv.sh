@@ -96,7 +96,7 @@ while true; do
                     log "🎬 Movie Moved to $MOVIE_FOLDER"
                     # Pass the movie name to your notification function
                     radarr_targeted_scan "$MOVIE_NAME_ONLY"
-                    plex_library_update "$PLEX_MOVIE_SRC" "$PLEX_MOVIE_NAME"
+                    plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No specific show path parsed. Running general notification."
                     notify_media_managers
