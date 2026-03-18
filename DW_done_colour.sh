@@ -92,12 +92,8 @@ trap "tput cnorm; exit" INT TERM # Show cursor again on exit
 while true; do
     clear
     print_hr "┌" "─" "┐"
-    
-    # Main header with current time
-    header="$(hostname) [$(date +%H:%M:%S)]"
-    printf "│%s%*s│\n" "$header" "$((INNER - ${#header}))" ""
 
-# 1. Get the 1-minute load average
+    # 1. Get the 1-minute load average
     # Loadavg format: 0.45 0.23 0.11 ... (1m, 5m, 15m)
     load_1m=$(awk '{print $1}' /proc/loadavg)
     
@@ -116,6 +112,9 @@ while true; do
     # Add another divider to separate system info from the folders
     print_hr "├" "─" "┤"
 
+    # Main header with current time
+    header="$(hostname) [$(date +%H:%M:%S)]"
+    printf "│%s%*s│\n" "$header" "$((INNER - ${#header}))" ""
 
     print_hr "├" "─" "┤"
 
