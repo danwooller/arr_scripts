@@ -178,7 +178,7 @@ notify_media_managers() {
         # Note: Radarr uses the same command name as Sonarr
         curl -s -H "X-Api-Key: $RADARR_API_KEY" \
              -H "Content-Type: application/json" \
-             -X POST -d '{"name": "RefreshMonitoredDownloads"}' \
+             -X POST -d '{"name": "RescanMovie"}' \
              "$RADARR_API_BASE/command" > /dev/null
     else
         log "⚠️ RADARR_API_KEY not found. Skipping Radarr notify."
