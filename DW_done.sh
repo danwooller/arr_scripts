@@ -31,11 +31,6 @@ while true; do
         # Extract size (col 5) and name (everything after col $MAX_FILES)
         size=$(echo "$line" | awk '{print $5}')
         name=$(echo "$line" | cut -d' ' -f9-)
-        # Truncate name to fit (78 - 4 padding - $MAX_FILES size - 2 gap = 64)
-        [ ${#name} -gt 64 ] && name="${name:0:61}..."
-        printf "│   %-8s %-65s │\n" "$size" "$name"
-        pad_len=$(( $INNER - ${#size} - ${#name} ))
-        printf "│%s%${pad_len}s│\n" "$size" "$name"
         pad_len=$(( INNER - ${#size} ))
         printf "│%s%${pad_len}s│\n" "$size" "$name"
     done
