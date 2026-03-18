@@ -11,7 +11,7 @@ fi
 # --- Configuration ---
 LOCK_FILE="/tmp/sorttv_running.lock"
 CHECK_INTERVAL="300" # Sleep for 5 minutes (300 seconds)
-LOG_LEVEL="debug"
+#LOG_LEVEL="debug"
 
 # --- Ensure dependencies exist (Metric check: jq for API parsing) ---
 check_dependencies "curl" "jq"
