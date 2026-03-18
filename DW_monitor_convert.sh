@@ -181,7 +181,7 @@ while true; do
         CONVERSION_EXIT_CODE=$?
         # --- 6. Post-Conversion Cleanup and Move ---
         if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "✅ $FILENAME"
+            log "✅ Completed $FILENAME"
             # Move the completed file to the completed folder
             mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
             #erroneous mkv files in the root directory
