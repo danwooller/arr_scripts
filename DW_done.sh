@@ -34,7 +34,7 @@ while true; do
         # Truncate name to fit (78 - 4 padding - $MAX_FILES size - 2 gap = 64)
         [ ${#name} -gt 64 ] && name="${name:0:61}..."
         printf "│   %-8s %-65s │\n" "$size" "$name"
-        pad_len=$((INNER - ${#size} - ${#name}))
+        pad_len=$(( $INNER - ${#size} - ${#name} ))
         printf "│%s%${pad_len}s│\n" "$size" "$name"
     done
     if [ "$count" -gt "$MAX_FILES" ]; then
