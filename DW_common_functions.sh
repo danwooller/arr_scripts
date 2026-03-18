@@ -341,6 +341,54 @@ plex_busy() {
 }
 
 # --- END PLEX SECTION ---
+# --- RADARR SECTION ---
+
+radarr_targeted_scan() {
+    # DW_sort_tv.sh
+    # Expects the movie folder name
+    local movie_name="$1"
+    
+    if [ -z "$RADARR_API_KEY" ]; then 
+        log "⚠️ Radarr API Key missing."
+        return 1 
+    fi
+
+    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Radarr ID for: $movie_name"
+
+    # --- Attempt to find the Movie ID by matching the folder name in the path ---
+    local movie_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+        jq -r --arg name "$movie_name" '.[] | select(.path | ascii_downcase | endswith("/" + ($name | ascii_downcase))) | .id' | head -n 1)
+
+    # --- Fallback: Try matching by Title if Path failed ---
+    if [ -z "$movie_id" ] || [ "$movie_id" = "null" ]; then
+        [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$movie_name', trying TITLE match..."
+        movie_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+            jq -r --arg name "$movie_name" '.[] | select(.title | ascii_downcase == ($name | ascii_downcase | sub(" \\(\\d{4}\\)$"; ""))) | .id' | head -n 1)
+    fi
+
+    if [ -n "$movie_id" ] && [ "$movie_id" != "null" ]; then  
+        # --- Trigger Rescan (Disks) ---
+        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Radarr rescan for $movie_name (ID: $movie_id)"
+        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RescanMovie\", \"movieId\": $movie_id}" \
+             "$RADARR_API_BASE/command" > /dev/null
+
+        # --- Brief Wait for Scan to Register ---
+        sleep 5 
+
+        # --- Trigger Rename (Organize) ---
+        [[ $LOG_LEVEL == "debug" ]] && log "📝 Triggering Radarr rename for $movie_name"
+        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RenameMovie\", \"movieIds\": [$movie_id]}" \
+             "$RADARR_API_BASE/command" > /dev/null
+    else
+        log "⚠️ Could not map '$movie_name' to a Radarr Movie ID."
+    fi
+}
+
+# --- END RADARR SECTION ---
 # --- SEERR SECTION ---
 
 seerr_resolve_issue() {
@@ -572,53 +620,6 @@ seerr_sync_issue() {
 }
 
 # --- END SEERR SECTION ---
-# --- RADARR SECTION ---
-
-radarr_targeted_scan() {
-    # Expects the movie folder name, e.g., "Prisoners (2013)"
-    local movie_name="$1"
-    
-    if [ -z "$RADARR_API_KEY" ]; then 
-        log "⚠️ Radarr API Key missing."
-        return 1 
-    fi
-
-    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Radarr ID for: $movie_name"
-
-    # --- Attempt to find the Movie ID by matching the folder name in the path ---
-    local movie_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-        jq -r --arg name "$movie_name" '.[] | select(.path | ascii_downcase | endswith("/" + ($name | ascii_downcase))) | .id' | head -n 1)
-
-    # --- Fallback: Try matching by Title if Path failed ---
-    if [ -z "$movie_id" ] || [ "$movie_id" = "null" ]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$movie_name', trying TITLE match..."
-        movie_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-            jq -r --arg name "$movie_name" '.[] | select(.title | ascii_downcase == ($name | ascii_downcase | sub(" \\(\\d{4}\\)$"; ""))) | .id' | head -n 1)
-    fi
-
-    if [ -n "$movie_id" ] && [ "$movie_id" != "null" ]; then  
-        # --- Trigger Rescan (Disks) ---
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Radarr rescan for $movie_name (ID: $movie_id)"
-        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RescanMovie\", \"movieId\": $movie_id}" \
-             "$RADARR_API_BASE/command" > /dev/null
-
-        # --- Brief Wait for Scan to Register ---
-        sleep 5 
-
-        # --- Trigger Rename (Organize) ---
-        [[ $LOG_LEVEL == "debug" ]] && log "📝 Triggering Radarr rename for $movie_name"
-        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RenameMovie\", \"movieIds\": [$movie_id]}" \
-             "$RADARR_API_BASE/command" > /dev/null
-    else
-        log "⚠️ Could not map '$movie_name' to a Radarr Movie ID."
-    fi
-}
-
-# --- END RADARR SECTION ---
 # --- SONARR SECTION ---
 
 sonarr_missing_episodes() {
