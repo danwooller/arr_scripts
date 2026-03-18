@@ -89,6 +89,8 @@ while true; do
                     plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No specific show path parsed. Running general notification."
+                    log "ℹ️ OUTPUT: $OUTPUT"
+                    log "ℹ️ SERIES_FOLDER: $SERIES_FOLDER"
                     notify_media_managers
                 fi
             else
