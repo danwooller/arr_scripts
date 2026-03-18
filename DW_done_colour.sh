@@ -35,32 +35,35 @@ print_section() {
     local dir=$1
     [ ! -d "$dir" ] && return
 
+    # ANSI Colors & Formatting
+    local BOLD='\033[1m'
+    local RED='\033[0;31m'
+    local GREEN='\033[0;32m'
+    local YELLOW='\033[1;33m'
+    local NC='\033[0m'
+
     local count=$(find "$dir" -maxdepth 1 -type f | wc -l)
     
-    # Directory Header
+    # Directory Header - Now BOLD
     local dir_str="$dir ($count files)"
-    printf "│%s%*s│\n" "$dir_str" "$((INNER - ${#dir_str}))" ""
+    # We apply BOLD to the string but calculate padding based on raw text length
+    printf "│%b%s%b%*s│\n" "$BOLD" "$dir_str" "$NC" "$((INNER - ${#dir_str}))" ""
 
     # File List
     ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
-        # Use awk to get size ($5) and full filename ($9+)
         size=$(echo "$line" | awk '{print $5}')
         name=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i (i==NF?"":FS); print ""}')
         
-        # Color Logic (G=Red, M=Green/Yellow)
         local color=$NC
         if [[ $size == *G* ]]; then
             color=$RED
         elif [[ $size == *M* ]]; then
-            # If size starts with 5-9, make it Yellow
             [[ ${size:0:1} =~ [5-9] ]] && color=$YELLOW || color=$GREEN
         fi
 
-        # Truncate if too long for the box
         local max_n=$(( INNER - ${#size} - 1 ))
         [ ${#name} -gt $max_n ] && name="${name:0:$((max_n - 3))}..."
 
-        # Calculate Padding
         local pad_len=$(( INNER - 1 - ${#size} - ${#name} ))
         [ $pad_len -lt 0 ] && pad_len=0
         
