@@ -33,6 +33,8 @@ while true; do
         name=$(echo "$line" | cut -d' ' -f9-)
         pad_len=$(( INNER - ${#size} ))
         printf "│%s%${pad_len}s│\n" "$size" "$name"
+        pad_len=$(( INNER - ${#size} - ${#name} ))
+        printf "│%s%s%*s│\n" "$size" "$name" "$pad_len" ""
     done
     if [ "$count" -gt "$MAX_FILES" ]; then
         # The text inside the box excluding the borders
