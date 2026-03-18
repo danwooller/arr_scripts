@@ -17,7 +17,13 @@ REMOTE_CONVERT_FOLDER="/mnt/media/torrent/$(hostname)_convert"
 REFRESH_INTERVAL=30
 MAX_FILES=10
 
-# 2. Define Functions (The "Tools")
+# ANSI Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# 2. Define Functions
 print_hr() {
     local left=$1 middle=$2 right=$3
     printf "%s" "$left"
@@ -29,12 +35,6 @@ print_section() {
     local dir=$1
     [ ! -d "$dir" ] && return
 
-    # ANSI Colors
-    local RED='\033[0;31m'
-    local GREEN='\033[0;32m'
-    local YELLOW='\033[1;33m'
-    local NC='\033[0m'
-
     local count=$(find "$dir" -maxdepth 1 -type f | wc -l)
     
     # Directory Header
@@ -43,27 +43,27 @@ print_section() {
 
     # File List
     ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
+        # Use awk to get size ($5) and full filename ($9+)
         size=$(echo "$line" | awk '{print $5}')
-        # Extract filename (handles spaces correctly)
         name=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i (i==NF?"":FS); print ""}')
         
-        # Color Logic
+        # Color Logic (G=Red, M=Green/Yellow)
         local color=$NC
         if [[ $size == *G* ]]; then
             color=$RED
         elif [[ $size == *M* ]]; then
+            # If size starts with 5-9, make it Yellow
             [[ ${size:0:1} =~ [5-9] ]] && color=$YELLOW || color=$GREEN
         fi
 
-        # Truncate if too long
+        # Truncate if too long for the box
         local max_n=$(( INNER - ${#size} - 1 ))
         [ ${#name} -gt $max_n ] && name="${name:0:$((max_n - 3))}..."
 
         # Calculate Padding
-        pad_len=$(( INNER - 1 - ${#size} - ${#name} ))
+        local pad_len=$(( INNER - 1 - ${#size} - ${#name} ))
         [ $pad_len -lt 0 ] && pad_len=0
         
-        # Print with %b for color rendering
         printf "│%b%s%b %s%*s│\n" "$color" "$size" "$NC" "$name" "$pad_len" ""
     done
 
@@ -75,7 +75,11 @@ print_section() {
     printf "│%*s│\n" "$INNER" ""
 }
 
-# 3. The Execution Loop (The "Action")
+# 3. The Execution Loop
+# Hide the cursor for a cleaner look
+tput civis
+trap "tput cnorm; exit" INT TERM # Show cursor again on exit
+
 while true; do
     clear
     print_hr "┌" "─" "┐"
@@ -85,15 +89,16 @@ while true; do
     
     print_hr "├" "─" "┤"
 
-    # CALLING the function for each folder
     print_section "$LOCAL_DONE_FOLDER"
     print_section "$LOCAL_CONVERT_FOLDER"
     print_section "$REMOTE_CONVERT_FOLDER"
 
     print_hr "└" "─" "┘"
 
+    # Fixed Countdown at the bottom
     for ((i=REFRESH_INTERVAL; i>0; i--)); do
-        printf "\r  Refresh in: %2d seconds... (Ctrl+C to stop)" "$i"
+        # Move to the start of the line and clear to end of line
+        printf "\r\033[K  Refresh in: %2d seconds... (Ctrl+C to stop)" "$i"
         sleep 1
     done
 done
