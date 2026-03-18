@@ -93,12 +93,14 @@ while true; do
     clear
     print_hr "┌" "─" "┐"
 
-    # 1. Get the 1-minute load average
-    # Loadavg format: 0.45 0.23 0.11 ... (1m, 5m, 15m)
-    load_1m=$(awk '{print $1}' /proc/loadavg)
+    # 1. Prepare Header (Left Side)
+    header="$(hostname) [$(date +%H:%M:%S)]"
     
-    # 2. Determine if the load is "Heavy" (Usually > 2.0 on a Pi or 4.0 on a PC)
-    # We'll make it Red if it's over 4.0, Yellow if over 2.0
+    # 2. Prepare Load (Right Side)
+    load_1m=$(awk '{print $1}' /proc/loadavg)
+    load_str="Load: $load_1m"
+    
+    # Determine Color
     load_color=$NC
     if (( $(echo "$load_1m > 4.0" | bc -l 2>/dev/null || echo 0) )); then
         load_color=$RED
@@ -106,15 +108,14 @@ while true; do
         load_color=$YELLOW
     fi
 
-    load_string="System Load: $load_1m"
-    printf "│%b%s%b%*s│\n" "$load_color" "$load_string" "$NC" "$((INNER - ${#load_string}))" ""
-    
-    # Add another divider to separate system info from the folders
-    print_hr "├" "─" "┤"
+    # 3. Calculate Padding
+    # INNER - length of left side - length of right side
+    mid_pad=$(( INNER - ${#header} - ${#load_str} ))
+    [ $mid_pad -lt 0 ] && mid_pad=0
 
-    # Main header with current time
-    header="$(hostname) [$(date +%H:%M:%S)]"
-    printf "│%s%*s│\n" "$header" "$((INNER - ${#header}))" ""
+    # 4. Print the Combined Line
+    # %s (Header) + %*s (Spaces) + %b%s%b (Colored Load)
+    printf "│%s%*s%b%s%b│\n" "$header" "$mid_pad" "" "$load_color" "$load_str" "$NC"
 
     print_hr "├" "─" "┤"
 
