@@ -32,6 +32,7 @@ while true; do
         size=$(echo "$line" | awk '{print $5}')
         name=$(echo "$line" | cut -d' ' -f9-)
         pad_len=$(( INNER - 1 - ${#size} - ${#name} ))
+        (( pad_len < 0 )) && pad_len=0
         printf "│%s %s%*s│\n" "$size" "$name" "$pad_len" ""
     done
     if [ "$count" -gt "$MAX_FILES" ]; then
