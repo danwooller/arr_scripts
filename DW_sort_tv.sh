@@ -81,16 +81,22 @@ while true; do
                 [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
                 # 8. Extract folder and trigger Sonarr logic
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
+                MOVIE_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=MOVE MOVIE: sorting ).*? --to--> \K.*?(?=/)' | head -n 1)
                 if [ -n "$SERIES_FOLDER" ]; then
                     log "📂 Moved to $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
+                elif [ -n "$MOVIE_FOLDER" ]; then
+                    # Extracts "Prisoners (2013)" from "/mnt/media/Movies/Prisoners (2013)"
+                    MOVIE_NAME_ONLY=$(basename "$MOVIE_FOLDER")
+                    log "🎬 Movie Moved to $MOVIE_FOLDER"
+                    # Pass the movie name to your notification function
+                    radarr_targeted_scan "$MOVIE_NAME_ONLY"
+                    plex_library_update "$PLEX_MOVIE_SRC" "$PLEX_MOVIE_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No specific show path parsed. Running general notification."
-                    log "ℹ️ OUTPUT: $OUTPUT"
-                    log "ℹ️ SERIES_FOLDER: $SERIES_FOLDER"
                     notify_media_managers
                 fi
             else
