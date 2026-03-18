@@ -163,7 +163,7 @@ notify_media_managers() {
     # DW_sort_tv.sh
     # Notify Sonarr
     if [ -n "$SONARR_API_KEY" ]; then
-        log "📡 Notifying Sonarr to scan for new downloads..."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Notifying Sonarr to scan for new downloads..."
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d '{"name": "DownloadedEpisodesScan"}' \
@@ -174,7 +174,7 @@ notify_media_managers() {
 
     # Notify Radarr
     if [ -n "$RADARR_API_KEY" ]; then
-        log "🎬 Notifying Radarr to scan for new downloads..."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Notifying Radarr to scan for new downloads..."
         # Note: Radarr uses the same command name as Sonarr
         curl -s -H "X-Api-Key: $RADARR_API_KEY" \
              -H "Content-Type: application/json" \
