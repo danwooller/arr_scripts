@@ -44,40 +44,46 @@ print_section() {
 
     local count=$(find "$dir" -maxdepth 1 -type f | wc -l)
     
-    # Directory Header - Now BOLD
+    # 1. Directory Header - BOLD
     local dir_str="$dir ($count files)"
-    # We apply BOLD to the string but calculate padding based on raw text length
     printf "│%b%s%b%*s│\n" "$BOLD" "$dir_str" "$NC" "$((INNER - ${#dir_str}))" ""
 
-    # File List
-    ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
-        size=$(echo "$line" | awk '{print $5}')
-        name=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i (i==NF?"":FS); print ""}')
-        
-        local color=$NC
-        if [[ $size == *G* ]]; then
-            color=$RED
-        elif [[ $size == *M* ]]; then
-            [[ ${size:0:1} =~ [5-9] ]] && color=$YELLOW || color=$GREEN
-        fi
+    # 2. Check for empty directory
+    if [ "$count" -eq 0 ]; then
+        local empty_msg="    (No files found)"
+        printf "│%s%*s│\n" "$empty_msg" "$((INNER - ${#empty_msg}))" ""
+    else
+        # 3. File List with Color-Coded Sizes
+        ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
+            size=$(echo "$line" | awk '{print $5}')
+            name=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i (i==NF?"":FS); print ""}')
+            
+            local color=$NC
+            if [[ $size == *G* ]]; then
+                color=$RED
+            elif [[ $size == *M* ]]; then
+                [[ ${size:0:1} =~ [5-9] ]] && color=$YELLOW || color=$GREEN
+            fi
 
-        local max_n=$(( INNER - ${#size} - 1 ))
-        [ ${#name} -gt $max_n ] && name="${name:0:$((max_n - 3))}..."
+            local max_n=$(( INNER - ${#size} - 1 ))
+            [ ${#name} -gt $max_n ] && name="${name:0:$((max_n - 3))}..."
 
-        local pad_len=$(( INNER - 1 - ${#size} - ${#name} ))
-        [ $pad_len -lt 0 ] && pad_len=0
-        
-        printf "│%b%s%b %s%*s│\n" "$color" "$size" "$NC" "$name" "$pad_len" ""
-    done
+            local pad_len=$(( INNER - 1 - ${#size} - ${#name} ))
+            [ $pad_len -lt 0 ] && pad_len=0
+            
+            printf "│%b%s%b %s%*s│\n" "$color" "$size" "$NC" "$name" "$pad_len" ""
+        done
+    fi
 
-    # Footer/More logic
+    # 4. "More" files logic
     if [ "$count" -gt "$MAX_FILES" ]; then
         local more="    ... ($((count - MAX_FILES)) more)"
         printf "│%s%*s│\n" "$more" "$((INNER - ${#more}))" ""
     fi
+
+    # Spacer line
     printf "│%*s│\n" "$INNER" ""
 }
-
 # 3. The Execution Loop
 # Hide the cursor for a cleaner look
 tput civis
@@ -87,6 +93,7 @@ while true; do
     clear
     print_hr "┌" "─" "┐"
     
+    # Main header with current time
     header="$(hostname) [$(date +%H:%M:%S)]"
     printf "│%s%*s│\n" "$header" "$((INNER - ${#header}))" ""
     
@@ -98,10 +105,12 @@ while true; do
 
     print_hr "└" "─" "┘"
 
-    # Fixed Countdown at the bottom
+    # Capture the time this specific refresh completed
+    last_fetch=$(date +%H:%M:%S)
+
     for ((i=REFRESH_INTERVAL; i>0; i--)); do
-        # Move to the start of the line and clear to end of line
-        printf "\r\033[K  Refresh in: %2d seconds... (Ctrl+C to stop)" "$i"
+        # \r = start of line, \033[K = clear line
+        printf "\r\033[K  [Data Last Fetched: %s]  Next Refresh in: %2d seconds... (Ctrl+C)" "$last_fetch" "$i"
         sleep 1
     done
 done
