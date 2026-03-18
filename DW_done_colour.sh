@@ -96,7 +96,27 @@ while true; do
     # Main header with current time
     header="$(hostname) [$(date +%H:%M:%S)]"
     printf "│%s%*s│\n" "$header" "$((INNER - ${#header}))" ""
+
+# 1. Get the 1-minute load average
+    # Loadavg format: 0.45 0.23 0.11 ... (1m, 5m, 15m)
+    load_1m=$(awk '{print $1}' /proc/loadavg)
     
+    # 2. Determine if the load is "Heavy" (Usually > 2.0 on a Pi or 4.0 on a PC)
+    # We'll make it Red if it's over 4.0, Yellow if over 2.0
+    load_color=$NC
+    if (( $(echo "$load_1m > 4.0" | bc -l 2>/dev/null || echo 0) )); then
+        load_color=$RED
+    elif (( $(echo "$load_1m > 2.0" | bc -l 2>/dev/null || echo 0) )); then
+        load_color=$YELLOW
+    fi
+
+    load_string="System Load: $load_1m"
+    printf "│%b%s%b%*s│\n" "$load_color" "$load_string" "$NC" "$((INNER - ${#load_string}))" ""
+    
+    # Add another divider to separate system info from the folders
+    print_hr "├" "─" "┤"
+
+
     print_hr "├" "─" "┤"
 
     print_section "$LOCAL_DONE_FOLDER"
