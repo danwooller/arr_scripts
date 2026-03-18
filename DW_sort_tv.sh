@@ -99,7 +99,7 @@ while true; do
                     plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
                 else
                     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No specific show path parsed. Running general notification."
-                    notify_media_managers
+                    #notify_media_managers
                 fi
             else
                 log "⚠️ SortTV encountered an error during execution."
