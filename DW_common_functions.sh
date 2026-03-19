@@ -442,8 +442,8 @@ seerr_resolve_issue() {
     local folder_path="${1%/}" 
     local base_url="${SEERR_API_BASE%/}"
     # Use the email/password for your "API-Reporter" user here
-    local seerr_user="${$SEERR_EMAIL}"
-    local seerr_pass="${$SEERR_PASSWORD}"
+    local seerr_user="${SEERR_EMAIL}"
+    local seerr_pass="${SEERR_PASSWORD}"
     
     local cookie_file="/tmp/seerr_cookie.txt"
     local media_type="movie"
