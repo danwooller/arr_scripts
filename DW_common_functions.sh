@@ -255,53 +255,45 @@ synology_tv_show_sync() {
 
 lidarr_targeted_rename() {
     local search_path="$1"
-    
     if [ -z "$LIDARR_API_KEY" ]; then return 1; fi
 
-    # Normalize the path (remove trailing slash)
     search_path="${search_path%/}"
-    
-    # Get just the album folder name
-    local album_name=$(basename "$search_path")
-    
-    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Lidarr ID for: $album_name"
+    local folder_name=$(basename "$search_path")
 
-    # --- Step 1: Find Album ID by Path ---
+    # --- Fix for Multi-Disc Folders ---
+    # If the folder is "Disc 01" or "CD 1", step up to the parent directory
+    if [[ "$folder_name" =~ ^(Disc|CD|Side)\ [0-9]+$ ]] || [[ "$folder_name" =~ ^(Disc|CD|Side)[0-9]+$ ]]; then
+        search_path=$(dirname "$search_path")
+        folder_name=$(basename "$search_path")
+        [[ $LOG_LEVEL == "debug" ]] && log "📂 Multi-disc folder detected. Moving up to: $folder_name"
+    fi
+    
+    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Lidarr ID for: $folder_name"
+
+    # --- Hardened JQ Logic ---
+    # Added 'select(type == "string")' to prevent the "explode" error
     local album_id=$(curl -s -H "X-Api-Key: $LIDARR_API_KEY" "$LIDARR_API_BASE/album" | \
-        jq -r --arg name "$album_name" '.[] | select(.path | ascii_downcase | contains("/" + ($name | ascii_downcase))) | .id' | head -n 1)
+        jq -r --arg name "$folder_name" '
+            .[] | select(.path != null and (.path | type == "string") and (.path | ascii_downcase | contains("/" + ($name | ascii_downcase)))) | .id
+        ' | head -n 1)
 
-    # --- Step 2: Fallback to Title Match ---
     if [ -z "$album_id" ] || [ "$album_id" = "null" ]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$album_name', trying TITLE match..."
-        
-        # Pass $album_name as a jq variable 'name' to avoid escaping hell
+        [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed, trying TITLE match..."
         album_id=$(curl -s -H "X-Api-Key: $LIDARR_API_KEY" "$LIDARR_API_BASE/album" | \
-            jq -r --arg name "$album_name" '
-                [.[] | select(.path | ascii_downcase | contains("/" + ($name | ascii_downcase)))] | .[0].id // 
-                [.[] | select((.title | ascii_downcase == ($name | ascii_downcase)) or (.title | test("^" + $name + "( \\(\\d{4}\\))?$"; "i")))] | .[0].id
+            jq -r --arg name "$folder_name" '
+                .[] | select(.title != null and (.title | type == "string") and ((.title | ascii_downcase == ($name | ascii_downcase)) or (.title | test("^" + $name + "( \\(\\d{4}\\))?$"; "i")))) | .id
             ' | head -n 1)
     fi
 
     if [ -n "$album_id" ] && [ "$album_id" != "null" ]; then  
-        # --- Step 3: Trigger Rescan ---
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Lidarr rescan for album ID: $album_id"
-        curl -s -H "X-Api-Key: $LIDARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RescanAlbum\", \"albumId\": $album_id}" \
-             "$LIDARR_API_BASE/command" > /dev/null
-
-        # --- Brief Wait for Scan to Register ---
+        log "🔄 Refreshing & Renaming Album: $folder_name (ID: $album_id)"
+        curl -s -H "X-Api-Key: $LIDARR_API_KEY" -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RescanAlbum\", \"albumId\": $album_id}" "$LIDARR_API_BASE/command" > /dev/null
         sleep 5 
-
-        # --- Step 4: Trigger Rename ---
-        # Note: Lidarr uses 'RenameFiles' with 'albumIds' (plural array)
-        [[ $LOG_LEVEL == "debug" ]] && log "📝 Triggering Lidarr rename for album ID: $album_id"
-        curl -s -H "X-Api-Key: $LIDARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RenameFiles\", \"albumIds\": [$album_id]}" \
-             "$LIDARR_API_BASE/command" > /dev/null
+        curl -s -H "X-Api-Key: $LIDARR_API_KEY" -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RenameFiles\", \"albumIds\": [$album_id]}" "$LIDARR_API_BASE/command" > /dev/null
     else
-        log "⚠️ Could not map '$album_name' to a Lidarr Album ID."
+        log "⚠️ Could not map '$folder_name' to a Lidarr Album ID."
     fi
 }
 
