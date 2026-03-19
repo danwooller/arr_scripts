@@ -1,0 +1,13 @@
+[Unit]
+Description=FLAC to MP3 Monitor Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/DW_flac_mp3.sh
+Restart=always
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
