@@ -531,78 +531,78 @@ seerr_sync_issue() {
 
     # 1. Trigger Arr Search (Kept standard API keys for Arrs)
     if [[ -n "$message" ]]; then
-        # --- Sonarr Logic (TV) ---
-        if [[ "$media_type" == "tv" ]]; then
-            local target_url="$SONARR_API_BASE"
-            local target_key="$SONARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
+        # --- Sonarr Logic (TV) ---
+        if [[ "$media_type" == "tv" ]]; then
+            local target_url="$SONARR_API_BASE"
+            local target_key="$SONARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$SONARR4K_API_BASE" && target_key="$SONARR4K_API_KEY"
 
-            # 1. Get Series ID
-            local s_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$media_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
-                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | .id')
+            # 1. Get Series ID
+            local s_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/series" | jq -r --arg folder "$media_name" '
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $sonarr_folder |
+                select(($sonarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | .id')
 
-            if [[ -n "$s_id" ]]; then
-                # 2. Check if this is a CORRUPTION event (message contains "CORRUPT:")
-                if [[ "$message" == *"CORRUPT:"* ]]; then
-                    # Extract filename from message
-                    local corrupt_filename=$(echo "$message" | grep -oP '(?<=CORRUPT: ).*?(?=\ \()')
-                    
-                    [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Sonarr: Identifying specific file record for purge..."
-                    local ep_file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/episodefile?seriesId=$s_id" | \
-                        jq -r --arg fname "$corrupt_filename" '.[] | select(.relativePath | contains($fname)) | .id')
-                    
-                    if [[ -n "$ep_file_id" ]]; then
-                        [[ "$LOG_LEVEL" == "debug" ]] && log "🗑️  Sonarr: Purging file record (ID: $ep_file_id) for '$corrupt_filename'..."
-                        curl -s -X DELETE "$target_url/episodefile/$ep_file_id" -H "X-Api-Key: $target_key"
-                        sleep 2
-                    fi
-                fi
+            if [[ -n "$s_id" ]]; then
+                # 2. Check if this is a CORRUPTION event (message contains "CORRUPT:")
+                if [[ "$message" == *"CORRUPT:"* ]]; then
+                    # Extract filename from message
+                    local corrupt_filename=$(echo "$message" | grep -oP '(?<=CORRUPT: ).*?(?=\ \()')
+                    
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Sonarr: Identifying specific file record for purge..."
+                    local ep_file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/episodefile?seriesId=$s_id" | \
+                        jq -r --arg fname "$corrupt_filename" '.[] | select(.relativePath | contains($fname)) | .id')
+                    
+                    if [[ -n "$ep_file_id" ]]; then
+                        [[ "$LOG_LEVEL" == "debug" ]] && log "🗑️  Sonarr: Purging file record (ID: $ep_file_id) for '$corrupt_filename'..."
+                        curl -s -X DELETE "$target_url/episodefile/$ep_file_id" -H "X-Api-Key: $target_key"
+                        sleep 2
+                    fi
+                fi
 
-                # 3. Trigger Search (Always safe for monitored items)
-                # If we have no specific episode ID from a purge, we search the series for missing items
-                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Sonarr: Triggering search for missing monitored episodes in '$media_name'..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $s_id}"
-            fi
-        fi # End TV Block
+                # 3. Trigger Search (Always safe for monitored items)
+                # If we have no specific episode ID from a purge, we search the series for missing items
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Sonarr: Triggering search for missing monitored episodes in '$media_name'..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"SeriesSearch\", \"seriesId\": $s_id}"
+            fi
+        fi # End TV Block
 
-        # --- Radarr Logic (Movie) ---
-        if [[ "$media_type" == "movie" ]]; then
-            local target_url="$RADARR_API_BASE"
-            local target_key="$RADARR_API_KEY"
-            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
+        # --- Radarr Logic (Movie) ---
+        if [[ "$media_type" == "movie" ]]; then
+            local target_url="$RADARR_API_BASE"
+            local target_key="$RADARR_API_KEY"
+            [[ "$media_name" =~ "4K" ]] && target_url="$RADARR4K_API_BASE" && target_key="$RADARR4K_API_KEY"
 
-            # Get ID
-            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
-                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
-                select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
-                "\(.id)|\(.monitored)"' | head -n 1)
+            # Get ID
+            local r_data=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie" | jq -r --arg folder "$media_name" '
+                .[] | ((.path | sub("/*$"; "")) | split("/") | last) as $radarr_folder |
+                select(($radarr_folder | ascii_downcase) == ($folder | ascii_downcase)) | 
+                "\(.id)|\(.monitored)"' | head -n 1)
 
-            local r_id=$(echo "$r_data" | cut -d'|' -f1 | tr -d '[:space:]')
-            local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
+            local r_id=$(echo "$r_data" | cut -d'|' -f1 | tr -d '[:space:]')
+            local r_mon=$(echo "$r_data" | cut -d'|' -f2 | tr -d '[:space:]')
 
-            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
-                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
+            if [[ -n "$r_id" && "$r_mon" == "true" ]]; then
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Radarr: Cleaning database for '$media_name' (ID: $r_id)..."
 
-                # 1. Get the File ID from the movie data
-                local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
+                # 1. Get the File ID from the movie data
+                local file_id=$(curl -s -H "X-Api-Key: $target_key" "$target_url/movie/$r_id" | jq -r '.movieFile.id // empty')
 
-                # 2. If a file record exists in Radarr, tell Radarr to delete it
-                if [[ -n "$file_id" ]]; then
-                    [[ "$LOG_LEVEL" == "debug" ]] && log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
-                    curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
-                    sleep 2
-                fi
+                # 2. If a file record exists in Radarr, tell Radarr to delete it
+                if [[ -n "$file_id" ]]; then
+                    [[ "$LOG_LEVEL" == "debug" ]] && log "🗑️  Radarr: Removing file record (FileID: $file_id) to force 'Missing' status..."
+                    curl -s -X DELETE "$target_url/moviefile/$file_id" -H "X-Api-Key: $target_key"
+                    sleep 2
+                fi
 
-                # 3. Now trigger the search
-                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
-                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
-                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
-            else
-                [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️  Radarr: Could not find movie entry for '$media_name'."
-            fi
-        fi # End Movie Block
+                # 3. Now trigger the search
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Radarr: Status is now officially 'Missing'. Triggering search..."
+                curl -s -o /dev/null -X POST "$target_url/command" -H "X-Api-Key: $target_key" -H "Content-Type: application/json" \
+                     -d "{\"name\": \"MoviesSearch\", \"movieIds\": [$r_id]}"
+            else
+                [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️  Radarr: Could not find movie entry for '$media_name'."
+            fi
+        fi # End Movie Block
     fi
 
     # 2. Get Seerr Media ID (Using Cookie)
