@@ -8,7 +8,7 @@ else
     exit 1
 fi
 
-echo "Starting FLAC monitor service..."
+log "ℹ️ Starting FLAC monitor service..."
 
 # Infinite loop for service persistence
 while true; do
@@ -31,17 +31,17 @@ while true; do
             continue
         fi
 
-        echo "[$(date +'%Y-%m-%d %H:%M:%S')] Converting: $rel_path"
+        log "ℹ️ Converting $rel_path"
         
         # Convert to MP3 (-n skips if the mp3 already exists)
         ffmpeg -v error -i "$flac_file" -qscale:a 2 -n "$mp3_file" </dev/null
         
         if [ $? -eq 0 ]; then
-            echo "Success. Moving original to hold..."
+            log "✅ Moving original to hold..."
             mkdir -p "$DIR_MEDIA_HOLD/$rel_dir"
             mv "$flac_file" "$DIR_MEDIA_HOLD/$rel_path"
         else
-            echo "Error converting $flac_file. Skipping move."
+            log "⚠️ Error converting $flac_file. Skipping move."
         fi
     done
 
