@@ -479,20 +479,33 @@ seerr_resolve_issue() {
         return 1
     fi
 
-    # --- 3. Search Seerr for open issues (Using Cookie) ---
-    local response_file="/tmp/seerr_resp.json"
-    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?filter=open"
+    # 3. Deduplication & Content Check (Using Cookie)
+    local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=100&filter=open")
+    
+    # Extract Issue ID and the last comment message
+    local issue_info=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
+        .results[] | select(.media.id == ($mid|tonumber)) | 
+        "\(.id)|\(.comments[-1].message // "none")"' | head -n 1)
 
-    # --- 4. Match Issue ID ---
-    local issue_id=""
-    if [[ "$media_type" == "movie" ]]; then
-        issue_id=$(jq -r --arg tid "$lookup_id" '.results[]? | select(.media.tmdbId | tostring == $tid) | .id' "$response_file" | head -n 1)
-    else
-        issue_id=$(jq -r --arg tid "$lookup_id" --arg snum "$season_num" '
-            .results[]? | 
-            select(.media.tvdbId | tostring == $tid) |
-            select((.problemSeason | tostring == $snum) or (.problemSeason | tostring == "0")) |
-            .id' "$response_file" | head -n 1)
+    local issue_id=$(echo "$issue_info" | cut -d'|' -f1)
+    local last_comment=$(echo "$issue_info" | cut -d'|' -f2-)
+
+    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
+        # If the new message is identical to the last one, don't spam a new comment
+        if [[ "$message" == "$last_comment" ]]; then
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id is already up to date. Skipping comment."
+            rm -f "$cookie_file"
+            return 0
+        fi
+
+        [[ "$LOG_LEVEL" == "debug" ]] && log "🔄 Seerr: Issue #$issue_id found with new info. Adding comment..."
+        
+        curl -s -b "$cookie_file" -X POST "$SEERR_API_BASE/issue/$issue_id/comment" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\": \"$message\"}"
+            
+        rm -f "$cookie_file"
+        return 0 
     fi
 
     # --- 5. Resolve (Using Cookie) ---
