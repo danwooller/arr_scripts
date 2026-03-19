@@ -80,9 +80,7 @@ while true; do
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
         EXTENSION="${FILENAME##*.}"
-        #if [[ $LOG_LEVEL = "debug" ]]; then
-            log "ℹ️ Detected: $FILENAME"
-        #fi
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing $FILENAME"
         # --- 1. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
 #        SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
 #        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."
@@ -126,7 +124,7 @@ while true; do
         TRACK_INFO=$(mkvmerge -J "$FILE_TO_PROCESS" 2>/dev/null)
         SUB_TRACK_ID=$(mkvmerge -J "$FILE_TO_PROCESS" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         if [[ -n "$SUB_TRACK_ID" ]]; then
-            log "✅ Found forced subtitle track: $SUB_TRACK_ID"
+            [[ $LOG_LEVEL == "debug" ]] && log "✅ Found forced subtitle track: $SUB_TRACK_ID"
             HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-forced"
         else
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No English forced subtitles found."
