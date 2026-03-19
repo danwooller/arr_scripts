@@ -46,5 +46,5 @@ while true; do
     done
 
     # Sleep interval (e.g., 300 seconds / 5 minutes) to prevent high CPU usage
-    sleep $CHECK_INTERVAL
+    sleep "$CHECK_INTERVAL"
 done
