@@ -27,14 +27,14 @@ elif [ -z "$1" ]; then
     read -t 30 -p "   -> Skip Backup? (y/N): " RESP_BACKUP
     if [[ "$RESP_BACKUP" =~ ^[Yy]$ ]]; then
         SKIP_BACKUP=true
-        log "ℹ️ Choice: Skipping Backup."
+        log "ℹ️ Skipping Backup."
     fi
 
     # Ask about System Updates
     read -t 30 -p "   -> Skip OS apt Updates? (y/N): " RESP_UPDATE
     if [[ "$RESP_UPDATE" =~ ^[Yy]$ ]]; then
         SKIP_UPDATE=true
-        log "ℹ️ Choice: Skipping Updates."
+        log "ℹ️ Skipping Updates."
     fi
     echo "" # Clean line break
 fi
@@ -54,7 +54,7 @@ fi
 
 # 2. & 3. Safety Checks
 if ! mountpoint -q "$MOUNT_ROOT"; then
-    log "❌ FATAL: $MOUNT_ROOT is not mounted!"
+    log "❌ $MOUNT_ROOT is not mounted!"
     exit 1
 fi
 
@@ -62,7 +62,7 @@ fi
 if [ "$SKIP_BACKUP" = false ]; then
     AVAILABLE_SPACE_MB=$(df -m "$MOUNT_ROOT" | awk 'NR==2 {print $4}')
     if [ "$AVAILABLE_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
-        log "❌ FATAL: Insufficient space for backup (${AVAILABLE_SPACE_MB}MB)."
+        log "❌ Insufficient space for backup (${AVAILABLE_SPACE_MB}MB)."
         exit 1
     fi
 fi
@@ -82,7 +82,7 @@ if [ -n "$ROOT_COMPOSE" ]; then
     CURRENT_SPACE_MB=$(df -m /opt | awk 'NR==2 {print $4}')
     
     if [ "$CURRENT_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
-        log "⚠️ WARNING: Skipping pull for $DIR_NAME. Low space: ${CURRENT_SPACE_MB}MB (Required: ${REQUIRED_SPACE_MB}MB)"
+        log "⚠️ Skipping pull for $DIR_NAME. Low space: ${CURRENT_SPACE_MB}MB (Required: ${REQUIRED_SPACE_MB}MB)"
         continue # Skip to the next folder in /opt/
     fi
     
@@ -91,9 +91,9 @@ if [ -n "$ROOT_COMPOSE" ]; then
     RESULT=$?
 
     if [ $RESULT -eq 124 ]; then
-        log "❌ ERROR: Pull TIMED OUT (300s exceeded) for $ROOT_COMPOSE"
+        log "❌ Pull TIMED OUT (300s exceeded) for $ROOT_COMPOSE"
     elif [ $RESULT -ne 0 ]; then
-        log "❌ ERROR: Pull FAILED (Exit Code: $RESULT) for $ROOT_COMPOSE"
+        log "❌ Pull FAILED (Exit Code: $RESULT) for $ROOT_COMPOSE"
     else
         [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $ROOT_COMPOSE"
     fi
@@ -112,9 +112,9 @@ for dir in /opt/*/ ; do
         PULL_RESULT=$?
 
         if [ $PULL_RESULT -eq 124 ]; then
-            log "❌ ERROR: Pull TIMED OUT (600s) for $DIR_NAME"
+            log "❌ Pull TIMED OUT (600s) for $DIR_NAME"
         elif [ $PULL_RESULT -ne 0 ]; then
-            log "❌ ERROR: Pull FAILED (Exit Code: $PULL_RESULT) for $DIR_NAME"
+            log "❌ Pull FAILED (Exit Code: $PULL_RESULT) for $DIR_NAME"
         else
             [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $DIR_NAME"
         fi
@@ -166,7 +166,7 @@ for path in "${PATHS_TO_CHECK[@]}"; do
         if [ $? -eq 0 ]; then
             [[ $LOG_LEVEL = "debug" ]] && log "✅ $DIR_NAME is online."
         else
-            log "❌ ERROR: $DIR_NAME failed to start."
+            log "❌ $DIR_NAME failed to start."
         fi
     fi
 done
