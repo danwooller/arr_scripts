@@ -79,12 +79,10 @@ while true; do
             if [ $EXIT_CODE -eq 0 ]; then
                 [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
                 # 8. Extract folder and trigger Sonarr logic
-#                SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
-#                MOVIE_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=MOVE MOVIE: sorting ).*? --to--> \K.*?(?=/)' | head -n 1)
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
                 MOVIE_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/)' | head -n 1)
                 if [ -n "$SERIES_FOLDER" ]; then
-                    log "📂 Moved to $SERIES_FOLDER"
+                    log "📂 Moved to ${SERIES_FOLDER#$DIR_MEDIA_TV}"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     sonarr_targeted_rename "$SHOW_NAME_ONLY"
