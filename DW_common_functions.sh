@@ -12,8 +12,8 @@ HOST=$(hostname -s)
 
 log() {
     # Centralized log path
-    #local target_log="/mnt/media/torrent/ubuntu24.log"
-    local target_log="$LOG_FILE"
+    local target_log="/mnt/media/torrent/ubuntu24.log"
+    #local target_log="$LOG_FILE"
     
     # Ensure the directory is writable before attempting to log
     if [ -d "/mnt/media/torrent" ]; then
