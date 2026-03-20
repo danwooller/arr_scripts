@@ -3,6 +3,13 @@
 HOST=$(hostname -s)
 
 # --- Shared Logging Function ---
+#log() {
+    # Using local variables for cleaner output
+#    local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+#    local script_name="${0##*/}"
+#    echo "[$timestamp] ($script_name) $1" | tee -a "$LOG_FILE"
+#}
+
 log() {
     # Centralized log path
     #local target_log="/mnt/media/torrent/ubuntu24.log"
