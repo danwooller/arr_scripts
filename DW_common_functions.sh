@@ -583,43 +583,47 @@ sonarr_search() {
 }
 
 sonarr_targeted_rename() {
-    # DW_move_tv_shows_synology.sh
-    # DW_sort_tv.sh
     local search_path="$1"
     if [ -z "$SONARR_API_KEY" ]; then return 1; fi
-    # Normalize the path (remove trailing slash)
+
+    # 1. Normalize the path and get the folder name
     search_path="${search_path%/}"
-    # Get just the show folder name
     local show_name=$(basename "$search_path")
-    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Sonarr ID for: $show_name"
-    local series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-        jq -r --arg name "$show_name" '.[] | select(.path | ascii_downcase | contains("/" + ($name | ascii_downcase))) | .id' | head -n 1)
-    # --- Fallback: Try matching by Title if Path failed ---
-    if [ -z "$series_id" ] || [ "$series_id" = "null" ]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$show_name', trying TITLE match..."
-        series_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-            jq -r ".[] | select(.title | ascii_downcase == \"$show_name\" or .title | test(\"^$show_name( \\\\(\\\\d{4}\\\\))?$\"; \"i\")) | .id" | head -n 1)
-    fi
-    if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then  
-        # --- Trigger Refresh ---
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Sonarr refresh for $show_name"
+    
+    # Create a "Clean" name for fuzzy matching (no spaces, no special chars, lowercase)
+    local clean_name=$(echo "$show_name" | sed -E 's/ \([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+
+    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Sonarr ID for: $show_name (Clean: $clean_name)"
+
+    # 2. Fetch all series and find the match
+    local sonarr_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series")
+    
+    # Match by Title or Path using the same fuzzy logic as Radarr
+    local series_json=$(echo "$sonarr_data" | jq -c --arg clean "$clean_name" '.[] | select((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean or (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)))')
+    local series_id=$(echo "$series_json" | jq -r '.id // empty')
+
+    if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
+        # Define the NEW path (Ensure this matches the internal container path)
+        local new_path="/mnt/media/TV/$show_name"
+
+        log "🔗 Updating Sonarr path for '$show_name' to: $new_path"
+
+        # 3. PUSH the path update to Sonarr
+        echo "$series_json" | jq --arg p "$new_path" '.path = $p' | \
+        curl -s -X PUT -H "X-Api-Key: $SONARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -d @- "$SONARR_API_BASE/series/$series_id" > /dev/null
+
+        # 4. Trigger Rescan
+        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Sonarr rescan for ID: $series_id"
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
-             "$SONARR_API_BASE/command" > /dev/null
-        # --- Brief Wait ---
-        sleep 5 
-        # --- Trigger Rename ---
-        [[ $LOG_LEVEL == "debug" ]] && log "📝 Triggering Sonarr rename for $show_name"
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
              "$SONARR_API_BASE/command" > /dev/null
     else
         log "⚠️ Could not map '$show_name' to a Sonarr Series ID."
     fi
 }
-
 # --- END SONARR SECTION ---
 # --- VPN SECTION ---
 
