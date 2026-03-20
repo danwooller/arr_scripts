@@ -140,7 +140,7 @@ manage_remote_torrent() {
             # Extracts the unique 40-character torrent hash from the first part of the string.
             local t_name=$(echo "$t_data" | cut -d'|' -f2)
             # Extracts the actual torrent name as it appears in qBittorrent for logging purposes.
-            log "ℹ️ Torrent Found: [$t_name]. Sending $action..."
+            log "ℹ️ ${action^} torrent: $t_name"
             # Records the successful match and the intended action to your host-specific log file.
             local q_cmd="${action}"
             # Creates a local variable for the command to be sent to the qBittorrent API.
@@ -212,7 +212,7 @@ synology_tv_show_sync() {
         return 0
     fi
 
-    log "ℹ️ Synology Sync Started for: $SHOW_NAME"
+    [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Synology sync started for: $SHOW_NAME"
 
     # Check if the source exists
     if [[ -d "$SOURCE_SHOW_PATH" ]]; then
@@ -229,7 +229,7 @@ synology_tv_show_sync() {
         rsync $RSYNC_OPTS "$SOURCE_SHOW_PATH/" "$DEST_SHOW_PATH"
         
         if [[ $? -eq 0 ]]; then
-            log "ℹ️ Sync completed for '$SHOW_NAME'"
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Sync completed for '$SHOW_NAME'"
 
             if ! $DRY_RUN; then
                 # Clean up empty sub-directories
@@ -238,15 +238,15 @@ synology_tv_show_sync() {
                 # Remove show folder if empty
                 if [[ -d "$SOURCE_SHOW_PATH" ]] && [[ -z "$(ls -A "$SOURCE_SHOW_PATH")" ]]; then
                     rmdir "$SOURCE_SHOW_PATH"
-                    log "Removed empty source folder: $SHOW_NAME"
+                    log "Removed folder: $SHOW_NAME"
                 fi
             fi
         else
-            log "[ERROR] rsync failed for '$SHOW_NAME'."
+            log "❌ rsync failed for $SHOW_NAME."
             return 1
         fi
     else
-        log "No source files found for '$SHOW_NAME' in $MEDIA_DIR."
+        log "🔄 No source files found for $SHOW_NAME in $MEDIA_DIR."
         return 0 # Return 0 because there's nothing to do, not necessarily a script failure
     fi
 }
