@@ -4,7 +4,8 @@ HOST=$(hostname -s)
 
 # --- Shared Logging Function ---
 log() {
-    local target_log="${LOG_FILE:-/mnt/media/torrent/ubuntu24.log}"
+    #local target_log="${LOG_FILE:-/mnt/media/torrent/ubuntu24.log}"
+    local target_log="/mnt/media/torrent/ubuntu24.log"
     local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     # Added [DISK] marker to verify it's hitting the file
     echo "[$timestamp] [DISK] (${0##*/}) $1" | stdbuf -oL tee -a "$target_log"
