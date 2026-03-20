@@ -402,10 +402,10 @@ radarr_targeted_scan() {
     local radarr_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie")
 
     # 2. Normalize the SortTV name for matching (removes hyphens, spaces, and years)
-    local clean_name=$(echo "$movie_name" | sed 's/ (.*)//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+    local clean_name=$(echo "$movie_name" | sed -E 's/_\([0-9]{4}\)$//; s/\([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
     # 3. Fuzzy Match to get the ID and the current JSON Object
-    local movie_json=$(echo "$radarr_data" | jq -c --arg clean "$clean_name" '.[] | select((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean)')
+    local movie_json=$(echo "$radarr_data" | jq -c --arg clean "$clean_name" '.[] | select((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean or (.folderName | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | contains($clean)))')
     local movie_id=$(echo "$movie_json" | jq -r '.id // empty')
 
     if [ -n "$movie_id" ] && [ "$movie_id" != "null" ]; then
