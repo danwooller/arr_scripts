@@ -4,9 +4,16 @@ HOST=$(hostname -s)
 
 # --- Shared Logging Function ---
 log() {
-    # Using local variables for cleaner output
+    # 1. Force the variable if it's missing (The "Safety Net")
+    if [[ -z "$LOG_FILE" ]]; then
+        # Fallback to the known path if the variable didn't pass through
+        export LOG_FILE="/mnt/media/torrent/ubuntu24.log"
+    fi
+    # 2. Standard log formatting
     local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     local script_name="${0##*/}"
+    # 3. Use 'tee -a' but ensure it has write permissions
+    # We use 'unbuffered' echo to ensure instant writing
     echo "[$timestamp] ($script_name) $1" | tee -a "$LOG_FILE"
 }
 
