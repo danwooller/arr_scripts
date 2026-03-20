@@ -4,11 +4,21 @@ HOST=$(hostname -s)
 
 # --- Shared Logging Function ---
 log() {
-    #local target_log="${LOG_FILE:-/mnt/media/torrent/ubuntu24.log}"
-    local target_log="/mnt/media/torrent/ubuntu24.log"
-    local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
-    # Added [DISK] marker to verify it's hitting the file
-    echo "[$timestamp] [DISK] (${0##*/}) $1" | stdbuf -oL tee -a "$target_log"
+    # Centralized log path
+    #local target_log="/mnt/media/torrent/ubuntu24.log"
+    local target_log="$LOG_FILE"
+    
+    # Ensure the directory is writable before attempting to log
+    if [ -d "/mnt/media/torrent" ]; then
+        local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+        local script_name="${0##*/}"
+        
+        # Clean output to both Docker logs and the physical file
+        echo "[$timestamp] ($script_name) $1" | stdbuf -oL tee -a "$target_log"
+    else
+        # Fallback to just Docker logs if the mount is missing
+        echo "[ERROR] Log mount missing: $1"
+    fi
 }
 
 log_start() {
