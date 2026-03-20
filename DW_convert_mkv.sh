@@ -37,8 +37,9 @@ while true; do
 
         # 1. Standardize filenames recursively (spaces -> underscores)
         # Using find to catch files in subfolders
-        find "$TARGET_DIR" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
-
+        #find "$TARGET_DIR" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
+        #disable underscores
+        find "$TARGET_DIR" -depth -name "* *" -print 2>/dev/null
         # 2. Find and process matching video files recursively
         # This builds a list of files matching our extensions in any subfolder
         FIND_ARGS=()
