@@ -391,8 +391,6 @@ plex_busy() {
 # --- RADARR SECTION ---
 
 radarr_targeted_scan() {
-    # DW_sort_tv.sh
-    # Expects the movie folder name
     local movie_name="$1"
     
     if [ -z "$RADARR_API_KEY" ]; then 
@@ -400,38 +398,38 @@ radarr_targeted_scan() {
         return 1 
     fi
 
-    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Radarr ID for: $movie_name"
+    # 1. Fetch ALL movies (once) to avoid multiple API hits
+    local radarr_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie")
 
-    # --- Attempt to find the Movie ID by matching the folder name in the path ---
-    local movie_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-        jq -r --arg name "$movie_name" '.[] | select(.path | ascii_downcase | endswith("/" + ($name | ascii_downcase))) | .id' | head -n 1)
+    # 2. Normalize the SortTV name for matching (removes hyphens, spaces, and years)
+    local clean_name=$(echo "$movie_name" | sed 's/ (.*)//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
-    # --- Fallback: Try matching by Title if Path failed ---
-    if [ -z "$movie_id" ] || [ "$movie_id" = "null" ]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed for '$movie_name', trying TITLE match..."
-        movie_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-            jq -r --arg name "$movie_name" '.[] | select(.title | ascii_downcase == ($name | ascii_downcase | sub(" \\(\\d{4}\\)$"; ""))) | .id' | head -n 1)
-    fi
+    # 3. Fuzzy Match to get the ID and the current JSON Object
+    local movie_json=$(echo "$radarr_data" | jq -c --arg clean "$clean_name" '.[] | select((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean)')
+    local movie_id=$(echo "$movie_json" | jq -r '.id // empty')
 
-    if [ -n "$movie_id" ] && [ "$movie_id" != "null" ]; then  
-        # --- Trigger Rescan (Disks) ---
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Radarr rescan for $movie_name (ID: $movie_id)"
-        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+    if [ -n "$movie_id" ] && [ "$movie_id" != "null" ]; then
+        # Define the NEW path where SortTV just moved it
+        # Adjust "/mnt/media/Movies/" to match your DIR_MEDIA variable if needed
+        local new_path="/mnt/media/Movies/$movie_name"
+
+        log "🔗 Updating Radarr path for '$movie_name' to: $new_path"
+
+        # 4. PUSH the path update to Radarr
+        # We take the original JSON, update the path, and PUT it back
+        echo "$movie_json" | jq --arg p "$new_path" '.path = $p' | \
+        curl -s -X PUT -H "X-Api-Key: $RADARR_API_KEY" \
              -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RescanMovie\", \"movieId\": $movie_id}" \
+             -d @- "$RADARR_API_BASE/movie/$movie_id" > /dev/null
+
+        # 5. Trigger Rescan
+        log "🔄 Triggering Radarr rescan for ID: $movie_id"
+        curl -s -H "X-Api-Key: $RADARR_API_KEY" -X POST -H "Content-Type: application/json" \
+             -d "{\"name\": \"RescanMovie\", \"movieId\": $movie_id}" \
              "$RADARR_API_BASE/command" > /dev/null
 
-        # --- Brief Wait for Scan to Register ---
-        sleep 5 
-
-        # --- Trigger Rename (Organize) ---
-        [[ $LOG_LEVEL == "debug" ]] && log "📝 Triggering Radarr rename for $movie_name"
-        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -X POST -d "{\"name\": \"RenameMovie\", \"movieIds\": [$movie_id]}" \
-             "$RADARR_API_BASE/command" > /dev/null
     else
-        log "⚠️ Could not map '$movie_name' to a Radarr Movie ID."
+        log "⚠️ Could not map '$movie_name' (Clean: $clean_name) to a Radarr Movie ID."
     fi
 }
 
