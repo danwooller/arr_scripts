@@ -4,18 +4,10 @@ HOST=$(hostname -s)
 
 # --- Shared Logging Function ---
 log() {
-
-    # 1. Force the path if the variable is missing/empty
     local target_log="${LOG_FILE:-/mnt/media/torrent/ubuntu24.log}"
-    
-    # 2. Format the message
     local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
-    local script_name="${0##*/}"
-    
-    # 3. Use 'stdbuf' to ensure the line is written to disk immediately
-    # and 'tee -a' to send it to both the Docker Log and the physical file
-    echo "[$timestamp] ($script_name) $1" | stdbuf -oL tee -a "$target_log"
-
+    # Added [DISK] marker to verify it's hitting the file
+    echo "[$timestamp] [DISK] (${0##*/}) $1" | stdbuf -oL tee -a "$target_log"
 }
 
 log_start() {
