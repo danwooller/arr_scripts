@@ -13,7 +13,8 @@ HOST=$(hostname -s)
     
 log() {
     # Use the absolute path directly
-    local target="/mnt/media/torrent/ubuntu24.log"
+    #local target="/mnt/media/torrent/ubuntu24.log"
+    local target="$LOG_FILE"
     local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     local script="${0##*/}"
     printf "[%s] (%s) %s\n" "$timestamp" "$script" "$1" | stdbuf -oL tee -a "$target"
