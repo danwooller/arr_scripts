@@ -1,10 +1,13 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
+# Check /app first (Docker path), then /usr/local/bin (Host path)
+if [ -f "/app/DW_common_functions.sh" ]; then
+    source "/app/DW_common_functions.sh"
+elif [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
-    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
+    echo "⚠️ Shared functions missing. Exiting."
     exit 1
 fi
 
