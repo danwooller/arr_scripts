@@ -44,6 +44,7 @@ for series_path in "${SERIES_LIST[@]}"; do
         SONARR_COMPATIBLE_PATH=$(echo "$series_path" | sed 's|^/mnt/synology/|/mnt/media/|')
         
         # Trigger the rename using the path Sonarr recognizes
+        log "$SONARR_COMPATIBLE_PATH"
         sonarr_targeted_rename "$SONARR_COMPATIBLE_PATH"
     else
         [[ $LOG_LEVEL == "debug" ]] && log "No malformed filenames found for $series_name."
