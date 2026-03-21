@@ -117,12 +117,26 @@ if [ -n "$FILENAME" ]; then
             ACTIVE_NAME="$SELECTED_SERVICE"
         fi
 
-        # 5c. Enable and Restart
-        echo "Restarting $ACTIVE_NAME..."
-        sudo systemctl enable "$ACTIVE_NAME"
-        sudo systemctl restart "$ACTIVE_NAME"
+        # 5c. Enable and Restart logic
+        if [ -n "$SELECTED_TIMER" ]; then
+            echo "Timer detected. Enabling and restarting the TIMER for $BASE_NAME..."
+            sudo systemctl enable "$SELECTED_TIMER"
+            sudo systemctl restart "$SELECTED_TIMER"
+            
+            # Optional: If you want it to run ONCE right now during the update:
+            # sudo systemctl start "$ACTIVE_NAME" 
+        else
+            echo "No timer. Restarting $ACTIVE_NAME..."
+            sudo systemctl enable "$ACTIVE_NAME"
+            sudo systemctl restart "$ACTIVE_NAME"
+        fi
         
-        systemctl is-active --quiet "$ACTIVE_NAME" && echo "Service is running." || echo "Service failed to start."
+        # Validation check
+        if [ -n "$SELECTED_TIMER" ]; then
+            systemctl is-active --quiet "$SELECTED_TIMER" && echo "Timer is active." || echo "Timer failed to start."
+        else
+            systemctl is-active --quiet "$ACTIVE_NAME" && echo "Service is running." || echo "Service failed to start."
+        fi
     else
         echo "No service file (standard or @template) found for $BASE_NAME. Skipping."
     fi
