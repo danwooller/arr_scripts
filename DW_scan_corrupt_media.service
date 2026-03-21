@@ -1,0 +1,14 @@
+[Unit]
+Description=Looks for corrupt media files
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /usr/local/bin/DW_scan_corrupt_media.sh
+RemainAfterExit=no
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
