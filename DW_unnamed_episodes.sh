@@ -39,7 +39,7 @@ find "$TARGET_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; 
 
         # 3. Trigger the specific rename function from your common functions
         # Passing series_path as the likely argument needed for the rename
-        sonarr_targetted_rename "$series_path"
+        sonarr_targeted_rename "$series_path"
     else
         [[ $LOG_LEVEL == "debug" ]] && log "No malformed filenames found for $series_name."
     fi
