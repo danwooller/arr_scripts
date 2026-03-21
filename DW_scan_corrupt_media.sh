@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-# Checking existence to prevent 'set -e' from killing the script cryptically
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
@@ -9,34 +8,33 @@ else
     exit 1
 fi
 
-# Run dependency check from shared library
-# Ensure 'ffmpeg' and 'findutils' are in your check_deps list
-check_dependencies "ffmpeg" "find" "curl" "jq"
-
-# Use the first argument if provided; otherwise, use the default path
-TARGET_DIR="${1:-$DIR_MEDIA_MOVIES}"
-#LOG_LEVEL="debug"
-
-# Display help if requested
-if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
-    echo "Usage: $0 [target_directory]"
-    echo "Example: $0 /mnt/media/TV_Shows"
-    echo "Default: /mnt/media/Movies"
-    exit 0
+# --- Logic: Manual vs Scheduled ---
+if [ -n "$1" ]; then
+    # If an argument is passed, we only scan that specific path
+    log "Manual scan requested for: $1"
+    TARGET_PATHS=("$1")
+else
+    # If no argument, we run the full array (Systemd Timer mode)
+    [[ "$LOG_LEVEL" == "debug" ]] && log "Starting scheduled scan of all TV locations..."
+    TARGET_PATHS=("${DIR_TV[@]}" "${DIR_MOVIES[@]}")
 fi
 
-# --- Validation ---
-if [ ! -d "$TARGET_DIR" ]; then
-    log "❌ Directory '$TARGET_DIR' does not exist."
-    exit 1
-fi
+# --- Execution Loop ---
+for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
+    
+    # 1. Check if the directory actually exists/is mounted
+    if [ ! -d "$CURRENT_DIR" ]; then
+        log "❌ SKIP: $CURRENT_DIR is not available (Check mount/network)."
+        continue
+    fi
 
-log_start "$TARGET_DIR"
-#echo "------------------------------------------"
+    # 2. Check if the directory is empty (common sign of a dropped mount)
+    if [ -z "$(ls -A "$CURRENT_DIR" 2>/dev/null)" ]; then
+        log "⚠️ WARNING: $CURRENT_DIR appears empty. Skipping to prevent data loss/errors."
+        continue
+    fi
 
-# Find video files and execute ffmpeg check
-# Supported extensions: mkv, mp4, avi, mov, m4v
-find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4v" \) -print0 | while IFS= read -r -d '' file; do
+    [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing: $CURRENT_DIR"
     
     # 1. Integrity Check
     error_msg=$(ffmpeg -v error -n -i "$file" -c copy -f null - 2>&1 < /dev/null)
@@ -68,6 +66,9 @@ find "$TARGET_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o
         [[ "$LOG_LEVEL" == "debug" ]] && log "✅ HEALTHY: $file_name"
         seerr_resolve_issue "$media_name" "$media_type"
     fi
+
+    log "✅ Completed scan for $CURRENT_DIR"
 done
 
-log_end "$TARGET_DIR"
+[[ "$LOG_LEVEL" == "debug" ]] && log "🏁 Tasks finished."
+exit 0
