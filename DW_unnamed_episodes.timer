@@ -1,0 +1,10 @@
+[Unit]
+Description=Run DW_unnamed_episodes every 24 hours
+
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=24h
+Unit=DW_unnamed_episodes.service
+
+[Install]
+WantedBy=timers.target
