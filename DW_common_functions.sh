@@ -602,51 +602,35 @@ sonarr_targeted_rename() {
     local search_path="$1"
     if [ -z "$SONARR_API_KEY" ]; then return 1; fi
 
-    # 1. Normalize the path and get the folder name
+    # 1. Get the folder name for matching
     search_path="${search_path%/}"
     local show_name=$(basename "$search_path")
     
-    # Create two versions for matching
-    # Full: youngsherlock2026 | Stripped: youngsherlock
+    # Matching strings (Full and Stripped)
     local clean_full=$(echo "$show_name" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
     local clean_strip=$(echo "$show_name" | sed -E 's/ \([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
-    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Sonarr ID for: $show_name (Full: $clean_full | Strip: $clean_strip)"
-
-    # 2. Fetch all series
+    # 2. Fetch all series to find the ID
     local sonarr_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series")
     
-    # 3. Match by Title or Path using BOTH clean versions
-    local series_json=$(echo "$sonarr_data" | jq -c --arg full "$clean_full" --arg strip "$clean_strip" '
+    # 3. Find the matching Series ID
+    local series_id=$(echo "$sonarr_data" | jq -r --arg full "$clean_full" --arg strip "$clean_strip" '
         .[] | select(
             (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $full or 
-            (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $strip or
-            (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($full)) or
-            (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($strip))
-        )')
-    
-    local series_id=$(echo "$series_json" | jq -r '.id // empty')
+            (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $strip
+        ) | .id // empty')
 
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
-        # Force the path to /mnt/media/TV as requested
-        local new_path="/mnt/media/TV/$show_name"
+        log "✅ Linked '$show_name' to Sonarr ID: $series_id"
 
-        log "🔗 Updating Sonarr path for '$show_name' to: $new_path"
-
-        # 4. PUSH the path update to Sonarr
-        echo "$series_json" | jq --arg p "$new_path" '.path = $p' | \
-        curl -s -X PUT -H "X-Api-Key: $SONARR_API_KEY" \
-             -H "Content-Type: application/json" \
-             -d @- "$SONARR_API_BASE/series/$series_id" > /dev/null
-
-        # 5. Trigger Rescan
+        # 4. Trigger Rescan first (To ensure Sonarr sees the current files)
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
              "$SONARR_API_BASE/command" > /dev/null
 
-        # 6. Trigger File Rename
-        log "🎬 Triggering Sonarr RenameFiles command for ID: $series_id"
+        # 5. Trigger the Rename (This uses the EXISTING path in Sonarr's database)
+        log "🎬 Triggering Sonarr Rename command for $show_name..."
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
