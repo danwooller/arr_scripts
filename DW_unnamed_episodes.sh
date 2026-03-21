@@ -36,16 +36,17 @@ for series_path in "${SERIES_LIST[@]}"; do
     found_mismatches=$(find "$series_path" -type f \( -name "* .mkv" -o -name "*_.mkv" \))
 
     if [[ -n "$found_mismatches" ]]; then
-        log "Match found in $series_name. Preparing Sonarr API call..."
+        log "Match found in $series_name. Triggering Sonarr via Title..."
 
-        # --- Path Translation ---
-        # Sonarr expects /mnt/media/ but we might be scanning /mnt/synology/
-        # This translates the path only if it starts with the synology mount point
-        SONARR_COMPATIBLE_PATH=$(echo "$series_path" | sed 's|^/mnt/synology/|/mnt/media/|')
+        # --- Strip everything but the Folder Name ---
+        # This ensures Sonarr receives "Young Sherlock (2026)" instead of the full path
+        SONARR_TARGET_TITLE=$(basename "$series_path")
         
-        # Trigger the rename using the path Sonarr recognizes
-        log "$SONARR_COMPATIBLE_PATH"
-        sonarr_targeted_rename "$SONARR_COMPATIBLE_PATH"
+        # Log the stripped name for verification
+        log "Mapping Title: '$SONARR_TARGET_TITLE'"
+        
+        # Trigger the rename using the Title
+        sonarr_targeted_rename "$SONARR_TARGET_TITLE"
     else
         [[ $LOG_LEVEL == "debug" ]] && log "No malformed filenames found for $series_name."
     fi
