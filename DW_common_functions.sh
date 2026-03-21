@@ -600,20 +600,17 @@ sonarr_search() {
 
 sonarr_targeted_rename() {
     local search_path="$1"
-    if [ -z "$SONARR_API_KEY" ]; then return 1; fi
+    [ -z "$SONARR_API_KEY" ] && return 1
 
-    # 1. Get the folder name for matching
     search_path="${search_path%/}"
     local show_name=$(basename "$search_path")
     
-    # Matching strings (Full and Stripped)
+    # Matching strings: Full (with year) and Stripped (no year)
     local clean_full=$(echo "$show_name" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
     local clean_strip=$(echo "$show_name" | sed -E 's/ \([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
-    # 2. Fetch all series to find the ID
+    # Fetch and find ID
     local sonarr_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series")
-    
-    # 3. Find the matching Series ID
     local series_id=$(echo "$sonarr_data" | jq -r --arg full "$clean_full" --arg strip "$clean_strip" '
         .[] | select(
             (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $full or 
@@ -622,17 +619,15 @@ sonarr_targeted_rename() {
 
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
         log "✅ Linked '$show_name' to Sonarr ID: $series_id"
-
-        # 4. Trigger Rescan first (To ensure Sonarr sees the current files)
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-             -H "Content-Type: application/json" \
+        
+        # Rescan to find the malformed files
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
              "$SONARR_API_BASE/command" > /dev/null
 
-        # 5. Trigger the Rename (This uses the EXISTING path in Sonarr's database)
+        # Trigger the actual Rename logic
         log "🎬 Triggering Sonarr Rename command for $show_name..."
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-             -H "Content-Type: application/json" \
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
              "$SONARR_API_BASE/command" > /dev/null
     else
