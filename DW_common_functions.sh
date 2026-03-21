@@ -644,6 +644,13 @@ sonarr_targeted_rename() {
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
              "$SONARR_API_BASE/command" > /dev/null
+
+        # 6. Trigger File Rename
+        log "🎬 Triggering Sonarr RenameFiles command for ID: $series_id"
+        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+             -H "Content-Type: application/json" \
+             -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
+             "$SONARR_API_BASE/command" > /dev/null
     else
         log "⚠️ Could not map '$show_name' to a Sonarr Series ID."
     fi
