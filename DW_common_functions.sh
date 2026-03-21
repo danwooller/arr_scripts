@@ -606,32 +606,40 @@ sonarr_targeted_rename() {
     search_path="${search_path%/}"
     local show_name=$(basename "$search_path")
     
-    # Create a "Clean" name for fuzzy matching (no spaces, no special chars, lowercase)
-    local clean_name=$(echo "$show_name" | sed -E 's/ \([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+    # Create two versions for matching
+    # Full: youngsherlock2026 | Stripped: youngsherlock
+    local clean_full=$(echo "$show_name" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+    local clean_strip=$(echo "$show_name" | sed -E 's/ \([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
-    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Sonarr ID for: $show_name (Clean: $clean_name)"
+    [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Sonarr ID for: $show_name (Full: $clean_full | Strip: $clean_strip)"
 
-    # 2. Fetch all series and find the match
+    # 2. Fetch all series
     local sonarr_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series")
     
-    # Match by Title or Path using the same fuzzy logic as Radarr
-    local series_json=$(echo "$sonarr_data" | jq -c --arg clean "$clean_name" '.[] | select((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean or (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)))')
+    # 3. Match by Title or Path using BOTH clean versions
+    local series_json=$(echo "$sonarr_data" | jq -c --arg full "$clean_full" --arg strip "$clean_strip" '
+        .[] | select(
+            (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $full or 
+            (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $strip or
+            (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($full)) or
+            (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($strip))
+        )')
+    
     local series_id=$(echo "$series_json" | jq -r '.id // empty')
 
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
-        # Define the NEW path (Ensure this matches the internal container path)
+        # Force the path to /mnt/media/TV as requested
         local new_path="/mnt/media/TV/$show_name"
 
         log "🔗 Updating Sonarr path for '$show_name' to: $new_path"
 
-        # 3. PUSH the path update to Sonarr
+        # 4. PUSH the path update to Sonarr
         echo "$series_json" | jq --arg p "$new_path" '.path = $p' | \
         curl -s -X PUT -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -d @- "$SONARR_API_BASE/series/$series_id" > /dev/null
 
-        # 4. Trigger Rescan
-        [[ $LOG_LEVEL == "debug" ]] && log "🔄 Triggering Sonarr rescan for ID: $series_id"
+        # 5. Trigger Rescan
         curl -s -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
