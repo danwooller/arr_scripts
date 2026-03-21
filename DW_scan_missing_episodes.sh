@@ -40,7 +40,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         series_name=$(basename "$series_path")
         
         for exclude in "${EXCLUDE_DIRS[@]}"; do
-            [[ "$series_name" == "$exclude" ]] && continue 2
+            [[ "$series_name" == "$exclude" ]] && continue
         done
         
         mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
