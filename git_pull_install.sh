@@ -22,7 +22,7 @@ DEST_DIR="/home/$REAL_USER/arr_scripts"
 BIN_DIR="/usr/local/bin"
 FILENAME=$1
 COMMON_KEYS="/mnt/media/backup/ubuntu24/arr_scripts"
-SERVICE_FILE="$FILENAME.service"
+#SERVICE_FILE="$FILENAME.service"
 SERVICE_DIR="/etc/systemd/system/"
 
 cd "$DEST_DIR" || exit
@@ -68,8 +68,28 @@ if [ -n "$FILENAME" ]; then
     # Define possible service file names
     SERVICE_TEMPLATE="${BASE_NAME}@.service"
     SERVICE_STANDARD="${BASE_NAME}.service"
+    TIMER_STANDARD="${BASE_NAME}.timer"
 
-    # Determine which one exists (check repo first, then system)
+    # Timer: Determine which one exists (check repo first, then system)
+    if [ -f "$DEST_DIR/$TIMER_STANDARD" ] || [ -f "$SERVICE_DIR$TIMER_STANDARD" ]; then
+        SELECTED_TIMER="$TIMER_STANDARD"
+    fi
+
+    if [ -n "$SELECTED_TIMER" ]; then
+        echo "Timer file detected: $SELECTED_TIMER. Processing..."
+        # Sync from repo to system if it exists in repo
+        if [ -f "$DEST_DIR/$SELECTED_TIMER" ]; then
+            sudo cp "$DEST_DIR/$SELECTED_TIMER" "$SERVICE_DIR"
+            sudo chown root:root "$SERVICE_DIR$SELECTED_TIMER"
+            sudo chmod 644 "$SERVICE_DIR$SELECTED_TIMER"
+            sudo systemctl daemon-reload
+        fi
+    else
+        echo "No timer file found for $BASE_NAME. Skipping."
+    fi
+
+
+    # Service: Determine which one exists (check repo first, then system)
     SELECTED_SERVICE=""
     if [ -f "$DEST_DIR/$SERVICE_TEMPLATE" ] || [ -f "$SERVICE_DIR$SERVICE_TEMPLATE" ]; then
         SELECTED_SERVICE="$SERVICE_TEMPLATE"
