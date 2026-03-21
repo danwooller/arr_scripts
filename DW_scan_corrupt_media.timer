@@ -1,0 +1,11 @@
+[Unit]
+Description=Run DW_scan_corrupt_media every week
+
+[Timer]
+OnCalendar=Tue *-*-* 01:00:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=DW_scan_corrupt_media.service
+
+[Install]
+WantedBy=timers.target
