@@ -42,6 +42,7 @@ for series_path in "${PROCESS_LIST[@]}"; do
         
         # Pass the Series Name to the rename function
         # (Assuming your function looks up ID by folder name or path)
+        log "$series_path"
         sonarr_targeted_rename "$series_path"
     else
         [[ $LOG_LEVEL == "debug" ]] && log "No malformed filenames found for $series_name."
