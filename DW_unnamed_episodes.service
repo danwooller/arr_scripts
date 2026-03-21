@@ -1,0 +1,14 @@
+[Unit]
+Description=Looks for unnamed media files
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /usr/local/bin/DW_unnamed_episodes.sh
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
