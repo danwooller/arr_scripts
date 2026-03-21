@@ -8,6 +8,11 @@ else
     exit 1
 fi
 
+if sudo ssh -o ConnectTimeout=10 "$BASE_HOST6" "zpool status" | grep -q "scrub in progress"; then
+    log "⚠️ ZFS Scrub currently in progress on $BASE_HOST6. Exiting to protect disks."
+    exit 0
+fi
+
 # --- Logic: Manual vs Scheduled ---
 if [ -n "$1" ]; then
     # If an argument is passed, we only scan that specific path
