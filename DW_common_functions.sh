@@ -481,18 +481,20 @@ seerr_resolve_issue() {
     fi
 
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
-    [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Searching for $media_type ID $lookup_id to resolve..."
+    [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Mapping $media_type ID $lookup_id to Overseerr Media..."
 
-    # 3. Get Media Info first to find the INTERNAL Overseerr Media ID
-    # We need the internal ID (e.g., 1088) to look up issues directly
-    local media_info=$(curl -s -b "$cookie_file" "$base_url/search?query=$lookup_id")
-    local seerr_media_id=$(echo "$media_info" | jq -r --arg tid "$lookup_id" '
-        .results[]? | select(.tvdbId == ($tid|tonumber) or .tmdbId == ($tid|tonumber)) | .mediaInfo.id // empty' | head -n 1)
+    # 3. Use the Media Lookup endpoint (the most reliable way)
+    # This finds the internal media record using the TVDB/TMDB ID
+    local media_info=$(curl -s -b "$cookie_file" "$base_url/media/lookup?tmdbId=&tvdbId=$lookup_id")
+    local seerr_media_id=$(echo "$media_info" | jq -r '.id // empty')
 
-    [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
+    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Seerr: Could not find internal media ID for $lookup_id. Skipping."
+        rm -f "$cookie_file"
+        return 1
+    fi
 
-    # 4. Request issues specifically for THIS media ID
-    # This endpoint is much more accurate than the global "filter=open" list
+    # 4. Get issues specifically for THIS media ID
     local issues_data=$(curl -s -b "$cookie_file" "$base_url/media/$seerr_media_id/issues")
     local active_ids=$(echo "$issues_data" | jq -r '.[]? | select(.status == 1 or .status == 2) | .id')
 
@@ -500,7 +502,7 @@ seerr_resolve_issue() {
 
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-            log "✅ Seerr: Found active issue #$issue_id for this show. Resolving..."
+            log "✅ Seerr: Found active issue #$issue_id. Marking as resolved..."
             curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
         fi
     done
