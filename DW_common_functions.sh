@@ -492,8 +492,10 @@ seerr_resolve_issue() {
         .results[]? | 
         select((.status == 1 or .status == 2) and .media != null) | 
         select(.media.mediaType == $type) |
-        select((.media.tmdbId | tostring == $tid) or (.media.tvdbId | tostring == $tid)) | 
-        .id' "$response_file")
+        select(
+            (.media.tmdbId | tostring) == $tid or 
+            (.media.tvdbId | tostring) == $tid
+        ) | .id' "$response_file")
 
     for issue_id in $issue_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
