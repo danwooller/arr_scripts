@@ -182,10 +182,12 @@ while true; do
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
             --audio-lang-list eng \
-            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
+            --audio-tracks 1,1 \
             --aencoder ac3,copy \
+            --acodec ac3,copy \
             --ab 640,auto \
             --mixdown 5point1,auto \
+            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
             --audio-fallback aac \
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
