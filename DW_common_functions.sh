@@ -483,31 +483,22 @@ seerr_resolve_issue() {
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Mapping $media_type ID $lookup_id to Overseerr Media..."
 
-    # 3. Use the Media Lookup endpoint with correct param formatting
-    # We include both tmdbId and tvdbId to satisfy the API requirements
-    local media_info=$(curl -s -b "$cookie_file" "$base_url/media/lookup?tvdbId=$lookup_id")
-    local seerr_media_id=$(echo "$media_info" | jq -r '.id // empty')
+    # 3. Get all open issues (Pending & In Progress)
+    # This fetches the global list which we know contains #181
+    local response_file="/tmp/seerr_open_issues.json"
+    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
-    # Fallback: If lookup fails, search the local media database
-    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Direct lookup failed, trying database scan..."
-        seerr_media_id=$(curl -s -b "$cookie_file" "$base_url/media?take=999" | jq -r --arg tid "$lookup_id" '
-            .results[]? | select((.tvdbId | tostring) == $tid or (.tmdbId | tostring) == $tid) | .id // empty' | head -n 1)
-    fi
+    # 4. Find the Issue ID where the media's TVDB/TMDB ID matches our $lookup_id
+    # We use (tonumber) to ensure we match against Overseerr's integer IDs
+    local active_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
+        .results[]? | 
+        select(.media.mediaType == $type) |
+        select(
+            (.media.tvdbId | tostring) == $tid or 
+            (.media.tmdbId | tostring) == $tid
+        ) | .id // empty' "$response_file")
 
-    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Seerr: Could not find internal media ID for $lookup_id. Skipping."
-        rm -f "$cookie_file"
-        return 1
-    fi
-
-    # 4. Get issues specifically for THIS media ID
-    local issues_data=$(curl -s -b "$cookie_file" "$base_url/media/$seerr_media_id/issues")
-    
-    # The fix: Adding .[]? allows jq to iterate over the list of issues
-    local active_ids=$(echo "$issues_data" | jq -r '.[]? | select(.status == 1 or .status == 2) | .id // empty')
-
-    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Active IDs for Media $seerr_media_id: $(echo $active_ids | xargs)"
+    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Matching Issue IDs found: $(echo $active_ids | xargs)"
 
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
