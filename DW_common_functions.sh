@@ -497,16 +497,34 @@ seerr_resolve_issue() {
             (.media.tvdbId | tostring) == $tid
         ) | .id' "$response_file")
 
-    for issue_id in $issue_ids; do
-        if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-            # Verify if it's a ghost or real
-            local check_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" "$base_url/issue/$issue_id")
-            
-            if [[ "$check_status" == "200" ]]; then
-                log "✅ Seerr: Found active issue #$issue_id. Marking as resolved..."
+    # 3. Get all open issues
+    local response_file="/tmp/seerr_open_issues.json"
+    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
+
+    # Get a simple list of all open Issue IDs
+    local all_open_ids=$(jq -r '.results[]?.id' "$response_file")
+
+    for issue_id in $all_open_ids; do
+        [[ -z "$issue_id" || "$issue_id" == "null" ]] && continue
+
+        # Fetch the specific data for THIS issue to compare
+        local issue_data=$(curl -s -b "$cookie_file" "$base_url/issue/$issue_id")
+        
+        # Extract IDs from this specific issue
+        local found_tvdb=$(echo "$issue_data" | jq -r '.media.tvdbId // empty')
+        local found_tmdb=$(echo "$issue_data" | jq -r '.media.tmdbId // empty')
+        local found_type=$(echo "$issue_data" | jq -r '.media.mediaType // "unknown"')
+        local found_status=$(echo "$issue_data" | jq -r '.status // 0')
+
+        [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Checking #$issue_id (Type: $found_type, TVDB: $found_tvdb, Status: $found_status)"
+
+        # Compare!
+        if [[ "$found_type" == "$media_type" ]] && [[ "$found_status" -le 2 ]]; then
+            if [[ "$found_tvdb" == "$lookup_id" ]] || [[ "$found_tmdb" == "$lookup_id" ]]; then
+                log "✅ Seerr: Match found! Marking issue #$issue_id as resolved..."
                 curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
-            else
-                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Skipping ghost issue #$issue_id."
+                rm -f "$cookie_file"
+                return 0
             fi
         fi
     done
