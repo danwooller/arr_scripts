@@ -41,13 +41,17 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
 
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing: $CURRENT_DIR"
     
-    find "$CURRENT_DIR" -maxdepth 1 -mindepth 1 -type d | while read -r series_path; do
+    # Use process substitution instead of a pipe to avoid subshell issues
+    while read -r series_path; do
         series_path="${series_path%/}"
         series_name=$(basename "$series_path")
         
+        # Check Exclusions
+        skip=false
         for exclude in "${EXCLUDE_DIRS[@]}"; do
-            [[ "$series_name" == "$exclude" ]] && continue
+            [[ "$series_name" == "$exclude" ]] && skip=true && break
         done
+        [[ "$skip" == "true" ]] && continue
 
         # 1. Scan for duplicate video files
         duplicates=$(find "$series_path" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" \) \
@@ -59,14 +63,15 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             log "⚠️ Duplicate(s) in $series_name: $dup_list"
             
             # 2. Sync to Seerr
-            seerr_sync_issue "$series_name" "tv" "Duplicate Episode(s): $dup_list" "${MANUAL_MAPS[$series_name]}"
+            # Pass the manual map if it exists, otherwise empty
+            local manual_id="${MANUAL_MAPS[$series_name]}"
+            seerr_sync_issue "$series_name" "tv" "Duplicate Episode(s): $dup_list" "$manual_id"
         else
-            [[ $LOG_LEVEL == "debug" ]] && log "✨ No duplicates for $series_name. Checking for resolution..."
-
+            [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No duplicates for $series_name. Checking for resolution..."
             seerr_resolve_issue "$series_path"
         fi
 
-    done
+    done < <(find "$CURRENT_DIR" -maxdepth 1 -mindepth 1 -type d)
 
     log "✅ Completed scan for $CURRENT_DIR"
 done
