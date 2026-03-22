@@ -162,16 +162,35 @@ while true; do
             PRESET="$PRESET_SD"
         fi
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Using preset: $PRESET"
+#        HandBrakeCLI \
+#            --preset "$PRESET" \
+#            -q 24.0 \
+#            -i "$FILE_TO_PROCESS" \
+#            -o "$OUTPUT_FILE" \
+#            --audio-lang-list eng \
+#            --aencoder copy \
+#            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
+#            --audio-fallback aac \
+#            --optimize \
+#            $HANDBRAKE_SUB_ARGS < /dev/null
+
+        # --- Creating Sonos-compatible AC3 + Original Copy... ---
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing Audio: Creating Sonos-compatible AC3 + Original Copy..."
         HandBrakeCLI \
             --preset "$PRESET" \
             -q 24.0 \
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
             --audio-lang-list eng \
-            --aencoder copy --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
+            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
+            --aencoder ac3,copy \
+            --ab 640,auto \
+            --mixdown 5point1,auto \
             --audio-fallback aac \
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
+        # --- Creating Sonos-compatible AC3 + Original Copy... ---
+
         #Set the subtitle name.
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
