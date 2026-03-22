@@ -462,12 +462,12 @@ seerr_resolve_issue() {
     local media_type="movie"
     local lookup_id=""
 
-    # 1. Authenticate
+    # 1. Authenticate and store session cookie
     curl -s -c "$cookie_file" -X POST "$base_url/auth/local" \
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
 
-    # 2. Get ID from Sonarr/Radarr
+    # 2. Identify the content from Sonarr/Radarr
     if [[ "$folder_path" == *"/TV/"* ]]; then
         media_type="tv"
         local show_folder=""
@@ -480,45 +480,33 @@ seerr_resolve_issue() {
             jq -r --arg path "$folder_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tmdbId')
     fi
 
+    # Exit if we can't map the folder to an ID
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
-    [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Mapping $media_type ID $lookup_id to Overseerr Media..."
 
-    # 3. Fetch ALL issues with a massive "take" count to bypass caching/paging
-    local response_file="/tmp/seerr_all_issues.json"
-    # We use take=1000 to ensure we aren't hitting a 10-item limit
+    # 3. Fetch all open issues (using a high 'take' count to avoid pagination issues)
+    local response_file="/tmp/seerr_open_issues.json"
     curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=1000&filter=open"
 
-    # 4. Extract IDs with a very wide net
-    # This logs ALL open issues found so we can see the "Big Picture"
-    local all_open=$(jq -r '.results[]? | "\(.id):\(.media.externalServiceSlug // "unknown")"' "$response_file")
-    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: All Open Issues in Seerr: $(echo $all_open | xargs)"
-
-    # Now filter for our specific show using a more flexible match
-    local active_ids=$(jq -r --arg tid "$lookup_id" --arg slug "the-daily-show" '
+    # 4. Extract matching Issue IDs based on TVDB/TMDB or Slug
+    # Using 'contains' for the slug is a safety net for mismatched IDs
+    local active_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
         .results[]? | 
+        select(.media.mediaType == $type) |
         select(
             (.media.tvdbId | tostring) == $tid or 
-            (.media.tmdbId | tostring) == $tid or
-            (.media.externalServiceSlug | contains($slug))
+            (.media.tmdbId | tostring) == $tid
         ) | .id' "$response_file")
 
-    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Matching IDs for this show: $(echo $active_ids | xargs)"
-
+    # 5. Attempt resolution on all discovered matches
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-            log "✅ Seerr: Attempting to resolve issue #$issue_id..."
             local resolve_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved")
             
             if [[ "$resolve_status" == "200" || "$resolve_status" == "204" ]]; then
-                log "✅ Seerr: Successfully resolved issue #$issue_id."
-            else
-                log "❌ Seerr: Failed to resolve #$issue_id (HTTP $resolve_status)."
+                log "✅ Seerr: Resolved issue #$issue_id."
             fi
         fi
     done
-    
-    rm -f "$cookie_file"
-}
 
 seerr_sync_issue() {
     local media_name="$1"
