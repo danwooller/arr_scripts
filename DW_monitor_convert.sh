@@ -181,16 +181,15 @@ while true; do
             -q 24.0 \
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
-            --audio-lang-list eng \
-            --audio-tracks 1,1 \
-            --aencoder ac3,copy \
-            --acodec ac3,copy \
-            --ab 640,auto \
-            --mixdown 5point1,auto \
-            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
+            --audio-tracks 1 \
+            --aencoder ac3 \
+            --ab 640 \
+            --mixdown 5point1 \
             --audio-fallback aac \
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
+            
+        CONVERSION_EXIT_CODE=$?
         # --- End Creating Sonos-compatible AC3 + Original Copy... ---
         # --- Alternative Sonos Verification Check ---
         # Check if the freshly created file has the correct layout
