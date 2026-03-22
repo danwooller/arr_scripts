@@ -162,47 +162,27 @@ while true; do
             PRESET="$PRESET_SD"
         fi
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Using preset: $PRESET"
-#        HandBrakeCLI \
-#            --preset "$PRESET" \
-#            -q 24.0 \
-#            -i "$FILE_TO_PROCESS" \
-#            -o "$OUTPUT_FILE" \
-#            --audio-lang-list eng \
-#            --aencoder copy \
-#            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
-#            --audio-fallback aac \
-#            --optimize \
-#            $HANDBRAKE_SUB_ARGS < /dev/null
-
-        # --- Creating Sonos-compatible AC3 + Original Copy... ---
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing Audio: Creating Sonos-compatible AC3 + Original Copy..."
         HandBrakeCLI \
             --preset "$PRESET" \
             -q 24.0 \
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
-            --audio-tracks 1 \
-            --aencoder ac3 \
-            --ab 640 \
-            --mixdown 5point1 \
+            --audio-lang-list eng \
+            --aencoder copy \
+            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
             --audio-fallback aac \
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
-            
-        CONVERSION_EXIT_CODE=$?
-        # --- End Creating Sonos-compatible AC3 + Original Copy... ---
-        # --- Alternative Sonos Verification Check ---
+        # --- Sonos Verification Check ---
         # Check if the freshly created file has the correct layout
-        #FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
-        #if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
-        #     log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
-        #     mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
-        #     ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
-        #     rm "${OUTPUT_FILE}.tmp"
-        #fi
-        # --- End Alternative Sonos Verification Check ---
-
-        # --- Set the subtitle name ---
+        FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
+        if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
+             [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
+             mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
+             ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
+             rm "${OUTPUT_FILE}.tmp"
+        fi
+        #Set the subtitle name.
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
         fi
@@ -225,12 +205,12 @@ while true; do
             manage_remote_torrent "delete" "$BASE_NAME"
         else
             log "❌ $CONVERSION_EXIT_CODE for $FILENAME."
-            # --- Clean up working file if conversion failed ---
+            # Clean up working file if conversion failed
             rm -f "$OUTPUT_FILE"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
         fi
     done
-    # --- Wait for the next poll cycle ---
+    # Wait for the next poll cycle
     [[ $LOG_LEVEL == "debug" ]] && log "Sleeping for $POLL_INTERVAL seconds"
     sleep "$POLL_INTERVAL"
 done
