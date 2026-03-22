@@ -192,13 +192,13 @@ while true; do
         # --- End Creating Sonos-compatible AC3 + Original Copy... ---
         # --- Alternative Sonos Verification Check ---
         # Check if the freshly created file has the correct layout
-        FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
-        if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
-             log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
-             mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
-             ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
-             rm "${OUTPUT_FILE}.tmp"
-        fi
+        #FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
+        #if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
+        #     log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
+        #     mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
+        #     ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
+        #     rm "${OUTPUT_FILE}.tmp"
+        #fi
         # --- End Alternative Sonos Verification Check ---
 
         # --- Set the subtitle name ---
