@@ -41,19 +41,33 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
 
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing: $CURRENT_DIR"
     
-    # Use process substitution to avoid subshell variable isolation
+    # Determine if we are scanning a single show or a whole library
+    if [[ "$CURRENT_DIR" == *"/TV"* && $(basename "$CURRENT_DIR") != "TV" ]]; then
+        # Single Show Mode
+        search_cmd="echo $CURRENT_DIR"
+    else
+        # Library Mode
+        search_cmd="find $CURRENT_DIR -maxdepth 1 -mindepth 1 -type d"
+    fi
+
     while read -r series_path; do
+        [[ -z "$series_path" ]] && continue
         series_path="${series_path%/}"
         series_name=$(basename "$series_path")
         
-        # Check Exclusions
+        # 1. Skip if it's a "Season" folder (happens in single-show manual scans)
+        if [[ "$series_name" == "Season "* || "$series_name" == "Specials" ]]; then
+            continue
+        fi
+
+        # 2. Check Exclusions
         skip=false
         for exclude in "${EXCLUDE_DIRS[@]}"; do
             [[ "$series_name" == "$exclude" ]] && skip=true && break
         done
         [[ "$skip" == "true" ]] && continue
 
-        # 1. Scan for duplicate video files
+        # 3. Scan for duplicates (Recursive find)
         duplicates=$(find "$series_path" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" \) \
             -not -path "*Specials*" -not -path "*Season 00*" \
             | grep -oE "[0-9]+x[0-9]+" | sort | uniq -c | awk '$1 > 1 {print $2}')
@@ -62,8 +76,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             dup_list=$(echo $duplicates | xargs)
             log "⚠️ Duplicate(s) in $series_name: $dup_list"
             
-            # 2. Sync to Seerr
-            # Removed 'local' here as we are in the main script body
+            # 4. Sync to Seerr
             manual_id="${MANUAL_MAPS[$series_name]}"
             seerr_sync_issue "$series_name" "tv" "Duplicate Episode(s): $dup_list" "$manual_id"
         else
@@ -71,7 +84,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             seerr_resolve_issue "$series_path"
         fi
 
-    done < <(find "$CURRENT_DIR" -maxdepth 1 -mindepth 1 -type d)
+    done < <(eval "$search_cmd")
 
     log "✅ Completed scan for $CURRENT_DIR"
 done
