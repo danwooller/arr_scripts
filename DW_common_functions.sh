@@ -483,10 +483,17 @@ seerr_resolve_issue() {
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Mapping $media_type ID $lookup_id to Overseerr Media..."
 
-    # 3. Use the Media Lookup endpoint (the most reliable way)
-    # This finds the internal media record using the TVDB/TMDB ID
-    local media_info=$(curl -s -b "$cookie_file" "$base_url/media/lookup?tmdbId=&tvdbId=$lookup_id")
+    # 3. Use the Media Lookup endpoint with correct param formatting
+    # We include both tmdbId and tvdbId to satisfy the API requirements
+    local media_info=$(curl -s -b "$cookie_file" "$base_url/media/lookup?tvdbId=$lookup_id")
     local seerr_media_id=$(echo "$media_info" | jq -r '.id // empty')
+
+    # Fallback: If lookup fails, search the local media database
+    if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Direct lookup failed, trying database scan..."
+        seerr_media_id=$(curl -s -b "$cookie_file" "$base_url/media?take=999" | jq -r --arg tid "$lookup_id" '
+            .results[]? | select((.tvdbId | tostring) == $tid or (.tmdbId | tostring) == $tid) | .id // empty' | head -n 1)
+    fi
 
     if [[ -z "$seerr_media_id" || "$seerr_media_id" == "null" ]]; then
         [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Seerr: Could not find internal media ID for $lookup_id. Skipping."
