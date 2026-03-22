@@ -41,7 +41,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
 
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing: $CURRENT_DIR"
     
-    # Use process substitution instead of a pipe to avoid subshell issues
+    # Use process substitution to avoid subshell variable isolation
     while read -r series_path; do
         series_path="${series_path%/}"
         series_name=$(basename "$series_path")
@@ -63,8 +63,8 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             log "⚠️ Duplicate(s) in $series_name: $dup_list"
             
             # 2. Sync to Seerr
-            # Pass the manual map if it exists, otherwise empty
-            local manual_id="${MANUAL_MAPS[$series_name]}"
+            # Removed 'local' here as we are in the main script body
+            manual_id="${MANUAL_MAPS[$series_name]}"
             seerr_sync_issue "$series_name" "tv" "Duplicate Episode(s): $dup_list" "$manual_id"
         else
             [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No duplicates for $series_name. Checking for resolution..."
