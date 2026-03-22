@@ -462,12 +462,12 @@ seerr_resolve_issue() {
     local media_type="movie"
     local lookup_id=""
 
-    # 1. Authenticate and store session cookie
+    # 1. Authenticate
     curl -s -c "$cookie_file" -X POST "$base_url/auth/local" \
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
 
-    # 2. Identify the content from Sonarr/Radarr
+    # 2. Get ID from Sonarr/Radarr
     if [[ "$folder_path" == *"/TV/"* ]]; then
         media_type="tv"
         local show_folder=""
@@ -480,15 +480,14 @@ seerr_resolve_issue() {
             jq -r --arg path "$folder_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tmdbId')
     fi
 
-    # Exit if we can't map the folder to an ID
+    # Exit if mapping fails
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
 
-    # 3. Fetch all open issues (using a high 'take' count to avoid pagination issues)
+    # 3. Fetch issues
     local response_file="/tmp/seerr_open_issues.json"
     curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=1000&filter=open"
 
-    # 4. Extract matching Issue IDs based on TVDB/TMDB or Slug
-    # Using 'contains' for the slug is a safety net for mismatched IDs
+    # 4. Extract IDs
     local active_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
         .results[]? | 
         select(.media.mediaType == $type) |
@@ -497,7 +496,7 @@ seerr_resolve_issue() {
             (.media.tmdbId | tostring) == $tid
         ) | .id' "$response_file")
 
-    # 5. Attempt resolution on all discovered matches
+    # 5. Resolve
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
             local resolve_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved")
@@ -507,6 +506,9 @@ seerr_resolve_issue() {
             fi
         fi
     done
+    
+    rm -f "$cookie_file" "$response_file"
+}
 
 seerr_sync_issue() {
     local media_name="$1"
