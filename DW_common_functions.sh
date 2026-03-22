@@ -482,23 +482,28 @@ seerr_resolve_issue() {
 
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
 
-    # 2. Find and Resolve (Strict Status Check)
-    # Status 1 = Open/Pending in Overseerr
+    # 2. Find and Resolve (Strict Status & Media Check)
     local response_file="/tmp/seerr_open_issues.json"
     curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
+    # We add a check for .media != null to avoid "ghost" issues
     local issue_id=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
         .results[]? | 
-        select(.status == 1) | 
+        select(.status == 1 and .media != null) | 
         select(.media.mediaType == $type) |
         select((.media.tmdbId | tostring == $tid) or (.media.tvdbId | tostring == $tid)) | 
         .id' "$response_file" | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found active $media_type issue #$issue_id. Marking as resolved..."
+        # Check if the issue ACTUALLY exists before trying to resolve it
+        local check_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" "$base_url/issue/$issue_id")
         
-        # Call the resolve endpoint
-        curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
+        if [[ "$check_status" == "200" ]]; then
+            log "✅ Seerr: Found active $media_type issue #$issue_id. Resolving..."
+            curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
+        else
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id appeared in list but is unreachable (Ghost Issue). Skipping."
+        fi
     fi
     
     rm -f "$cookie_file"
