@@ -488,27 +488,31 @@ seerr_resolve_issue() {
     # We use take=1000 to ensure we aren't hitting a 10-item limit
     curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=1000&filter=open"
 
-    # 4. Extract IDs using a much looser filter to find #181
-    local active_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
+    # 4. Extract IDs with a very wide net
+    # This logs ALL open issues found so we can see the "Big Picture"
+    local all_open=$(jq -r '.results[]? | "\(.id):\(.media.externalServiceSlug // "unknown")"' "$response_file")
+    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: All Open Issues in Seerr: $(echo $all_open | xargs)"
+
+    # Now filter for our specific show using a more flexible match
+    local active_ids=$(jq -r --arg tid "$lookup_id" --arg slug "the-daily-show" '
         .results[]? | 
-        select(.media.mediaType == $type) |
         select(
             (.media.tvdbId | tostring) == $tid or 
             (.media.tmdbId | tostring) == $tid or
-            (.media.externalServiceSlug == "the-daily-show")
+            (.media.externalServiceSlug | contains($slug))
         ) | .id' "$response_file")
 
-    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: IDs found for this show: $(echo $active_ids | xargs)"
+    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Matching IDs for this show: $(echo $active_ids | xargs)"
 
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-            # Direct Resolve Attempt
+            log "✅ Seerr: Attempting to resolve issue #$issue_id..."
             local resolve_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved")
             
             if [[ "$resolve_status" == "200" || "$resolve_status" == "204" ]]; then
                 log "✅ Seerr: Successfully resolved issue #$issue_id."
             else
-                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Could not resolve #$issue_id (HTTP $resolve_status). Likely a ghost."
+                log "❌ Seerr: Failed to resolve #$issue_id (HTTP $resolve_status)."
             fi
         fi
     done
