@@ -189,9 +189,19 @@ while true; do
             --audio-fallback aac \
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
-        # --- Creating Sonos-compatible AC3 + Original Copy... ---
+        # --- End Creating Sonos-compatible AC3 + Original Copy... ---
+        # --- Alternative Sonos Verification Check ---
+        # Check if the freshly created file has the correct layout
+        FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
+        if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
+             log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
+             mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
+             ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
+             rm "${OUTPUT_FILE}.tmp"
+        fi
+        # --- End Alternative Sonos Verification Check ---
 
-        #Set the subtitle name.
+        # --- Set the subtitle name ---
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
         fi
@@ -214,12 +224,12 @@ while true; do
             manage_remote_torrent "delete" "$BASE_NAME"
         else
             log "❌ $CONVERSION_EXIT_CODE for $FILENAME."
-            # Clean up working file if conversion failed
+            # --- Clean up working file if conversion failed ---
             rm -f "$OUTPUT_FILE"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
         fi
     done
-    # Wait for the next poll cycle
+    # --- Wait for the next poll cycle ---
     [[ $LOG_LEVEL == "debug" ]] && log "Sleeping for $POLL_INTERVAL seconds"
     sleep "$POLL_INTERVAL"
 done
