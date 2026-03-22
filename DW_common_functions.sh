@@ -484,33 +484,23 @@ seerr_resolve_issue() {
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Searching for $media_type ID $lookup_id to resolve..."
 
     # 3. Get all open issues and loop through them
-    local response_file="/tmp/seerr_open_issues.json"
-    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
-
-    # Find ALL Issue IDs that match our lookup_id (in case there are duplicates or ghosts)
-    local issue_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
-        .results[]? | 
-        select((.status == 1 or .status == 2) and .media != null) | 
-        select(.media.mediaType == $type) |
-        select(
-            (.media.tmdbId | tostring) == $tid or 
-            (.media.tvdbId | tostring) == $tid
-        ) | .id' "$response_file")
-
     # 3. Get all open issues
     local response_file="/tmp/seerr_open_issues.json"
+    # Added ?take=100 to ensure we get the full list
     curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
-    # Get a simple list of all open Issue IDs
-    local all_open_ids=$(jq -r '.results[]?.id' "$response_file")
+    # Get a clean list of all IDs, filtering out nulls immediately
+    local all_open_ids=$(jq -r '.results[]? | select(.id != null) | .id' "$response_file")
+
+    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Open IDs found in Seerr: $(echo $all_open_ids | xargs)"
 
     for issue_id in $all_open_ids; do
-        [[ -z "$issue_id" || "$issue_id" == "null" ]] && continue
-
-        # Fetch the specific data for THIS issue to compare
+        # Fetch the specific data for THIS issue
         local issue_data=$(curl -s -b "$cookie_file" "$base_url/issue/$issue_id")
         
-        # Extract IDs from this specific issue
+        # If the issue is a ghost (404/Empty), skip to the NEXT one, dont exit
+        [[ -z "$issue_data" || "$issue_data" == "{}" ]] && continue
+
         local found_tvdb=$(echo "$issue_data" | jq -r '.media.tvdbId // empty')
         local found_tmdb=$(echo "$issue_data" | jq -r '.media.tmdbId // empty')
         local found_type=$(echo "$issue_data" | jq -r '.media.mediaType // "unknown"')
@@ -518,13 +508,13 @@ seerr_resolve_issue() {
 
         [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Checking #$issue_id (Type: $found_type, TVDB: $found_tvdb, Status: $found_status)"
 
-        # Compare!
-        if [[ "$found_type" == "$media_type" ]] && [[ "$found_status" -le 2 ]]; then
-            if [[ "$found_tvdb" == "$lookup_id" ]] || [[ "$found_tmdb" == "$lookup_id" ]]; then
+        # Match Logic
+        if [[ "$found_tvdb" == "$lookup_id" ]] || [[ "$found_tmdb" == "$lookup_id" ]]; then
+            if [[ "$found_type" == "$media_type" ]]; then
                 log "✅ Seerr: Match found! Marking issue #$issue_id as resolved..."
                 curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
-                rm -f "$cookie_file"
-                return 0
+                # We found our match, we can stop looking for THIS folder
+                break 
             fi
         fi
     done
