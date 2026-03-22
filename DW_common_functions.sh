@@ -488,8 +488,7 @@ seerr_resolve_issue() {
     local response_file="/tmp/seerr_open_issues.json"
     curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
-    # 4. Find the Issue ID where the media's TVDB/TMDB ID matches our $lookup_id
-    # We use (tonumber) to ensure we match against Overseerr's integer IDs
+    # 4. Find ALL Matching Issue IDs (No "head -n 1")
     local active_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
         .results[]? | 
         select(.media.mediaType == $type) |
@@ -500,10 +499,18 @@ seerr_resolve_issue() {
 
     [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Matching Issue IDs found: $(echo $active_ids | xargs)"
 
+    # The Loop: Process EVERY ID found, don't stop at the first one
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-            log "✅ Seerr: Found active issue #$issue_id. Marking as resolved..."
-            curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
+            # Verify it's not a ghost before logging success
+            local check=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" "$base_url/issue/$issue_id")
+            
+            if [[ "$check" == "200" ]]; then
+                log "✅ Seerr: Found active issue #$issue_id. Marking as resolved..."
+                curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
+            else
+                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id is a ghost (HTTP $check). Skipping to next..."
+            fi
         fi
     done
     
