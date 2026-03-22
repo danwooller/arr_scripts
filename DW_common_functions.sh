@@ -468,7 +468,7 @@ seerr_resolve_issue() {
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
 
-    # 1. ID Lookup Logic
+    # 1. ID Lookup Logic (Sonarr/Radarr)
     if [[ "$folder_path" == *"/TV/"* ]]; then
         media_type="tv"
         [[ "$(basename "$folder_path")" == *"Season"* ]] && show_folder=$(dirname "$folder_path") || show_folder="$folder_path"
@@ -482,16 +482,22 @@ seerr_resolve_issue() {
 
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
 
-    # 2. Find and Resolve
+    # 2. Find and Resolve (Strict Status Check)
+    # Status 1 = Open/Pending in Overseerr
     local response_file="/tmp/seerr_open_issues.json"
-    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?filter=open"
+    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
     local issue_id=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
-        .results[]? | select(.media.mediaType == $type) |
-        select((.media.tmdbId | tostring == $tid) or (.media.tvdbId | tostring == $tid)) | .id' "$response_file" | head -n 1)
+        .results[]? | 
+        select(.status == 1) | 
+        select(.media.mediaType == $type) |
+        select((.media.tmdbId | tostring == $tid) or (.media.tvdbId | tostring == $tid)) | 
+        .id' "$response_file" | head -n 1)
 
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        log "✅ Seerr: Found $media_type issue #$issue_id. Resolving..."
+        log "✅ Seerr: Found active $media_type issue #$issue_id. Marking as resolved..."
+        
+        # Call the resolve endpoint
         curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
     fi
     
