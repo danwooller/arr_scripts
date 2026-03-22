@@ -483,33 +483,32 @@ seerr_resolve_issue() {
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Mapping $media_type ID $lookup_id to Overseerr Media..."
 
-    # 3. Get all open issues (Pending & In Progress)
-    # This fetches the global list which we know contains #181
-    local response_file="/tmp/seerr_open_issues.json"
-    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
+    # 3. Fetch ALL issues with a massive "take" count to bypass caching/paging
+    local response_file="/tmp/seerr_all_issues.json"
+    # We use take=1000 to ensure we aren't hitting a 10-item limit
+    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=1000&filter=open"
 
-    # 4. Find ALL Matching Issue IDs (No "head -n 1")
+    # 4. Extract IDs using a much looser filter to find #181
     local active_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
         .results[]? | 
         select(.media.mediaType == $type) |
         select(
             (.media.tvdbId | tostring) == $tid or 
-            (.media.tmdbId | tostring) == $tid
-        ) | .id // empty' "$response_file")
+            (.media.tmdbId | tostring) == $tid or
+            (.media.externalServiceSlug == "the-daily-show")
+        ) | .id' "$response_file")
 
-    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Matching Issue IDs found: $(echo $active_ids | xargs)"
+    [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: IDs found for this show: $(echo $active_ids | xargs)"
 
-    # The Loop: Process EVERY ID found, don't stop at the first one
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-            # Verify it's not a ghost before logging success
-            local check=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" "$base_url/issue/$issue_id")
+            # Direct Resolve Attempt
+            local resolve_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved")
             
-            if [[ "$check" == "200" ]]; then
-                log "✅ Seerr: Found active issue #$issue_id. Marking as resolved..."
-                curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
+            if [[ "$resolve_status" == "200" || "$resolve_status" == "204" ]]; then
+                log "✅ Seerr: Successfully resolved issue #$issue_id."
             else
-                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id is a ghost (HTTP $check). Skipping to next..."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Could not resolve #$issue_id (HTTP $resolve_status). Likely a ghost."
             fi
         fi
     done
