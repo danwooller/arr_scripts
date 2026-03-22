@@ -460,17 +460,17 @@ seerr_resolve_issue() {
     local cookie_file="/tmp/seerr_res_cookie.txt"
     
     local media_type="movie"
-    local show_folder=""
     local lookup_id=""
 
-    # Authenticate
+    # 1. Authenticate
     curl -s -c "$cookie_file" -X POST "$base_url/auth/local" \
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
 
-    # 1. ID Lookup Logic (Sonarr/Radarr)
+    # 2. Get ID from Sonarr/Radarr
     if [[ "$folder_path" == *"/TV/"* ]]; then
         media_type="tv"
+        local show_folder=""
         [[ "$(basename "$folder_path")" == *"Season"* ]] && show_folder=$(dirname "$folder_path") || show_folder="$folder_path"
         
         lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
@@ -481,30 +481,33 @@ seerr_resolve_issue() {
     fi
 
     [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
+    [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Seerr: Searching for $media_type ID $lookup_id to resolve..."
 
-    # 2. Find and Resolve (Strict Status & Media Check)
+    # 3. Get all open issues and loop through them
     local response_file="/tmp/seerr_open_issues.json"
     curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
-    # We add a check for .media != null to avoid "ghost" issues
-    local issue_id=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
+    # Find ALL Issue IDs that match our lookup_id (in case there are duplicates or ghosts)
+    local issue_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
         .results[]? | 
-        select(.status == 1 and .media != null) | 
+        select((.status == 1 or .status == 2) and .media != null) | 
         select(.media.mediaType == $type) |
         select((.media.tmdbId | tostring == $tid) or (.media.tvdbId | tostring == $tid)) | 
-        .id' "$response_file" | head -n 1)
+        .id' "$response_file")
 
-    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        # Check if the issue ACTUALLY exists before trying to resolve it
-        local check_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" "$base_url/issue/$issue_id")
-        
-        if [[ "$check_status" == "200" ]]; then
-            log "✅ Seerr: Found active $media_type issue #$issue_id. Resolving..."
-            curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
-        else
-            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id appeared in list but is unreachable (Ghost Issue). Skipping."
+    for issue_id in $issue_ids; do
+        if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
+            # Verify if it's a ghost or real
+            local check_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" "$base_url/issue/$issue_id")
+            
+            if [[ "$check_status" == "200" ]]; then
+                log "✅ Seerr: Found active issue #$issue_id. Marking as resolved..."
+                curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved" > /dev/null
+            else
+                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Skipping ghost issue #$issue_id."
+            fi
         fi
-    fi
+    done
     
     rm -f "$cookie_file"
 }
