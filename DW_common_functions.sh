@@ -504,7 +504,7 @@ seerr_resolve_issue() {
     # 4. Get issues specifically for THIS media ID
     local issues_data=$(curl -s -b "$cookie_file" "$base_url/media/$seerr_media_id/issues")
     
-    # The fix: .[]? iterates through the array properly
+    # The fix: Adding .[]? allows jq to iterate over the list of issues
     local active_ids=$(echo "$issues_data" | jq -r '.[]? | select(.status == 1 or .status == 2) | .id // empty')
 
     [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: Active IDs for Media $seerr_media_id: $(echo $active_ids | xargs)"
