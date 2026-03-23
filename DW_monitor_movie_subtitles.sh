@@ -48,6 +48,8 @@ while true; do
         }
 
         log "Processing: $filename"
+        # --- Fix audio for Sonos ---
+        sonos_audio_fix "$file"
         metadata=$(mkvmerge --identify "$file" --identification-format json)
         
         # 1. Identify Target Audio using UID for absolute precision
@@ -110,9 +112,6 @@ while true; do
             #manage_remote_torrent "resume" "$torrent_name"
             manage_remote_torrent "resume" "$FILE_NAME"
         fi
-
-        # --- Fix audio for Sonos ---
-        sonos_audio_fix "$file"
     done
     sleep "$SLEEP_INTERVAL"
 done
