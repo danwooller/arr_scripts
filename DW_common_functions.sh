@@ -656,9 +656,9 @@ sonos_audio_fix() {
     
     if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
          log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
-         mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
-         ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
-         rm "${OUTPUT_FILE}.tmp"
+         mv "$media_name" "${media_name}.tmp"
+         ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$media_name"
+         rm "${media_name}.tmp"
     else
     log "sonos audio (FINAL_LAYOUT): $FINAL_LAYOUT"
     fi
