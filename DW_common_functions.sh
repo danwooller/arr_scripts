@@ -651,20 +651,45 @@ sonarr_targeted_rename() {
 
 sonos_audio_fix() {
     local media_name="$1"
+    [[ "$media_name" != /* ]] && media_name="/$media_name"
+    if [ ! -f "$media_name" ]; then
+        log "❌ Error: File not found at $media_name"
+        return 1
+    fi
     # Check if the file has the correct layout
     FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
+    CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
     
-    if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
-         log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
-         mv "$media_name" "${media_name}.tmp"
-         ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$media_name"
-         rm "${media_name}.tmp"
+    # 3. Decision Logic
+    if [[ "$FINAL_LAYOUT" == "5.1(side)" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Layout is already $FINAL_LAYOUT"
+        return 0
+    fi
+
+    log "⚠️ Layout is $FINAL_LAYOUT ($CHANNELS ch). Remuxing for Sonos compatibility..."
+    
+    mv "$media_name" "${media_name}.tmp"
+
+    if [[ "$CHANNELS" -eq 6 ]]; then
+        # If it has 6 channels but wrong layout (e.g., 5.1(back)), re-map it
+        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$media_name"
     else
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Layout is $FINAL_LAYOUT"
+        # If it's Mono or Stereo, just convert to AC3 (standard upmix)
+        # Sonos handles standard AC3 Stereo/Mono perfectly.
+        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k "$media_name"
+    fi
+
+    # 4. Cleanup
+    if [ $? -eq 0 ]; then
+        rm "${media_name}.tmp"
+        log "✨ Sonos fix applied to $media_name"
+    else
+        log "❌ FFmpeg failed! Restoring original file."
+        mv "${media_name}.tmp" "$media_name"
     fi
 }
 
-# --- END SONOS AUSIO ---
+# --- END SONOS AUDIO ---
 # --- VPN SECTION ---
 
 vpn_restart_containers() {
