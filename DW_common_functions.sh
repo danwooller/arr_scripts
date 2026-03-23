@@ -647,6 +647,22 @@ sonarr_targeted_rename() {
     fi
 }
 # --- END SONARR SECTION ---
+# --- SONOS AUDIO ---
+
+sonos_audio_fix() {
+    local media_name="$1"
+    # Check if the file has the correct layout
+    FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
+    
+    if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
+         log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
+         mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
+         ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
+         rm "${OUTPUT_FILE}.tmp"
+    fi
+}
+
+# --- END SONOS AUSIO ---
 # --- VPN SECTION ---
 
 vpn_restart_containers() {
