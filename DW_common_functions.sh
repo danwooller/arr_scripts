@@ -660,7 +660,7 @@ sonos_audio_fix() {
          ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$media_name"
          rm "${media_name}.tmp"
     else
-    log "sonos audio (FINAL_LAYOUT): $FINAL_LAYOUT"
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Layout is $FINAL_LAYOUT"
     fi
 }
 
