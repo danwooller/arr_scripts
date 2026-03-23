@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Fix audio for Sonos Playbar
+# for dir in /mnt/media/TV/A*/; do sudo LOG_LEVEL=debug ./DW_sonos_audio_fix.sh "$dir"; done
+
 # --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
