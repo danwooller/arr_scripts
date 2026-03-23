@@ -62,9 +62,9 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
                     expected=$((prev_e + 1))
                     [[ "$start_e" -gt "$expected" ]] && for ((i=expected; i<start_e; i++)); do missing_in_series+="${curr_s}x$(printf "%02d" $i) "; done
                 fi
+log "curr_s: $curr_s"
                 prev_s=$curr_s; prev_e=$end_e
             done
-log "curr_s: $curr_s"
         fi
 
         if [[ -n "$missing_in_series" ]]; then
