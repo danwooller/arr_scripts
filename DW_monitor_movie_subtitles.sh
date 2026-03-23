@@ -110,6 +110,9 @@ while true; do
             #manage_remote_torrent "resume" "$torrent_name"
             manage_remote_torrent "resume" "$FILE_NAME"
         fi
+
+        # --- Fix audio for Sonos ---
+        sonos_audio_fix "$file"
     done
     sleep "$SLEEP_INTERVAL"
 done
