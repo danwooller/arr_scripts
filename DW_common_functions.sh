@@ -651,6 +651,7 @@ sonarr_targeted_rename() {
 
 sonos_audio_fix() {
     local media_name="$1"
+log "sonos audio: $media_name"
     # Check if the file has the correct layout
     FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
     
