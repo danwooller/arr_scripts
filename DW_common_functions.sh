@@ -686,11 +686,11 @@ sonos_audio_fix() {
 
     if [[ "$CHANNELS" -eq 6 ]]; then
         # 5.1 Re-map + Normalize
-        ffmpeg -v error -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
+        ffmpeg -v error -nostdin -y -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
         -af "channelmap=channel_layout=5.1(side),$lnorm" "$media_name"
     else
         # Stereo/Mono -> AC3 + Normalize
-        ffmpeg -v error -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
+        ffmpeg -v error -nostdin -y -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
         -af "$lnorm" "$media_name"
     fi
 
