@@ -648,53 +648,36 @@ sonarr_targeted_rename() {
 }
 # --- END SONARR SECTION ---
 # --- SONOS AUDIO ---
-
 sonos_audio_fix() {
     local media_name="$1"
     
-    # 1. Path & Existence Check
     [[ "$media_name" != /* ]] && media_name="/$media_name"
-    if [ ! -f "$media_name" ]; then
-        log "❌ File not found: $media_name"
-        return 1
-    fi
+    if [ ! -f "$media_name" ]; then return 1; fi
 
-    # 2. Integrity Check: Is the file actually a valid, readable video?
-    if ! ffprobe -v error "$media_name" > /dev/null 2>&1; then
-        log "❌ CRITICAL: $media_name is unreadable or corrupt. Skipping fix."
-        return 1
-    fi
-
-    # 3. Get Layout and Channel Count
+    # Get stream info
     FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
     CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
     
-    # 4. Skip if already perfect
-    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ $media_name is already Sonos-optimized."
-        return 0
-    fi
+    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then return 0; fi
 
     log "⚠️ Normalizing $CHANNELS ch audio for: $(basename "$media_name")"
     
-    # 5. Atomic Rename (Work on a copy to prevent data loss)
     temp_file="${media_name}.processing.tmp"
     mv "$media_name" "$temp_file"
 
-    # Define the Loudnorm filter (Target -16 LUFS for TV)
+    # Surgical flags added:
+    # -nostdin: Prevents "Enter command" hang
+    # -map 0:v:0 -map 0:a:0: Selects only the first video/audio, ignoring extra tracks
     local lnorm="loudnorm=I=-16:TP=-1.5:LRA=11"
 
     if [[ "$CHANNELS" -eq 6 ]]; then
-        # 5.1 Re-map + Normalize
-        ffmpeg -v error -nostdin -y -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
+        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
         -af "channelmap=channel_layout=5.1(side),$lnorm" "$media_name"
     else
-        # Stereo/Mono -> AC3 + Normalize
-        ffmpeg -v error -nostdin -y -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
+        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
         -af "$lnorm" "$media_name"
     fi
 
-    # 6. Success Check
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
         rm "$temp_file"
         log "✨ Success: $(basename "$media_name")"
