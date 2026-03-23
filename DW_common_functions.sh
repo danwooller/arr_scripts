@@ -651,7 +651,6 @@ sonarr_targeted_rename() {
 
 sonos_audio_fix() {
     local media_name="$1"
-log "sonos audio: $media_name"
     # Check if the file has the correct layout
     FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
     
@@ -660,6 +659,8 @@ log "sonos audio: $media_name"
          mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
          ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
          rm "${OUTPUT_FILE}.tmp"
+    else
+    log "sonos audio (FINAL_LAYOUT): $FINAL_LAYOUT"
     fi
 }
 
