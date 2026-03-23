@@ -652,46 +652,55 @@ sonarr_targeted_rename() {
 sonos_audio_fix() {
     local media_name="$1"
     
-    # 1. Ensure we have an absolute path
+    # 1. Path & Existence Check
     [[ "$media_name" != /* ]] && media_name="/$media_name"
-
     if [ ! -f "$media_name" ]; then
-        log "❌ Error: File not found at $media_name"
+        log "❌ File not found: $media_name"
         return 1
     fi
 
-    # 2. Get Layout and Channel Count
+    # 2. Integrity Check: Is the file actually a valid, readable video?
+    if ! ffprobe -v error "$media_name" > /dev/null 2>&1; then
+        log "❌ CRITICAL: $media_name is unreadable or corrupt. Skipping fix."
+        return 1
+    fi
+
+    # 3. Get Layout and Channel Count
     FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
     CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
     
-    # 3. Decision Logic
+    # 4. Skip if already perfect
     if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Layout is already $FINAL_LAYOUT. Skipping."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ $media_name is already Sonos-optimized."
         return 0
     fi
 
-    log "⚠️ Layout is $FINAL_LAYOUT ($CHANNELS ch). Remuxing and Normalizing audio..."
+    log "⚠️ Normalizing $CHANNELS ch audio for: $(basename "$media_name")"
     
-    mv "$media_name" "${media_name}.tmp"
+    # 5. Atomic Rename (Work on a copy to prevent data loss)
+    temp_file="${media_name}.processing.tmp"
+    mv "$media_name" "$temp_file"
 
-    # We use 'loudnorm=I=-16:TP=-1.5:LRA=11'
-    # I=-16: Integrated loudness target (TV standard)
-    # TP=-1.5: True peak limit to prevent clipping
+    # Define the Loudnorm filter (Target -16 LUFS for TV)
+    local lnorm="loudnorm=I=-16:TP=-1.5:LRA=11"
+
     if [[ "$CHANNELS" -eq 6 ]]; then
-        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k \
-        -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" "$media_name"
+        # 5.1 Re-map + Normalize
+        ffmpeg -v error -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
+        -af "channelmap=channel_layout=5.1(side),$lnorm" "$media_name"
     else
-        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k \
-        -af "loudnorm=I=-16:TP=-1.5:LRA=11" "$media_name"
+        # Stereo/Mono -> AC3 + Normalize
+        ffmpeg -v error -i "$temp_file" -c:v copy -c:a ac3 -b:a 640k \
+        -af "$lnorm" "$media_name"
     fi
 
-    # 4. Cleanup/Restore
-    if [ $? -eq 0 ]; then
-        rm "${media_name}.tmp"
-        log "✨ Sonos fix and Normalization applied to $media_name"
+    # 6. Success Check
+    if [ $? -eq 0 ] && [ -s "$media_name" ]; then
+        rm "$temp_file"
+        log "✨ Success: $(basename "$media_name")"
     else
-        log "❌ FFmpeg failed! Restoring original file."
-        mv "${media_name}.tmp" "$media_name"
+        log "❌ FAIL: Restore original for $(basename "$media_name")"
+        mv "$temp_file" "$media_name"
     fi
 }
 # --- END SONOS AUDIO ---
