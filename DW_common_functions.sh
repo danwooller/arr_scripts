@@ -660,7 +660,7 @@ sonos_audio_fix() {
     
     if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then return 0; fi
 
-    log "⚠️ Normalizing $CHANNELS ch audio for: $(basename "$media_name")"
+    [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Normalising $CHANNELS ch audio for: $(basename "$media_name")"
     
     temp_file="${media_name}.processing.tmp"
     mv "$media_name" "$temp_file"
