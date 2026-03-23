@@ -29,48 +29,54 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     
     # 1. Check if the directory actually exists/is mounted
     if [ ! -d "$CURRENT_DIR" ]; then
-        log "❌ SKIP: $CURRENT_DIR is not available (Check mount/network)."
+        log "❌ SKIP: $CURRENT_DIR is not available."
         continue
     fi
 
-    # 2. Check if the directory is empty (common sign of a dropped mount)
+    # 2. Check if empty
     if [ -z "$(ls -A "$CURRENT_DIR" 2>/dev/null)" ]; then
-        log "⚠️ WARNING: $CURRENT_DIR appears empty. Skipping to prevent data loss/errors."
+        log "⚠️ WARNING: $CURRENT_DIR appears empty. Skipping."
         continue
     fi
 
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing: $CURRENT_DIR"
-    
-    # 1. Integrity Check
-    error_msg=$(ffmpeg -v error -n -i "$file" -c copy -f null - 2>&1 < /dev/null)
-    exit_status=$?
 
-    # 2. Determine Media Type and Title
-    media_type="movie"; [[ "$TARGET_DIR" =~ [Tt][Vv] ]] && media_type="tv"
-    
-    # Get the folder name (The Movie/Show Title)
-    # /mnt/media/Movies/The Rip (2026)/The Rip.mkv -> The Rip (2026)
-    media_title=$(basename "$(dirname "$file")")
-    file_name=$(basename "$file")
-    media_name=$(basename "$1")
+    # --- NEW: Find video files within the directory ---
+    # This finds mkv, mp4, avi, etc., and loops through them
+    find "$CURRENT_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" \) | while read -r file; do
+        
+        file_name=$(basename "$file")
 
-    if [[ "$media_type" == "tv" ]]; then
-        if [[ "$media_name" =~ ^Season|^Specials|^S[0-9]+ ]]; then
-            media_name=$(basename "$(dirname "$1")")
+        # 1. Integrity Check
+        error_msg=$(ffmpeg -v error -n -i "$file" -c copy -f null - 2>&1 < /dev/null)
+        exit_status=$?
+
+        # 2. Determine Media Type (Look at the full path for 'TV')
+        media_type="movie"
+        [[ "$file" =~ [Tt][Vv] ]] && media_type="tv"
+        
+        # 3. Logic for Media Title (Handling Seasons/Specials)
+        # We start with the parent folder of the file
+        media_name=$(basename "$(dirname "$file")")
+
+        if [[ "$media_type" == "tv" ]]; then
+            # If the folder is "Season 01", go up one more level to get the Show Title
+            if [[ "$media_name" =~ ^Season|^Specials|^S[0-9]+ ]]; then
+                media_name=$(basename "$(dirname "$(dirname "$file")")")
+            fi
         fi
-    fi
 
-    if [ $exit_status -ne 0 ]; then
-        log "❌ CORRUPT: $file_name ($error_msg)"
-        
-        issue_msg="Corruption detected in $file_name. Error: $error_msg"
-        seerr_sync_issue "$media_name" "$media_type" "$issue_msg"
-        
-        mv --backup=numbered "$file" "$DIR_MEDIA_HOLD/"
-    else
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ HEALTHY: $file_name"
-        seerr_resolve_issue "$media_name" "$media_type"
-    fi
+        if [ $exit_status -ne 0 ]; then
+            log "❌ CORRUPT: $file_name ($error_msg)"
+            issue_msg="Corruption detected in $file_name. Error: $error_msg"
+            
+            seerr_sync_issue "$media_name" "$media_type" "$issue_msg"
+            mv --backup=numbered "$file" "$DIR_MEDIA_HOLD/"
+        else
+            [[ "$LOG_LEVEL" == "debug" ]] && log "✅ HEALTHY: $file_name"
+            seerr_resolve_issue "$media_name" "$media_type"
+        fi
+    done
 
     log "✅ Completed scan for $CURRENT_DIR"
 done
