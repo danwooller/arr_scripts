@@ -48,8 +48,10 @@ while true; do
         }
 
         log "Processing: $filename"
+
         # --- Fix audio for Sonos ---
         sonos_audio_fix "$file"
+
         metadata=$(mkvmerge --identify "$file" --identification-format json)
         
         # 1. Identify Target Audio using UID for absolute precision
