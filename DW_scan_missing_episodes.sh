@@ -64,6 +64,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
                 fi
                 prev_s=$curr_s; prev_e=$end_e
             done
+log "curr_s: $curr_s"
         fi
 
         if [[ -n "$missing_in_series" ]]; then
