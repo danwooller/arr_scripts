@@ -651,44 +651,49 @@ sonarr_targeted_rename() {
 
 sonos_audio_fix() {
     local media_name="$1"
+    
+    # 1. Ensure we have an absolute path
     [[ "$media_name" != /* ]] && media_name="/$media_name"
+
     if [ ! -f "$media_name" ]; then
         log "❌ Error: File not found at $media_name"
         return 1
     fi
-    # Check if the file has the correct layout
+
+    # 2. Get Layout and Channel Count
     FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
     CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
     
     # 3. Decision Logic
-    if [[ "$FINAL_LAYOUT" == "5.1(side)" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Layout is already $FINAL_LAYOUT"
+    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Layout is already $FINAL_LAYOUT. Skipping."
         return 0
     fi
 
-    log "⚠️ Layout is $FINAL_LAYOUT ($CHANNELS ch). Remuxing for Sonos compatibility..."
+    log "⚠️ Layout is $FINAL_LAYOUT ($CHANNELS ch). Remuxing and Normalizing audio..."
     
     mv "$media_name" "${media_name}.tmp"
 
+    # We use 'loudnorm=I=-16:TP=-1.5:LRA=11'
+    # I=-16: Integrated loudness target (TV standard)
+    # TP=-1.5: True peak limit to prevent clipping
     if [[ "$CHANNELS" -eq 6 ]]; then
-        # If it has 6 channels but wrong layout (e.g., 5.1(back)), re-map it
-        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$media_name"
+        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k \
+        -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" "$media_name"
     else
-        # If it's Mono or Stereo, just convert to AC3 (standard upmix)
-        # Sonos handles standard AC3 Stereo/Mono perfectly.
-        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k "$media_name"
+        ffmpeg -i "${media_name}.tmp" -c:v copy -c:a ac3 -b:a 640k \
+        -af "loudnorm=I=-16:TP=-1.5:LRA=11" "$media_name"
     fi
 
-    # 4. Cleanup
+    # 4. Cleanup/Restore
     if [ $? -eq 0 ]; then
         rm "${media_name}.tmp"
-        log "✨ Sonos fix applied to $media_name"
+        log "✨ Sonos fix and Normalization applied to $media_name"
     else
         log "❌ FFmpeg failed! Restoring original file."
         mv "${media_name}.tmp" "$media_name"
     fi
 }
-
 # --- END SONOS AUDIO ---
 # --- VPN SECTION ---
 
