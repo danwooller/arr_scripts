@@ -32,7 +32,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         log "❌ SKIP: $CURRENT_DIR is not available (Check mount/network)."
         continue
     fi
-
+log "Current: $CURRENT_DIR"
     # 2. Check if the directory is empty (common sign of a dropped mount)
     if [ -z "$(ls -A "$CURRENT_DIR" 2>/dev/null)" ]; then
         log "⚠️ WARNING: $CURRENT_DIR appears empty. Skipping to prevent data loss/errors."
