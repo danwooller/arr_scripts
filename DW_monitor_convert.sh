@@ -174,14 +174,15 @@ while true; do
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
         # --- Sonos Verification Check ---
+        #sonos_audio_fix "$OUTPUT_FILE"
         # Check if the freshly created file has the correct layout
-        FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
-        if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
-             [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
-             mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
-             ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
-             rm "${OUTPUT_FILE}.tmp"
-        fi
+#        FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
+#        if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
+#             [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
+#             mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
+#             ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
+#             rm "${OUTPUT_FILE}.tmp"
+#        fi
         #Set the subtitle name.
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
@@ -190,14 +191,17 @@ while true; do
         # --- 6. Post-Conversion Cleanup and Move ---
         if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
             log "✅ Completed $FILENAME"
+            # Cleanup only if conversion was successful
+            rm -f "$FILE_TO_PROCESS"
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Deleted temporary copy in $CONVERT_DIR."
+            # --- Sonos Verification Check ---
+            sonos_audio_fix "$OUTPUT_FILE"
+             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Aplly Sonos conversion $(basename "$OUTPUT_FILE")"
             # Move the completed file to the completed folder
             mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
             #erroneous mkv files in the root directory
             mv /*.mkv "$DIR_MEDIA_COMPLETED/"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
-            # Cleanup only if conversion was successful
-            rm -f "$FILE_TO_PROCESS"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Deleted temporary copy in $CONVERT_DIR."
             # Move the original file to the finished folder
             mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$TIMESTAMP.$EXTENSION"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved original file to $DIR_MEDIA_FINISHED/$BASE_NAME_$TIMESTAMP.$EXTENSION."
