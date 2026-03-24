@@ -31,21 +31,21 @@ while true; do
         SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
 
-        manage_remote_torrent() {
-            local action=$1
-            local t_name=$2
-            local found=false
-        
-            for server in "${QBT_SERVERS[@]}"; do
-                # We add the credentials directly to the command string
-                if qbittorrent-cli torrent list --server "$server" --username "$QBT_USER" --password "$QBT_PASS" | grep -q "$t_name"; then
-                    log "Action [$action] on $server for: $t_name"
-                    qbittorrent-cli torrent "$action" --server "$server" --username "$QBT_USER" --password "$QBT_PASS" --name "$t_name" >/dev/null 2>&1
-                    found=true
-                    break
-                fi
-            done
-        }
+        #manage_remote_torrent() {
+        #    local action=$1
+        #    local t_name=$2
+        #    local found=false 
+        #    for server in "${QBT_SERVERS[@]}"; do
+        #        # We add the credentials directly to the command string
+        #        if qbittorrent-cli torrent list --server "$server" --username "$QBT_USER" --password "$QBT_PASS" | grep -q "$t_name"; then
+        #            log "Action [$action] on $server for: $t_name"
+        #            qbittorrent-cli torrent "$action" --server "$server" --username "$QBT_USER" --password "$QBT_PASS" --name "$t_name" >/dev/null 2>&1
+        #            found=true
+        #            break
+        #        fi
+        #    done
+        #}
+        manage_remote_torrent "delete" $filename
 
         log "Processing: $filename"
 
