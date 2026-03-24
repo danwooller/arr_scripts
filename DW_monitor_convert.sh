@@ -81,25 +81,7 @@ while true; do
         BASE_NAME="${FILENAME%.*}"
         EXTENSION="${FILENAME##*.}"
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing $FILENAME"
-        # --- 1. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
-#        SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
-#        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."
-#        TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
-#        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
-#        echo "Extracted Forced Track ID: $SUB_TRACK_ID"
-#        if [[ -n "$SUB_TRACK_ID" ]]; then
-#            log "ℹ️ Forced subtitles (ID: $SUB_TRACK_ID): $BASE_NAME..."
-#            mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"
-#            if [[ $? -eq 0 ]]; then
-#                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
-#                SUB_FILE_EXTRACTED=true
-#            else
-#                [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Subtitle extraction failed. Will NOT embed subtitles."
-#            fi
-#        else
-#            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No suitable English forced subtitle track found in the source file."
-#        fi
-        # --- 2. Copy the file to the conversion folder ---
+        # --- 1. Copy the file to the conversion folder ---
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Copying to $CONVERT_DIR..."
         #Copying to local directory.
         cp "$SOURCE_FILE" "$CONVERT_DIR/"
@@ -118,7 +100,7 @@ while true; do
         # Reset HandBrake subtitle argument.
         HANDBRAKE_SUB_ARGS=""
         SUB_FILE_EXTRACTED=false
-        # --- 3. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
+        # --- 2. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."        
         TRACK_INFO=$(mkvmerge -J "$FILE_TO_PROCESS" 2>/dev/null)
@@ -146,7 +128,7 @@ while true; do
             [[ $LOG_LEVEL == "debug" ]] && log "⚠️ No suitable English forced subtitle track found in the source file."
         fi
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Determining preset based on filename content..."
-        # --- 4. Determine Preset (Wrapped in quotes to prevent "Very" error) ---
+        # --- 3. Determine Preset (Wrapped in quotes to prevent "Very" error) ---
         LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
         if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then
             PRESET="$PRESET_4K"
@@ -188,7 +170,7 @@ while true; do
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
         fi
         CONVERSION_EXIT_CODE=$?
-        # --- 6. Post-Conversion Cleanup and Move ---
+        # --- 4. Post-Conversion Cleanup and Move ---
         if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
             log "✅ Completed $FILENAME"
             # Cleanup only if conversion was successful
@@ -197,24 +179,24 @@ while true; do
             # --- Sonos Verification Check ---
             sonos_audio_fix "$OUTPUT_FILE"
              [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Aplly Sonos conversion $(basename "$OUTPUT_FILE")"
-            # Move the completed file to the completed folder
+            # --- Move the completed file to the completed folder ---
             mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
             #erroneous mkv files in the root directory
-            mv /*.mkv "$DIR_MEDIA_COMPLETED/"
+            #mv /*.mkv "$DIR_MEDIA_COMPLETED/"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
-            # Move the original file to the finished folder
+            # --- Move the original file to the finished folder ---
             mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$TIMESTAMP.$EXTENSION"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved original file to $DIR_MEDIA_FINISHED/$BASE_NAME_$TIMESTAMP.$EXTENSION."
-            # Search & Delete across all 5 servers
+            # --- Search & Delete across all 5 servers ---
             manage_remote_torrent "delete" "$BASE_NAME"
         else
             log "❌ $CONVERSION_EXIT_CODE for $FILENAME."
-            # Clean up working file if conversion failed
+            # --- Clean up working file if conversion failed ---
             rm -f "$OUTPUT_FILE"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
         fi
     done
-    # Wait for the next poll cycle
+    # --- Wait for the next poll cycle ---
     [[ $LOG_LEVEL == "debug" ]] && log "Sleeping for $POLL_INTERVAL seconds"
     sleep "$POLL_INTERVAL"
 done
