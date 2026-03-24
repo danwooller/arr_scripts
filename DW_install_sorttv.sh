@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Run: cd ~/arr_scripts && sudo ./git_pull.sh DW_install_sorttv.sh && cd /usr/local/bin && sudo ./DW_install_sorttv.sh
+# or: cd ~/arr_scripts && sudo ./git_pull.sh DW_install_sorttv.sh --no-update && cd /usr/local/bin && sudo ./DW_install_sorttv.sh
 # to install, includes fixes for really old code,
 # ensure /mnt/media/backup/$(hostname -s)/opt/sorttv exists
 # Run a manual scan: cd /opt/sorttv && ./sort-tv
