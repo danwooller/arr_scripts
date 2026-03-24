@@ -678,13 +678,34 @@ sonos_audio_fix() {
     local lnorm="loudnorm=I=-16:TP=-1.5:LRA=11"
 
     # 3. ADDED: -metadata SONOS_FIXED="true" to the ffmpeg command
-    if [[ "$CHANNELS" -eq 6 ]]; then
-        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
-        -af "channelmap=channel_layout=5.1(side),$lnorm" -metadata SONOS_FIXED="true" "$media_name"
+#    if [[ "$CHANNELS" -eq 6 ]]; then
+#        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
+#        -af "channelmap=channel_layout=5.1(side),$lnorm" -metadata SONOS_FIXED="true" "$media_name"
+#    else
+#        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
+#        -af "$lnorm" -metadata SONOS_FIXED="true" "$media_name"
+#    fi
+
+
+    if [[ "$CHANNELS" -gt 2 ]]; then
+        log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Normalizing..."
+        
+        # -ac 6 forces 5.1 output
+        # channelmap ensures the 'side' layout Sonos loves
+        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
+        -c:v copy -c:a ac3 -b:a 640k -ac 6 \
+        -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -metadata SONOS_FIXED="true" "$media_name"
     else
-        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
-        -af "$lnorm" -metadata SONOS_FIXED="true" "$media_name"
+        # Stereo/Mono logic stays the same
+        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
+        -c:v copy -c:a ac3 -b:a 640k \
+        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -metadata SONOS_FIXED="true" "$media_name"
     fi
+
+
+
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
         rm "$temp_file"
