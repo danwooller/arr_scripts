@@ -10,21 +10,21 @@ else
 fi
 
 # --- Configuration ---
-SOURCE_DIR="/mnt/media/torrent/completed-movies"
-DEST_DIR="/mnt/media/torrent/completed"
-FINISHED_DIR="/mnt/media/torrent/finished"
-SUBTITLE_DIR="/mnt/media/backup/subtitles"
+#SOURCE_DIR="/mnt/media/torrent/completed-movies"
+#DEST_DIR="/mnt/media/torrent/completed"
+#FINISHED_DIR="/mnt/media/torrent/finished"
+#SUBTITLE_DIR="/mnt/media/backup/subtitles"
 SLEEP_INTERVAL=120
 
-mkdir -p "$DEST_DIR" "$FINISHED_DIR" "$SUBTITLE_DIR"
+mkdir -p "$DIR_MEDIA_COMPLETED" "$DIR_MEDIA_FINISHED" "$DIR_MEDIA_SUBTITLES"
 check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "qbittorrent-cli" "rename"
 
-log_start "$SOURCE_DIR"
+log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
 while true; do
-    find "$SOURCE_DIR" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
+    find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
-    find -L "$SOURCE_DIR" -type f -iname "*.mkv" -print0 | while IFS= read -r -d $'\0' file; do        
+    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -type f -iname "*.mkv" -print0 | while IFS= read -r -d $'\0' file; do        
         filename=$(basename "$file")
         
         # Stability Check
@@ -86,7 +86,7 @@ while true; do
             forced_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id] | join(",")')
             if [ -n "$forced_ids" ]; then
                 primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
-                mkvextract tracks "$file" "$primary_forced:$SUBTITLE_DIR/${filename%.*}.srt" >/dev/null 2>&1
+                mkvextract tracks "$file" "$primary_forced:$DIR_MEDIA_SUBTITLES/${filename%.*}.srt" >/dev/null 2>&1
                 TRACK_OPTS="--subtitle-tracks $forced_ids"
                 NEEDS_PROPEDIT=true
             else
@@ -96,13 +96,13 @@ while true; do
         fi
 
         # Execute Merge
-        if mkvmerge -q -o "$DEST_DIR/$filename" $TRACK_OPTS "$file"; then
+        if mkvmerge -q -o "$DIR_MEDIA_COMPLETED/$filename" $TRACK_OPTS "$file"; then
             if [ "$NEEDS_PROPEDIT" = true ]; then
-                mkvpropedit "$DEST_DIR/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
+                mkvpropedit "$DIR_MEDIA_COMPLETED/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
             fi
             FILE_NAME="${filename%.*}"
             log "✅ Finishing ${filename%.*}"
-            if mv "$file" "$FINISHED_DIR/"; then
+            if mv "$file" "$DIR_MEDIA_FINISHED/"; then
                 log "✅ Processed and moved. Cleaning up QBT..."
                 # 3. Search & Delete across all 5 servers
                 #manage_remote_torrent "delete" "$torrent_name"
@@ -118,4 +118,4 @@ while true; do
     sleep "$SLEEP_INTERVAL"
 done
 
-log_end "$SOURCE_DIR"
+log_end "$DIR_MEDIA_COMPLETED_MOVIES"
