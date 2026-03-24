@@ -15,7 +15,7 @@ LOCAL_DONE_FOLDER="$HOME_DIR/$(hostname)_done"
 LOCAL_CONVERT_FOLDER="$HOME_DIR/convert"
 REMOTE_CONVERT_FOLDER="/mnt/media/torrent/$(hostname)_convert"
 
-REFRESH_INTERVAL=30
+REFRESH_INTERVAL=10
 MAX_FILES=10
 
 # Helper to print a horizontal line
