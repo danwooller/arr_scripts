@@ -654,28 +654,36 @@ sonos_audio_fix() {
     [[ "$media_name" != /* ]] && media_name="/$media_name"
     if [ ! -f "$media_name" ]; then return 1; fi
 
-    # Get stream info
+    # 1. NEW CHECK: Look for our custom "SONOS_FIXED" tag
+    IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name")
+    
+    if [[ "$IS_FIXED" == "true" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized: $(basename "$media_name")"
+        return 0
+    fi
+
+    # 2. Existing Layout Check
     FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
     CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
     
-    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then return 0; fi
+    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then 
+        return 0
+    fi
 
-    [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Normalising $CHANNELS ch audio for: $(basename "$media_name")"
+    log "⚠️ Normalizing $CHANNELS ch audio for: $(basename "$media_name")"
     
     temp_file="${media_name}.processing.tmp"
     mv "$media_name" "$temp_file"
 
-    # Surgical flags added:
-    # -nostdin: Prevents "Enter command" hang
-    # -map 0:v:0 -map 0:a:0: Selects only the first video/audio, ignoring extra tracks
     local lnorm="loudnorm=I=-16:TP=-1.5:LRA=11"
 
+    # 3. ADDED: -metadata SONOS_FIXED="true" to the ffmpeg command
     if [[ "$CHANNELS" -eq 6 ]]; then
         ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
-        -af "channelmap=channel_layout=5.1(side),$lnorm" "$media_name"
+        -af "channelmap=channel_layout=5.1(side),$lnorm" -metadata SONOS_FIXED="true" "$media_name"
     else
         ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
-        -af "$lnorm" "$media_name"
+        -af "$lnorm" -metadata SONOS_FIXED="true" "$media_name"
     fi
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
