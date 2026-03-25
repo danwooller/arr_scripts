@@ -79,6 +79,7 @@ while true; do
                     log "📂 Moved to $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
+                    sleep "$CHECK_INTERVAL"
                     sonarr_targeted_rename "$SHOW_NAME_ONLY"
                     plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                 elif [ -n "$MOVIE_FOLDER" ]; then
