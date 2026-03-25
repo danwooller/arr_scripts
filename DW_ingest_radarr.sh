@@ -11,7 +11,7 @@ fi
 # --- Configuration ---
 SLEEP_INTERVAL=120
 mkdir -p "$DIR_MEDIA_COMPLETED_MOVIES" "$DIR_MEDIA_FINISHED" "$DIR_MEDIA_SUBTITLES" "$DIR_MEDIA_HOLD"
-check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "qbittorrent-cli" "rename"
+check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
 
 log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
@@ -20,7 +20,7 @@ while true; do
     find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
     # 2. Process MKVs
-    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -type f -iname "*.mkv" -print0 | while IFS= read -r -d $'\0' file; do        
+    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -type f -iname "*.mkv" ! -name "*.processing.tmp" -print0 | while IFS= read -r -d $'\0' file; do        
         filename=$(basename "$file")
         FILE_NAME="${filename%.*}"
         
@@ -30,40 +30,32 @@ while true; do
 
         log "🎬 Processing: $filename"
 
-        # Step A: Hide from loop
+        # Step A: Create a unique working file path
         working_file="${file}.processing.tmp"
         mv "$file" "$working_file"
+        sync # Flush disk buffer
 
-        # 1. Clean the title and extract the year as before
+        # Step B: Robust Naming Logic (Title Only)
         release_year=$(echo "$filename" | grep -oP '\d{4}' | head -n 1)
-        clean_title=$(echo "$FILE_NAME" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|${release_year:-0000}).*//i" | tr '._' ' ' | xargs)
         
-        # 2. Kill the trailing 'p'
-        clean_title=$(echo "$clean_title" | sed -E 's/ [pP]$//g' | xargs)
+        # Extract title, strip resolution/codec/year, and kill the trailing 'p'
+        clean_title=$(echo "$FILE_NAME" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|${release_year:-0000}).*//i" | tr '._' ' ' | xargs)
+        final_title=$(echo "$clean_title" | sed -E 's/ [pP]$//g' | xargs)
+        
+        # Result: "Austin Powers in Goldmember.mkv"
+        target_output="$DIR_MEDIA_COMPLETED_MOVIES/${final_title}.mkv"
 
-        # 3. THE "STRICT TITLE" FIX:
-        # We define the final name as JUST the title. 
-        # Radarr will import this as-is because "Rename" is OFF.
-        final_name="${clean_title}.mkv"
-        target_output="$DIR_MEDIA_COMPLETED_MOVIES/$final_name"
-
-        # Step C: Sonos Fix (Modifies $working_file)
+        # Step C: Sonos Fix (Modifies $working_file in place)
         sonos_audio_fix "$working_file"
 
         # Step D: Metadata & Track Selection
         metadata=$(mkvmerge --identify "$working_file" --identification-format json)
-        
-        # Identify English/Und Audio ID
         audio_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="eng" or .properties.language=="und" or .properties.language==null)) | .id' | head -n 1)
-        
-        # Identify Forced Subtitles
         forced_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id] | join(",")')
         
-        # Build mkvmerge track options
-        # We EXPLICITLY include video (0) and the selected audio to prevent 5KB empty files
         if [ -n "$forced_ids" ]; then
             primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
-            mkvextract tracks "$working_file" "$primary_forced:$DIR_MEDIA_SUBTITLES/${clean_title}.srt" >/dev/null 2>&1
+            mkvextract tracks "$working_file" "$primary_forced:$DIR_MEDIA_SUBTITLES/${final_title}.srt" >/dev/null 2>&1
             FINAL_TRACK_OPTS="--video-tracks 0 --audio-tracks $audio_id --subtitle-tracks $forced_ids"
             NEEDS_PROPEDIT=true
         else
@@ -72,37 +64,42 @@ while true; do
         fi
 
         # Step E: EXECUTE MERGE
-        log "🔨 Merging into: $final_name"
+        log "🔨 Merging into: ${final_title}.mkv"
         if mkvmerge -q -o "$target_output" $FINAL_TRACK_OPTS "$working_file"; then
             
-            # --- SIZE CHECK ---
+            # --- 10MB SAFETY CHECK ---
             actual_size=$(stat -c%s "$target_output")
             if [ "$actual_size" -lt 10485760 ]; then
-                log "❌ Error: 5KB Ghost File detected. Deleting output."
+                log "❌ Error: Merged file is tiny ($actual_size bytes). Aborting."
                 rm -f "$target_output"
                 mv "$working_file" "$DIR_MEDIA_HOLD/$filename"
                 continue
             fi
 
-            log "✅ Merge Successful: $(basename "$target_output")"
+            # Metadata Polish
+            if [ "$NEEDS_PROPEDIT" = true ]; then
+                mkvpropedit "$target_output" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
+            fi
 
-            # --- THE MOVE (STAY FOCUSED HERE) ---
-            # We are moving the .tmp (Original messy file) to the FINISHED folder
-            # Using -f to force it in case a partial move exists
+            log "✅ Merge Successful. Moving original..."
+            sync # Ensure merge is fully committed to disk
+
+            # Step F: THE MOVE (The Archiving Step)
+            # This moves the .tmp file to FINISHED and restores its original .mkv extension
             if mv -f "$working_file" "$DIR_MEDIA_FINISHED/$filename"; then
-                log "✨ Source archived to FINISHED."
+                log "✨ Original archived to FINISHED. Triggering Radarr..."
                 
-                # Now that the original is safe, clean up QBT
+                # Cleanup QBT
                 manage_remote_torrent "delete" "$FILE_NAME"
                 
-                # Trigger Radarr to find the CLEAN file we just created
+                # IMPORTANT: Radarr should only look at the CLEAN target name
                 radarr_ingest "$DIR_MEDIA_COMPLETED_MOVIES"
             else
-                log "❌ CRITICAL: Move failed! Source is still at $working_file"
-                log "Check if $DIR_MEDIA_FINISHED is full or has permission issues."
+                log "❌ CRITICAL: Move failed. Check permissions on $DIR_MEDIA_FINISHED"
+                # If move fails, we leave the .tmp file so it doesn't get double-processed
             fi
         else
-            log "❌ Error: mkvmerge failed for $filename"
+            log "❌ Error: mkvmerge failed."
             mv "$working_file" "$DIR_MEDIA_HOLD/$filename"
         fi
     done
