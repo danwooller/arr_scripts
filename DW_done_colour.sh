@@ -36,20 +36,24 @@ print_section() {
     local dir=$1
     [ ! -d "$dir" ] && return
 
-    # Get Free Space for the partition containing the directory
-    local free_space=$(df -h "$dir" | awk 'NR==2 {print $4}')
-    local count=$(find "$dir" -maxdepth 1 -type f | wc -l)
+    # Get Free Space (in GB for easier threshold comparison)
+    # Using df -m gives us Megabytes; we then divide by 1024 for GB
+    local free_space_m=$(df -m "$dir" | awk 'NR==2 {print $4}')
+    local free_space_gb=$((free_space_m / 1024))
     
-    # 1. Directory Header - BOLD with Free Space
-    # Format: /path/to/dir (10 files) [Free: 20G]
-    local dir_str="$dir ($count files) [Free: $free_space]"
-    
-    # Ensure it doesn't overflow the width
-    if [ ${#dir_str} -gt $INNER ]; then
-        dir_str="${dir_str:0:$((INNER - 3))}..."
+    # Set color for free space warning
+    local fs_color=$NC
+    if [ "$free_space_gb" -lt 5 ]; then
+        fs_color=$RED
     fi
     
-    printf "│%b%s%b%*s│\n" "$BOLD" "$dir_str" "$NC" "$((INNER - ${#dir_str}))" ""
+    local count=$(find "$dir" -maxdepth 1 -type f | wc -l)
+    
+    # 1. Directory Header - BOLD with Color-Coded Free Space
+    local dir_str="$dir ($count files)"
+    local fs_str=" [Free: ${free_space_gb}G]"
+    
+    printf "│%b%s%b%b%s%b%*s│\n" "$BOLD" "$dir_str" "$NC" "$fs_color" "$fs_str" "$NC" "$((INNER - ${#dir_str} - ${#fs_str}))" ""
 
     # 2. Check for empty directory
     if [ "$count" -eq 0 ]; then
