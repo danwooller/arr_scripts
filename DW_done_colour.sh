@@ -60,25 +60,35 @@ print_section() {
         local empty_msg="    (No files found)"
         printf "│%s%*s│\n" "$empty_msg" "$((INNER - ${#empty_msg}))" ""
     else
-        # 3. File List with Color-Coded Sizes
+        # 3. File List with Color-Coded Sizes (Warning for >10G)
         ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
-            size=$(echo "$line" | awk '{print $5}')
+            size_human=$(echo "$line" | awk '{print $5}')
+            # Get size in bytes for accurate comparison
+            size_bytes=$(ls -s "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | awk '{print $1}')
+            
+            # Simple check: If file is > 10GB (approx 10,000,000 KB)
+            # We use ls -s output in KB blocks
+            current_size_kb=$(echo "$line" | awk '{print $1}')
+            
             name=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i (i==NF?"":FS); print ""}')
             
             local color=$NC
-            if [[ $size == *G* ]]; then
+            # Highlight files > 10GB in Red
+            if [ "$current_size_kb" -gt 10485760 ]; then
                 color=$RED
-            elif [[ $size == *M* ]]; then
-                [[ ${size:0:1} =~ [5-9] ]] && color=$YELLOW || color=$GREEN
+            elif [[ $size_human == *G* ]]; then
+                color=$YELLOW
+            elif [[ $size_human == *M* ]]; then
+                [[ ${size_human:0:1} =~ [5-9] ]] && color=$GREEN
             fi
 
-            local max_n=$(( INNER - ${#size} - 1 ))
+            local max_n=$(( INNER - ${#size_human} - 1 ))
             [ ${#name} -gt $max_n ] && name="${name:0:$((max_n - 3))}..."
 
-            local pad_len=$(( INNER - 1 - ${#size} - ${#name} ))
+            local pad_len=$(( INNER - 1 - ${#size_human} - ${#name} ))
             [ $pad_len -lt 0 ] && pad_len=0
             
-            printf "│%b%s%b %s%*s│\n" "$color" "$size" "$NC" "$name" "$pad_len" ""
+            printf "│%b%s%b %s%*s│\n" "$color" "$size_human" "$NC" "$name" "$pad_len" ""
         done
     fi
 
