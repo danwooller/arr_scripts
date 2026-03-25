@@ -25,14 +25,6 @@ mount -a 2>/dev/null
 LOCK_FILE="/tmp/sorttv_service.lock"
 CHECK_INTERVAL=300 # 5 minutes
 
-# Function to handle graceful exit
-#cleanup() {
-#    log "🛑 Service stopping. Removing lock file."
-#    rm -f "$LOCK_FILE"
-#    exit
-#}
-#trap cleanup SIGTERM SIGINT
-
 # --- Grab the latest config ---
 cp /home/dan/arr_scripts/sorttv.conf /opt/sorttv
 
@@ -81,8 +73,6 @@ while true; do
             if [ $EXIT_CODE -eq 0 ]; then
                 [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
                 # 8. Extract folder and trigger Sonarr logic
-#                SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
-#                MOVIE_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=MOVE MOVIE: sorting ).*? --to--> \K.*?(?=/)' | head -n 1)
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
                 MOVIE_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/)' | head -n 1)
                 if [ -n "$SERIES_FOLDER" ]; then
