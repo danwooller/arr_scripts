@@ -83,7 +83,7 @@ while true; do
 
         # Execute Merge
         temp_file="${file}.processing.tmp"
-        mv "$media_name" "$temp_file"
+        mv "$file" "$temp_file"
         if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_MOVIES/$filename" $TRACK_OPTS "$temp_file"; then
             if [ "$NEEDS_PROPEDIT" = true ]; then
                 mkvpropedit "$DIR_MEDIA_COMPLETED_MOVIES/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
@@ -91,17 +91,19 @@ while true; do
             FILE_NAME="${filename%.*}"
             log "✅ Finishing ${filename%.*}"
             if mv "$file" "$DIR_MEDIA_FINISHED/"; then
-                log "✅ Processed and moved. Cleaning up QBT..."
+                log "✨ Processed and moved. Cleaning up QBT..."
                 # 3. Search & Delete across all 5 servers
                 #manage_remote_torrent "delete" "$torrent_name"
                 manage_remote_torrent "delete" "$FILE_NAME"
                 radarr_ingest
+                rm "$temp_file"
             fi
         else
             log "❌ Error: Merge failed. Resuming torrent..."
             # 4. Search & Resume across all 5 servers
             #manage_remote_torrent "resume" "$torrent_name"
             manage_remote_torrent "resume" "$FILE_NAME"
+            mv "$temp_file" "$file"
         fi
     done
     sleep "$SLEEP_INTERVAL"
