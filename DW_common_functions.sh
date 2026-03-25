@@ -405,31 +405,30 @@ plex_busy() {
 
 # --- END PLEX SECTION ---
 # --- RADARR SECTION ---
-
-# --- Radarr Ingest Function (Force Import Version) ---
 radarr_ingest() {
     local host_path="${1:-$DIR_MEDIA_COMPLETED_MOVIES}"
     
-    # 1. Normalize the path (strip trailing slashes)
-    local clean_path=$(printf "%s" "$host_path" | sed 's|/*$||')
+    # 1. Strip hidden carriage returns (\r) and any trailing slashes
+    local clean_path=$(printf "%s" "$host_path" | tr -d '\r' | sed 's|/*$||')
     
     log "🎬 Radarr: Probing $clean_path..."
 
-    # 2. Encode for URL WITHOUT adding a newline (%0A)
-    # The -n in printf is the key here
+    # 2. URI Encode the path specifically for the API
     local encoded_path=$(printf "%s" "$clean_path" | jq -sRr @uri)
     
     # 3. Perform the Probe
     local probe_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" \
         "$RADARR_API_BASE/manualimport?folder=$encoded_path")
 
-    # 4. Check for empty response
-    if [[ -z "$probe_data" || "$probe_data" == "[]" ]]; then
-        log "⚠️ Radarr: No files found in $clean_path. (Length: ${#probe_data})"
-        return 0
+    # 4. Emergency check: If still length 2, try one last time with a trailing slash
+    # (Some Radarr versions prefer it, some hate it)
+    if [[ "$probe_data" == "[]" || -z "$probe_data" ]]; then
+        local alt_path=$(printf "%s/" "$clean_path" | jq -sRr @uri)
+        probe_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+            "$RADARR_API_BASE/manualimport?folder=$alt_path")
     fi
 
-    # 5. Extract and Filter
+    # 5. Extract files that have a valid movie match and NO rejections
     local files_json=$(echo "$probe_data" | jq -c '
         [ .[] | select(.movie != null and (.rejections | length == 0)) | {
             path: .path,
@@ -440,16 +439,17 @@ radarr_ingest() {
         } ]')
 
     if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
-        log "🚀 Radarr: Found $(echo "$files_json" | jq 'length') movies. Triggering Force Import..."
+        local count=$(echo "$files_json" | jq 'length')
+        log "🚀 Radarr: Found $count matched movie(s). Sending Import command..."
         
-        curl -s -X POST "$RADARR_API_BASE/command" \
+        local response=$(curl -s -X POST "$RADARR_API_BASE/command" \
             -H "X-Api-Key: $RADARR_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{ \"name\": \"ManualImport\", \"files\": $files_json }" > /dev/null
-        
-        log "✅ Radarr: Import command queued."
+            -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
+            
+        log "✅ Radarr: Import command queued (ID: $(echo "$response" | jq -r '.id'))."
     else
-        log "⚠️ Radarr: Files detected but none matched movies in your library (or they are already imported)."
+        log "⚠️ Radarr: No valid matches found in $clean_path. Check Radarr UI for manual rejections."
     fi
 }
 
