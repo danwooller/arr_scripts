@@ -426,6 +426,9 @@ radarr_ingest() {
             importMode: "move"
         } ]')
 
+log "DEBUG: Probe data length: ${#probe_data}"
+echo "$probe_data" > /tmp/radarr_probe_debug.json
+
     if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
         local file_count=$(echo "$files_json" | jq 'length')
         log "🚀 Radarr: Found $file_count recognizable movies. Triggering Force Import..."
