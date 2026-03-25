@@ -254,7 +254,7 @@ synology_tv_show_sync() {
                 # Remove show folder if empty
                 if [[ -d "$SOURCE_SHOW_PATH" ]] && [[ -z "$(ls -A "$SOURCE_SHOW_PATH")" ]]; then
                     rmdir "$SOURCE_SHOW_PATH"
-                    log "Removed folder: $SHOW_NAME"
+                    log "🗑️ $SHOW_NAME"
                 fi
             fi
         else
