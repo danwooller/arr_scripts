@@ -63,3 +63,45 @@ while true; do
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
         clean_title=$(echo "$FILE_NAME_BASE" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|${year:-0000}).*//i" | tr '._' ' ' | xargs)
         final_title=$(echo "$clean_title" | sed -E 's/ [pP]$//g' | xargs)
+        
+        TARGET_FILENAME="${final_title} (${year}).mkv"
+        TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
+
+        if [ -f "$TARGET_PATH" ]; then
+            log "⚠️ $TARGET_FILENAME already exists. Skipping."
+            continue
+        fi
+
+        # --- Step D: Execute Remux ---
+        TEMP_FILE="${file}.processing.tmp"
+        mv "$file" "$TEMP_FILE"
+        
+        log "🔨 Merging into: $TARGET_FILENAME"
+        if mkvmerge -q -o "$TARGET_PATH" $TRACK_OPTS "$TEMP_FILE"; then
+            
+            # Only run mkvpropedit if subtitles were actually merged
+            if [ "$NEEDS_PROPEDIT" = true ]; then
+                log "🏷️ Setting Forced flags on subtitle track..."
+                mkvpropedit "$TARGET_PATH" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
+            fi
+
+            log "✅ Remux successful. Archiving original..."
+            sync
+
+            # Final Move to Finished and trigger Radarr
+            if mv "$TEMP_FILE" "$DIR_MEDIA_FINISHED/$ORIGINAL_FILENAME"; then
+                manage_remote_torrent "delete" "$FILE_NAME_BASE"
+                radarr_ingest "$DIR_MEDIA_COMPLETED_MOVIES"
+            fi
+        else
+            log "❌ Merge failed for $ORIGINAL_FILENAME"
+            mv "$TEMP_FILE" "$file"
+            manage_remote_torrent "resume" "$FILE_NAME_BASE"
+        fi
+    done
+
+    # Clean up empty folders left behind
+    find "$DIR_MEDIA_COMPLETED_MOVIES" -type d -empty -delete 2>/dev/null
+
+    sleep "$SLEEP_INTERVAL"
+done
