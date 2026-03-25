@@ -1,18 +1,17 @@
+
 #!/bin/bash
 
 # --- Load Shared Functions ---
-# Check /app first (Docker path), then /usr/local/bin (Host path)
-if [ -f "/app/DW_common_functions.sh" ]; then
-    source "/app/DW_common_functions.sh"
-elif [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
+if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
-    echo "⚠️ Shared functions missing. Exiting."
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
     exit 1
 fi
 
 # --- Configuration ---
 LOCK_FILE="/tmp/sorttv_running.lock"
+CHECK_INTERVAL="300" # Sleep for 5 minutes (300 seconds)
 #LOG_LEVEL="debug"
 
 # --- Ensure dependencies exist (Metric check: jq for API parsing) ---
@@ -82,10 +81,12 @@ while true; do
             if [ $EXIT_CODE -eq 0 ]; then
                 [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SortTV ran successfully."
                 # 8. Extract folder and trigger Sonarr logic
+#                SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
+#                MOVIE_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=MOVE MOVIE: sorting ).*? --to--> \K.*?(?=/)' | head -n 1)
                 SERIES_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*?(?=/Season)' | head -n 1)
                 MOVIE_FOLDER=$(echo "$OUTPUT" | grep -oP '(?<=--to--> ).*(?=/)' | head -n 1)
                 if [ -n "$SERIES_FOLDER" ]; then
-                    log "📂 Moved to ${SERIES_FOLDER#$DIR_MEDIA_TV}"
+                    log "📂 Moved to $SERIES_FOLDER"
                     SHOW_NAME_ONLY=$(basename "$SERIES_FOLDER")
                     synology_tv_show_sync "$SHOW_NAME_ONLY"
                     sonarr_targeted_rename "$SHOW_NAME_ONLY"
