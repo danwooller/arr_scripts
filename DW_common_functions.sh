@@ -243,10 +243,10 @@ synology_tv_show_sync() {
 
         # Execute rsync
         rsync $RSYNC_OPTS "$SOURCE_SHOW_PATH/" "$DEST_SHOW_PATH"
-        
+        sleep 10
+
         if [[ $? -eq 0 ]]; then
             [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Sync completed for '$SHOW_NAME'"
-
             if ! $DRY_RUN; then
                 # Clean up empty sub-directories
                 find "$SOURCE_SHOW_PATH" -mindepth 1 -type d -empty -delete
