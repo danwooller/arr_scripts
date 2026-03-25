@@ -638,12 +638,12 @@ sonarr_targeted_rename() {
              "$SONARR_API_BASE/command" > /dev/null
 
         # Trigger the actual Rename logic
-        log "🎬 Triggering Sonarr Rename command for $show_name..."
+        log "🎬 Sonarr Rename: $show_name"
         curl -s -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
              "$SONARR_API_BASE/command" > /dev/null
     else
-        log "⚠️ Could not map '$show_name' to a Sonarr Series ID."
+        log "⚠️ Could not map '$show_name' to Sonarr"
     fi
 }
 # --- END SONARR SECTION ---
