@@ -578,39 +578,40 @@ seerr_sync_issue() {
 
 # --- END SEERR SECTION ---
 # --- SONARR SECTION ---
-# --- Sonarr Ingest Function ---
-# Call this with the path to ingest, e.g., sonarr_ingest "$DIR_MEDIA_COMPLETED"
 sonarr_ingest() {
-    local ingest_path="${1:-$DIR_MEDIA_COMPLETED_TV}"
+    local ingest_path="${1:-$DIR_MEDIA_COMPLETED}"
+    
+    # 1. Probe the folder to see what Sonarr recognizes
+    # We use the manualimport endpoint to get Sonarr's internal identification
+    local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+        "$SONARR_API_BASE/manualimport?folder=$ingest_path")
 
-    # Verify the path exists before poking the API
-    if [ ! -d "$ingest_path" ]; then
-        log "⚠️ Sonarr: Ingest path does not exist: $ingest_path"
-        return 1
-    fi
+    # 2. Filter for files that have a valid Series ID and no rejections
+    # We build the exact JSON structure Sonarr requires for a Command
+    local files_json=$(echo "$probe_data" | jq -c '
+        [ .[] | select(.series != null and (.rejections | length == 0)) | {
+            path: .path,
+            seriesId: .series.id,
+            episodeIds: [.episodes[].id],
+            quality: .quality,
+            languages: .languages,
+            importMode: "move"
+        } ]')
 
-    log "📡 Sonarr: Triggering Ingest for $ingest_path"
-
-    # Trigger the DownloadedEpisodesScan command
-    # Uses global $SONARR_API_BASE and $SONARR_API_KEY from common_keys.txt
-    RESPONSE=$(curl -s -X POST "$SONARR_API_BASE/command" \
-        -H "X-Api-Key: $SONARR_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"name\": \"DownloadedEpisodesScan\",
-            \"path\": \"$ingest_path\",
-            \"importMode\": \"Move\"
-        }")
-
-    # Validate that Sonarr accepted the command
-    if echo "$RESPONSE" | jq -e '.id' >/dev/null; then
-        COMMAND_ID=$(echo "$RESPONSE" | jq -r '.id')
-        log "✅ Sonarr: Ingest queued successfully (ID: $COMMAND_ID)"
-        return 0
+    if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
+        local file_count=$(echo "$files_json" | jq 'length')
+        log "🚀 Sonarr: Found $file_count recognizable files. Triggering Force Import..."
+        
+        # 3. Execute the Import Command
+        local response=$(curl -s -X POST "$SONARR_API_BASE/command" \
+            -H "X-Api-Key: $SONARR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
+            
+        local command_id=$(echo "$response" | jq -r '.id')
+        log "✅ Sonarr: Import command queued (ID: $command_id)."
     else
-        ERROR_MSG=$(echo "$RESPONSE" | jq -r '.message // "Unknown Error"')
-        log "⚠️ Sonarr: API rejected ingest command: $ERROR_MSG"
-        return 1
+        log "⚠️ Sonarr: No recognized or valid files found in $ingest_path."
     fi
 }
 
