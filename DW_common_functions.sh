@@ -406,6 +406,43 @@ plex_busy() {
 # --- END PLEX SECTION ---
 # --- RADARR SECTION ---
 
+# --- Radarr Ingest Function (Force Import Version) ---
+radarr_ingest() {
+    local ingest_path="${1:-$DIR_MEDIA_COMPLETED_MOVIES}"
+    log "🎬 Radarr: Probing $ingest_path..."
+
+    # 1. Probe the folder to see what Radarr recognizes
+    local probe_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+        "$RADARR_API_BASE/manualimport?folder=$ingest_path")
+
+    # 2. Filter for files that have a valid Movie ID and no rejections
+    # Note: Radarr uses .movie.id instead of .series.id
+    local files_json=$(echo "$probe_data" | jq -c '
+        [ .[] | select(.movie != null and (.rejections | length == 0)) | {
+            path: .path,
+            movieId: .movie.id,
+            quality: .quality,
+            languages: .languages,
+            importMode: "move"
+        } ]')
+
+    if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
+        local file_count=$(echo "$files_json" | jq 'length')
+        log "🚀 Radarr: Found $file_count recognizable movies. Triggering Force Import..."
+        
+        # 3. Execute the Import Command
+        local response=$(curl -s -X POST "$RADARR_API_BASE/command" \
+            -H "X-Api-Key: $RADARR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
+            
+        local command_id=$(echo "$response" | jq -r '.id')
+        log "✅ Radarr: Import command queued (ID: $command_id)."
+    else
+        log "⚠️ Radarr: No recognized or valid movies found in $ingest_path."
+    fi
+}
+
 radarr_targeted_scan() {
     local movie_name="$1"
     
