@@ -20,7 +20,7 @@ trap 'rm -f "$LOCK_FILE"; exit' INT TERM EXIT
 
 # --- Initialization ---
 check_dependencies "curl" "jq"
-log_start "Sonarr Ingest Service Started"
+log_start "🚀 Sonarr Ingest Service Started"
 
 # --- Service Loop ---
 while true; do
