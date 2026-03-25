@@ -41,12 +41,12 @@ while true; do
             shopt -s nocaseglob
             # 4. Define the mapping (Pattern -> Destination)
             declare -A LIBRARY_MAP=(
-                ["stephen.colbert"]="/mnt/media/TV/The Late Show with Stephen Colbert"
-                ["stephen-colbert"]="/mnt/media/TV/The Late Show with Stephen Colbert"
-                ["last.week.tonight"]="/mnt/media/TV/Last Week Tonight with John Oliver"
-                ["last-week-tonight"]="/mnt/media/TV/Last Week Tonight with John Oliver"
-                ["daily.show"]="/mnt/media/TV/The Daily Show"
-                ["daily-show"]="/mnt/media/TV/The Daily Show"
+                ["stephen.colbert"]="$DIR_MEDIA_TV/The Late Show with Stephen Colbert"
+                ["stephen-colbert"]="$DIR_MEDIA_TV/The Late Show with Stephen Colbert"
+                ["last.week.tonight"]="$DIR_MEDIA_TV/Last Week Tonight with John Oliver"
+                ["last-week-tonight"]="$DIR_MEDIA_TV/Last Week Tonight with John Oliver"
+                ["daily.show"]="$DIR_MEDIA_TV/The Daily Show"
+                ["daily-show"]="$DIR_MEDIA_TV/The Daily Show"
             )
             # 5. Iterate through the mappin
             for pattern in "${!LIBRARY_MAP[@]}"; do
@@ -98,7 +98,7 @@ while true; do
             rm -f "$LOCK_FILE"
         fi
     else
-        log "❌ ERROR: Media mount not found. Retrying in $CHECK_INTERVAL seconds..."
+        log "❌ Media mount not found. Retrying in $CHECK_INTERVAL seconds..."
     fi   
     # --- Wait for next poll ---
     sleep "$CHECK_INTERVAL"
