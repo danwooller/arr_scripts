@@ -37,25 +37,17 @@ while true; do
         metadata=$(mkvmerge --identify "$working_file" --identification-format json)
         
         # 1. Try to get Official Title/Year from metadata tags
-        official_title=$(echo "$metadata" | jq -r '.container.properties.title // empty')
-        release_year=$(echo "$metadata" | jq -r '.container.properties.year // empty')
+        raw_title=$(echo "$FILE_NAME" | sed -E 's/([ ._-]?[0-9]{4})//g' | tr '._' ' ' | xargs)
+        
+        # 2. Extract the year: Look for any 4-digit sequence
+        release_year=$(echo "$FILE_NAME" | grep -oP '\d{4}' | head -n 1)
 
-        # 2. Regex Fallback: If year is empty, pull 4 digits from the filename
-        if [ -z "$release_year" ]; then
-            release_year=$(echo "$filename" | grep -oP '\d{4}' | head -n 1)
-        fi
-
-        # 3. Title Fallback: If title is empty, use the filename minus the year and dots
-        if [ -z "$official_title" ]; then
-            # Strips the year, replaces dots/underscores with spaces
-            official_title=$(echo "$FILE_NAME" | sed -E 's/\.?\(?[0-9]{4}\)?.*//' | tr '._' ' ' | xargs)
-        fi
-
-        # 4. Final Construction (with a safety check for the year)
+        # 3. Final Construction
+        # If we found a year, add it cleanly; if not, just use the title
         if [ -n "$release_year" ]; then
-            final_name="$official_title ($release_year).mkv"
+            final_name="$raw_title ($release_year).mkv"
         else
-            final_name="$official_title.mkv"
+            final_name="$raw_title.mkv"
         fi
 
         target_output="$DIR_MEDIA_COMPLETED_MOVIES/$final_name"
