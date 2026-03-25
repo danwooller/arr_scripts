@@ -51,7 +51,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         #log "📄 Found: $file_name"
         # Optional: If you want the full path instead of just the name, 
         # use 'log "📄 Found: $file"' instead.
-	      sonos_audio_fix "$file"
+		sonos_audio_fix "$file"
     done
     [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Completed scan for $CURRENT_DIR"
 done
