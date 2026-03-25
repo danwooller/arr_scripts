@@ -578,6 +578,41 @@ seerr_sync_issue() {
 
 # --- END SEERR SECTION ---
 # --- SONARR SECTION ---
+# --- Sonarr Ingest Function ---
+# Call this with the path to ingest, e.g., sonarr_ingest "$DIR_MEDIA_COMPLETED"
+sonarr_ingest() {
+    local ingest_path="${1:-$DIR_MEDIA_COMPLETED_TV}"
+
+    # Verify the path exists before poking the API
+    if [ ! -d "$ingest_path" ]; then
+        log "⚠️ Sonarr: Ingest path does not exist: $ingest_path"
+        return 1
+    fi
+
+    log "📡 Sonarr: Triggering Ingest for $ingest_path"
+
+    # Trigger the DownloadedEpisodesScan command
+    # Uses global $SONARR_API_BASE and $SONARR_API_KEY from common_keys.txt
+    RESPONSE=$(curl -s -X POST "$SONARR_API_BASE/command" \
+        -H "X-Api-Key: $SONARR_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"name\": \"DownloadedEpisodesScan\",
+            \"path\": \"$ingest_path\",
+            \"importMode\": \"Move\"
+        }")
+
+    # Validate that Sonarr accepted the command
+    if echo "$RESPONSE" | jq -e '.id' >/dev/null; then
+        COMMAND_ID=$(echo "$RESPONSE" | jq -r '.id')
+        log "✅ Sonarr: Ingest queued successfully (ID: $COMMAND_ID)"
+        return 0
+    else
+        ERROR_MSG=$(echo "$RESPONSE" | jq -r '.message // "Unknown Error"')
+        log "⚠️ Sonarr: API rejected ingest command: $ERROR_MSG"
+        return 1
+    fi
+}
 
 sonarr_missing_episodes() {
     local sonarr_missing=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SONARR_API_BASE/command" \
