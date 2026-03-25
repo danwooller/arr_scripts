@@ -75,35 +75,34 @@ while true; do
         log "🔨 Merging into: $final_name"
         if mkvmerge -q -o "$target_output" $FINAL_TRACK_OPTS "$working_file"; then
             
-            # --- SIZE VERIFICATION ---
-            # If the output is less than 10MB, it's a failure (prevents 5KB ghost files)
+            # --- SIZE CHECK ---
             actual_size=$(stat -c%s "$target_output")
             if [ "$actual_size" -lt 10485760 ]; then
-                log "❌ Error: Resulting file is way too small ($actual_size bytes). Aborting merge."
-                rm "$target_output"
+                log "❌ Error: 5KB Ghost File detected. Deleting output."
+                rm -f "$target_output"
                 mv "$working_file" "$DIR_MEDIA_HOLD/$filename"
                 continue
             fi
 
-            # Post-Merge Tagging
-            if [ "$NEEDS_PROPEDIT" = true ]; then
-                mkvpropedit "$target_output" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
-            fi
+            log "✅ Merge Successful: $(basename "$target_output")"
 
-            log "✅ Merge Successful ($(du -sh "$target_output" | cut -f1))."
-
-            # Step F: Move Original & Trigger Radarr
-            if mv "$working_file" "$DIR_MEDIA_FINISHED/$filename"; then
-                log "✨ Source archived. Cleaning up QBT..."
+            # --- THE MOVE (STAY FOCUSED HERE) ---
+            # We are moving the .tmp (Original messy file) to the FINISHED folder
+            # Using -f to force it in case a partial move exists
+            if mv -f "$working_file" "$DIR_MEDIA_FINISHED/$filename"; then
+                log "✨ Source archived to FINISHED."
+                
+                # Now that the original is safe, clean up QBT
                 manage_remote_torrent "delete" "$FILE_NAME"
                 
-                # Triggers both Import and the RenameMovie command
+                # Trigger Radarr to find the CLEAN file we just created
                 radarr_ingest "$DIR_MEDIA_COMPLETED_MOVIES"
             else
-                log "❌ Error: Could not move source to $DIR_MEDIA_FINISHED"
+                log "❌ CRITICAL: Move failed! Source is still at $working_file"
+                log "Check if $DIR_MEDIA_FINISHED is full or has permission issues."
             fi
         else
-            log "❌ Error: mkvmerge engine failed."
+            log "❌ Error: mkvmerge failed for $filename"
             mv "$working_file" "$DIR_MEDIA_HOLD/$filename"
         fi
     done
