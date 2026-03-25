@@ -36,20 +36,29 @@ while true; do
         # --- Identify Metadata for Naming & Tracks ---
         metadata=$(mkvmerge --identify "$working_file" --identification-format json)
         
-        # Get Official Title/Year for the output filename
-        # Fallback to current filename (cleaned) if tags are missing
+        # 1. Try to get Official Title/Year from metadata tags
         official_title=$(echo "$metadata" | jq -r '.container.properties.title // empty')
         release_year=$(echo "$metadata" | jq -r '.container.properties.year // empty')
 
-        if [ -z "$official_title" ]; then 
-            clean_title=$(echo "$FILE_NAME" | tr '.' ' ' | sed 's/([0-9]\{4\}).*//')
-            final_name="$(echo "$clean_title" | xargs).mkv"
-        else
+        # 2. Regex Fallback: If year is empty, pull 4 digits from the filename
+        if [ -z "$release_year" ]; then
+            release_year=$(echo "$filename" | grep -oP '\d{4}' | head -n 1)
+        fi
+
+        # 3. Title Fallback: If title is empty, use the filename minus the year and dots
+        if [ -z "$official_title" ]; then
+            # Strips the year, replaces dots/underscores with spaces
+            official_title=$(echo "$FILE_NAME" | sed -E 's/\.?\(?[0-9]{4}\)?.*//' | tr '._' ' ' | xargs)
+        fi
+
+        # 4. Final Construction (with a safety check for the year)
+        if [ -n "$release_year" ]; then
             final_name="$official_title ($release_year).mkv"
+        else
+            final_name="$official_title.mkv"
         fi
 
         target_output="$DIR_MEDIA_COMPLETED_MOVIES/$final_name"
-
         # --- (Your Sonos Audio & Subtitle Logic - Same as before) ---
         # Note: Ensure these functions/logic blocks use "$working_file" as input
         
