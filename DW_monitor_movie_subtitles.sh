@@ -83,7 +83,7 @@ while true; do
 
         # Execute Merge
         temp_file="${file}.processing.tmp"
-        mv "$media_name" "$temp_file"
+        mv "$file" "$temp_file"
         log "mkvmerge -q -o $DIR_MEDIA_COMPLETED_MOVIES/$filename $TRACK_OPTS $temp_file"
         if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_MOVIES/$filename" $TRACK_OPTS "$temp_file"; then
             if [ "$NEEDS_PROPEDIT" = true ]; then
