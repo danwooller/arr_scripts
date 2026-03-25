@@ -180,7 +180,8 @@ while true; do
             sonos_audio_fix "$OUTPUT_FILE"
              [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Aplly Sonos conversion $(basename "$OUTPUT_FILE")"
             # --- Move the completed file to the completed folder ---
-            mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
+            #mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
+            mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED_TV/"
             #erroneous mkv files in the root directory
             #mv /*.mkv "$DIR_MEDIA_COMPLETED/"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
