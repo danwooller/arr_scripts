@@ -728,7 +728,7 @@ sonarr_targeted_rename() {
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
     local media_name="$1"
-    
+
     [[ "$media_name" != /* ]] && media_name="/$media_name"
     if [ ! -f "$media_name" ]; then return 1; fi
 
@@ -741,33 +741,33 @@ sonos_audio_fix() {
     fi
 
     # 2. Existing Layout Check
-    FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$media_name")
-    CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
-    
-    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 ]]; then 
+    AUDIO_INFO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels,channel_layout -of csv=p=0 "$media_name")
+    CODEC=$(echo "$AUDIO_INFO" | cut -d',' -f1)
+    CHANNELS=$(echo "$AUDIO_INFO" | cut -d',' -f2)
+    FINAL_LAYOUT=$(echo "$AUDIO_INFO" | cut -d',' -f3)
+
+    if [ -z "$CODEC" ]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "🚫 No audio stream found in: $(basename "$media_name")"
+        return 1
+    fi
+
+    # NEW LOGIC: Only skip if Layout is correct AND Codec is standard AC3
+    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 && "$CODEC" == "ac3" ]]; then 
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized (AC3 5.1 Side): $(basename "$media_name")"
         return 0
     fi
 
     log "⚠️ Normalizing $CHANNELS ch audio for: $(basename "$media_name")"
-    
+
     temp_file="${media_name}.processing.tmp"
     mv "$media_name" "$temp_file"
 
     local lnorm="loudnorm=I=-16:TP=-1.5:LRA=11"
 
     # 3. ADDED: -metadata SONOS_FIXED="true" to the ffmpeg command
-#    if [[ "$CHANNELS" -eq 6 ]]; then
-#        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
-#        -af "channelmap=channel_layout=5.1(side),$lnorm" -metadata SONOS_FIXED="true" "$media_name"
-#    else
-#        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -c:v copy -c:a ac3 -b:a 640k \
-#        -af "$lnorm" -metadata SONOS_FIXED="true" "$media_name"
-#    fi
-
-
     if [[ "$CHANNELS" -gt 2 ]]; then
         log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Normalizing..."
-        
+
         # -ac 6 forces 5.1 output
         # channelmap ensures the 'side' layout Sonos loves
         ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
@@ -781,9 +781,6 @@ sonos_audio_fix() {
         -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
         -metadata SONOS_FIXED="true" "$media_name"
     fi
-
-
-
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
         rm "$temp_file"
