@@ -10,7 +10,7 @@ else
 fi
 
 # --- Configuration ---
-LOCK_FILE="/tmp/completed_tv_running.lock"
+LOCK_FILE="/tmp/ingest_running.lock"
 CHECK_INTERVAL=300 # 5 minutes
 #LOG_LEVEL="debug"
 
@@ -45,7 +45,7 @@ while true; do
                 
                 rm -f "$LOCK_FILE"
             else
-                [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: No files in $DIR_MEDIA_COMPLETED_TV. Skipping."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No files in $DIR_MEDIA_COMPLETED_TV. Skipping."
             fi
         fi
     else
