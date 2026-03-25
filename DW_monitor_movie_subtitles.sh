@@ -31,21 +31,7 @@ while true; do
         SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
 
-        #manage_remote_torrent() {
-        #    local action=$1
-        #    local t_name=$2
-        #    local found=false 
-        #    for server in "${QBT_SERVERS[@]}"; do
-        #        # We add the credentials directly to the command string
-        #        if qbittorrent-cli torrent list --server "$server" --username "$QBT_USER" --password "$QBT_PASS" | grep -q "$t_name"; then
-        #            log "Action [$action] on $server for: $t_name"
-        #            qbittorrent-cli torrent "$action" --server "$server" --username "$QBT_USER" --password "$QBT_PASS" --name "$t_name" >/dev/null 2>&1
-        #            found=true
-        #            break
-        #        fi
-        #    done
-        #}
-        manage_remote_torrent "delete" $filename
+        #manage_remote_torrent "delete" $filename
 
         log "Processing: $filename"
 
@@ -59,7 +45,7 @@ while true; do
         read -r audio_id audio_uid audio_lang <<< $(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="eng" or .properties.language=="und" or .properties.language==null)) | "\(.id) \(.properties.uid) \(.properties.language)"' | head -n 1)
 
         if [ -z "$audio_id" ]; then
-            log "No English/Und audio found."
+            log "ℹ️ No English/Und audio found."
             eng_sub_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng") | .id] | join(",")')
             TRACK_OPTS=$([ -n "$eng_sub_ids" ] && echo "--subtitle-tracks $eng_sub_ids" || echo "--no-subtitles")
             NEEDS_PROPEDIT=false
@@ -96,9 +82,11 @@ while true; do
         fi
 
         # Execute Merge
-        if mkvmerge -q -o "$DIR_MEDIA_COMPLETED/$filename" $TRACK_OPTS "$file"; then
+        temp_file="${file}.processing.tmp"
+        mv "$media_name" "$temp_file"
+        if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_MOVIES/$filename" $TRACK_OPTS "$temp_file"; then
             if [ "$NEEDS_PROPEDIT" = true ]; then
-                mkvpropedit "$DIR_MEDIA_COMPLETED/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
+                mkvpropedit "$DIR_MEDIA_COMPLETED_MOVIES/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
             fi
             FILE_NAME="${filename%.*}"
             log "✅ Finishing ${filename%.*}"
@@ -107,6 +95,7 @@ while true; do
                 # 3. Search & Delete across all 5 servers
                 #manage_remote_torrent "delete" "$torrent_name"
                 manage_remote_torrent "delete" "$FILE_NAME"
+                radarr_ingest
             fi
         else
             log "❌ Error: Merge failed. Resuming torrent..."
