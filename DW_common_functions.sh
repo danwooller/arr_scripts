@@ -408,42 +408,48 @@ plex_busy() {
 radarr_ingest() {
     local host_path="${1:-$DIR_MEDIA_COMPLETED_MOVIES}"
     
-    # 1. Standardize path and handle potential Windows line endings
+    # 1. Normalize path
     local clean_path=$(printf "%s" "$host_path" | tr -d '\r' | sed 's|/*$||')
-    
     log "🎬 Radarr: Probing $clean_path..."
 
-    # 2. URI Encode for the API (This was the main hurdle)
+    # 2. URI Encode
     local encoded_path=$(printf "%s" "$clean_path" | jq -sRr @uri)
     
-    # 3. Probe the folder
+    # 3. Probe
     local probe_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" \
         "$RADARR_API_BASE/manualimport?folder=$encoded_path")
 
-    # 4. Filter for any file where a movie match was found
-    # We removed the 'rejections' check to match your successful manual command
-    local files_json=$(echo "$probe_data" | jq -c '
-        [ .[] | select(.movie != null) | {
-            path: .path,
-            movieId: .movie.id,
-            quality: .quality,
-            languages: .languages,
-            importMode: "move"
-        } ]')
+    # 4. Extract valid movies
+    # We use -c for compact and ensure we are grabbing the correct movieId
+    local files_json=$(echo "$probe_data" | jq -c '[ .[] | select(.movie != null) | {
+        path: .path,
+        movieId: .movie.id,
+        quality: .quality,
+        languages: .languages,
+        importMode: "move"
+    } ]')
 
     if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
         local count=$(echo "$files_json" | jq 'length')
         log "🚀 Radarr: Found $count movie(s). Sending Import command..."
         
+        # 5. The "Golden" Post Method: Use a temporary file to avoid shell quoting issues
+        local tmp_json="/tmp/radarr_import_$$.json"
+        echo "{ \"name\": \"ManualImport\", \"files\": $files_json }" > "$tmp_json"
+        
         local response=$(curl -s -X POST "$RADARR_API_BASE/command" \
             -H "X-Api-Key: $RADARR_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
+            -d @"$tmp_json")
             
+        rm -f "$tmp_json"
+
         local cmd_id=$(echo "$response" | jq -r '.id // "unknown"')
         log "✅ Radarr: Import command queued (ID: $cmd_id)."
     else
-        log "⚠️ Radarr: No matched movies found in $clean_path."
+        # DEBUG: If it fails, let's see why the JQ filter didn't like the probe
+        local total=$(echo "$probe_data" | jq 'length' 2>/dev/null || echo "0")
+        log "⚠️ Radarr: No matched movies found (Total files in probe: $total)."
     fi
 }
 
