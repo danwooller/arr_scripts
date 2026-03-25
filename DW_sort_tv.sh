@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # --- Load Shared Functions ---
@@ -21,9 +20,6 @@ log_start
 
 # --- Ensure mounts are active (CIFS/TrueNAS) ---
 mount -a 2>/dev/null
-
-LOCK_FILE="/tmp/sorttv_service.lock"
-CHECK_INTERVAL=300 # 5 minutes
 
 # --- Grab the latest config ---
 cp /home/dan/arr_scripts/sorttv.conf /opt/sorttv
