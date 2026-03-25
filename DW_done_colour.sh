@@ -22,6 +22,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+BOLD='\033[1m'
 
 # 2. Define Functions
 print_hr() {
@@ -35,17 +36,19 @@ print_section() {
     local dir=$1
     [ ! -d "$dir" ] && return
 
-    # ANSI Colors & Formatting
-    local BOLD='\033[1m'
-    local RED='\033[0;31m'
-    local GREEN='\033[0;32m'
-    local YELLOW='\033[1;33m'
-    local NC='\033[0m'
-
+    # Get Free Space for the partition containing the directory
+    local free_space=$(df -h "$dir" | awk 'NR==2 {print $4}')
     local count=$(find "$dir" -maxdepth 1 -type f | wc -l)
     
-    # 1. Directory Header - BOLD
-    local dir_str="$dir ($count files)"
+    # 1. Directory Header - BOLD with Free Space
+    # Format: /path/to/dir (10 files) [Free: 20G]
+    local dir_str="$dir ($count files) [Free: $free_space]"
+    
+    # Ensure it doesn't overflow the width
+    if [ ${#dir_str} -gt $INNER ]; then
+        dir_str="${dir_str:0:$((INNER - 3))}..."
+    fi
+    
     printf "│%b%s%b%*s│\n" "$BOLD" "$dir_str" "$NC" "$((INNER - ${#dir_str}))" ""
 
     # 2. Check for empty directory
@@ -84,37 +87,31 @@ print_section() {
     # Spacer line
     printf "│%*s│\n" "$INNER" ""
 }
+
 # 3. The Execution Loop
-# Hide the cursor for a cleaner look
 tput civis
-trap "tput cnorm; exit" INT TERM # Show cursor again on exit
+trap "tput cnorm; exit" INT TERM
 
 while true; do
     clear
     print_hr "┌" "─" "┐"
 
-    # 1. Prepare Header (Left Side)
     header="$(hostname) [$(date +%H:%M:%S)]"
-    
-    # 2. Prepare Load (Right Side)
     load_1m=$(awk '{print $1}' /proc/loadavg)
     load_str="Load: $load_1m"
     
-    # Determine Color
     load_color=$NC
+    # Use standard shell comparison for simplicity where possible, 
+    # but bc is safer for decimals as per your original script
     if (( $(echo "$load_1m > 4.0" | bc -l 2>/dev/null || echo 0) )); then
         load_color=$RED
     elif (( $(echo "$load_1m > 2.0" | bc -l 2>/dev/null || echo 0) )); then
         load_color=$YELLOW
     fi
 
-    # 3. Calculate Padding
-    # INNER - length of left side - length of right side
     mid_pad=$(( INNER - ${#header} - ${#load_str} ))
     [ $mid_pad -lt 0 ] && mid_pad=0
 
-    # 4. Print the Combined Line
-    # %s (Header) + %*s (Spaces) + %b%s%b (Colored Load)
     printf "│%s%*s%b%s%b│\n" "$header" "$mid_pad" "" "$load_color" "$load_str" "$NC"
 
     print_hr "├" "─" "┤"
@@ -125,11 +122,9 @@ while true; do
 
     print_hr "└" "─" "┘"
 
-    # Capture the time this specific refresh completed
     last_fetch=$(date +%H:%M:%S)
 
     for ((i=REFRESH_INTERVAL; i>0; i--)); do
-        # \r = start of line, \033[K = clear line
         printf "\r\033[K  [Data Last Fetched: %s]  Next Refresh in: %2d seconds... (Ctrl+C)" "$last_fetch" "$i"
         sleep 1
     done
