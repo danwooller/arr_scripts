@@ -84,6 +84,7 @@ while true; do
         # Execute Merge
         temp_file="${file}.processing.tmp"
         mv "$media_name" "$temp_file"
+        log "mkvmerge -q -o $DIR_MEDIA_COMPLETED_MOVIES/$filename $TRACK_OPTS $temp_file"
         if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_MOVIES/$filename" $TRACK_OPTS "$temp_file"; then
             if [ "$NEEDS_PROPEDIT" = true ]; then
                 mkvpropedit "$DIR_MEDIA_COMPLETED_MOVIES/$filename" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
