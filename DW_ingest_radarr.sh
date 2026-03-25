@@ -34,20 +34,17 @@ while true; do
         working_file="${file}.processing.tmp"
         mv "$file" "$working_file"
 
-        # Step B: Robust Naming & Year Extraction
+        # 1. Clean the title and extract the year as before
         release_year=$(echo "$filename" | grep -oP '\d{4}' | head -n 1)
-        
-        # Strip everything after resolution/source markers
         clean_title=$(echo "$FILE_NAME" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|${release_year:-0000}).*//i" | tr '._' ' ' | xargs)
         
-        # KILL THE TRAILING 'p': Specifically removes a lone 'p' or 'P' at the end of the title
+        # 2. Kill the trailing 'p'
         clean_title=$(echo "$clean_title" | sed -E 's/ [pP]$//g' | xargs)
-        
-        if [ -n "$release_year" ]; then
-            final_name="$clean_title ($release_year).mkv"
-        else
-            final_name="$clean_title.mkv"
-        fi
+
+        # 3. THE "STRICT TITLE" FIX:
+        # We define the final name as JUST the title. 
+        # Radarr will import this as-is because "Rename" is OFF.
+        final_name="${clean_title}.mkv"
         target_output="$DIR_MEDIA_COMPLETED_MOVIES/$final_name"
 
         # Step C: Sonos Fix (Modifies $working_file)
