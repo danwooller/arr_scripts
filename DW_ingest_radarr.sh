@@ -59,25 +59,31 @@ while true; do
         # --- EXECUTE MERGE ---
         if mkvmerge -q -o "$target_output" $TRACK_OPTS "$working_file"; then
             
-            # Metadata Polish
+            # 1. Metadata Polish on the NEW file
             if [ "$NEEDS_PROPEDIT" = true ]; then
                 mkvpropedit "$target_output" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
             fi
 
-            log "✅ Merge successful: $final_name"
+            log "✅ Merge successful: $(basename "$target_output")"
             
-            # Move the ORIGINAL source to finished (renamed for clarity)
+            # 2. THE FIX: Move the ORIGINAL (.tmp) file to FINISHED
+            # We use the original $filename to keep the source name in history
             if mv "$working_file" "$DIR_MEDIA_FINISHED/$filename"; then
-                log "✨ Cleaning up QBT and Triggering Radarr..."
+                log "✨ Original moved to FINISHED. Cleaning up QBT..."
+                
+                # 3. Delete from QBT using the clean filename
                 manage_remote_torrent "delete" "$FILE_NAME"
                 
-                # Calls the updated radarr_ingest that triggers 'RenameMovie'
+                # 4. Trigger Radarr to find the NEW clean file
                 radarr_ingest
+            else
+                log "⚠️ Warning: Could not move $working_file to FINISHED. Is the drive full?"
             fi
         else
-            log "❌ Error: Merge failed. Moving to HOLD."
-            manage_remote_torrent "resume" "$FILE_NAME"
+            log "❌ Error: mkvmerge failed for $filename"
+            # Restore the file so we can try again or move to HOLD
             mv "$working_file" "$DIR_MEDIA_HOLD/$filename"
+            manage_remote_torrent "resume" "$FILE_NAME"
         fi
     done
 
