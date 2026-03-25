@@ -410,30 +410,27 @@ plex_busy() {
 radarr_ingest() {
     local host_path="${1:-$DIR_MEDIA_COMPLETED_MOVIES}"
     
-    # 1. Strip any trailing slashes and normalize
-    local clean_path
-    clean_path=$(printf "%s" "$host_path" | sed 's|/*$||')
+    # 1. Normalize the path (strip trailing slashes)
+    local clean_path=$(printf "%s" "$host_path" | sed 's|/*$||')
     
     log "🎬 Radarr: Probing $clean_path..."
 
-    # 2. Encode for URL safely (no newlines)
-    local encoded_path
-    encoded_path=$(printf "%s" "$clean_path" | jq -sRr @uri)
+    # 2. Encode for URL WITHOUT adding a newline (%0A)
+    # The -n in printf is the key here
+    local encoded_path=$(printf "%s" "$clean_path" | jq -sRr @uri)
     
     # 3. Perform the Probe
-    local probe_data
-    probe_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+    local probe_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" \
         "$RADARR_API_BASE/manualimport?folder=$encoded_path")
 
-    # 4. Check for empty response or errors
+    # 4. Check for empty response
     if [[ -z "$probe_data" || "$probe_data" == "[]" ]]; then
         log "⚠️ Radarr: No files found in $clean_path. (Length: ${#probe_data})"
         return 0
     fi
 
-    # 5. Extract valid movies
-    local files_json
-    files_json=$(echo "$probe_data" | jq -c '
+    # 5. Extract and Filter
+    local files_json=$(echo "$probe_data" | jq -c '
         [ .[] | select(.movie != null and (.rejections | length == 0)) | {
             path: .path,
             movieId: .movie.id,
@@ -452,7 +449,7 @@ radarr_ingest() {
         
         log "✅ Radarr: Import command queued."
     else
-        log "⚠️ Radarr: Files found but none were matched to movies in your library."
+        log "⚠️ Radarr: Files detected but none matched movies in your library (or they are already imported)."
     fi
 }
 
