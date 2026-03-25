@@ -184,12 +184,14 @@ while true; do
             mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED_TV/"
             #erroneous mkv files in the root directory
             #mv /*.mkv "$DIR_MEDIA_COMPLETED/"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
+            #[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED_TV"
             # --- Move the original file to the finished folder ---
             mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$TIMESTAMP.$EXTENSION"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved original file to $DIR_MEDIA_FINISHED/$BASE_NAME_$TIMESTAMP.$EXTENSION."
             # --- Search & Delete across all 5 servers ---
             manage_remote_torrent "delete" "$BASE_NAME"
+            #sonarr_ingest "$DIR_MEDIA_COMPLETED_TV"
         else
             log "❌ $CONVERSION_EXIT_CODE for $FILENAME."
             # --- Clean up working file if conversion failed ---
