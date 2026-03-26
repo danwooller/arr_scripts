@@ -20,7 +20,9 @@ while true; do
     find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
     # 2. Find MKVs: Ignore .tmp and ignore "Title (Year)" files to prevent infinite loops
-    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f -iname "*.mkv" ! -name "*.tmp" ! -regex ".*([0-9][0-9][0-9][0-9]).*" -print0 | while IFS= read -r -d $'\0' file; do        
+    #find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f -iname "*.mkv" ! -name "*.tmp" ! -regex ".*([0-9][0-9][0-9][0-9]).*" -print0 | while IFS= read -r -d $'\0' file; do
+    # 2. Find MKV, MP4, or TS: Ignore .tmp and ignore "Title (Year)" files
+    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) ! -name "*.tmp" ! -regex ".*([0-9][0-9][0-9][0-9]).*" -print0 | while IFS= read -r -d $'\0' file; do
         
         ORIGINAL_FILENAME=$(basename "$file")
         FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
