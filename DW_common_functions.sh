@@ -770,10 +770,17 @@ sonos_audio_fix() {
 
         # -ac 6 forces 5.1 output
         # channelmap ensures the 'side' layout Sonos loves
+        #ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
+        #-c:v copy -c:a ac3 -b:a 640k -ac 6 \
+        #-af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
+        #-metadata SONOS_FIXED="true" "$media_name"
+
         ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
         -c:v copy -c:a ac3 -b:a 640k -ac 6 \
         -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
-        -metadata SONOS_FIXED="true" "$media_name"
+        -metadata SONOS_FIXED="true" \
+        -metadata:s:a:0 codec_name="ac3" \
+        "$media_name"
     else
         # Stereo/Mono logic stays the same
         ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
