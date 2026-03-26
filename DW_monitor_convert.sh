@@ -65,6 +65,9 @@ while true; do
                     TARGET_FILE="${FILENAME%.*}.mkv"                
                     subtitle_opts "$file"
                     mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"
+                    if [ $? -eq 0 ]; then
+                        rm "$file"
+                    fi
                     #[[ $LOG_LEVEL == "debug" ]] && log "Moving: $(basename "$file")"
                     # The trailing slash ensures it treats the destination as a directory
                     #mv -v "$file" "$DIR_MEDIA_COMPLETED_TV/"
