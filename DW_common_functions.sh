@@ -442,7 +442,7 @@ radarr_ingest() {
             -H "Content-Type: application/json" \
             -d "{ \"name\": \"RenameMovie\", \"movieIds\": $movie_ids }" > /dev/null
 
-        log "✅ Radarr: Import and Rename commands queued."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Radarr ingest queued."
     else
         log "⚠️ Radarr: No matched movies found in $clean_path."
     fi
@@ -651,7 +651,7 @@ sonarr_ingest() {
             -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
             
         local command_id=$(echo "$response" | jq -r '.id')
-        log "✅ Sonarr: Import command queued (ID: $command_id)."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Sonarr ingest queued: $command_id"
     else
         log "⚠️ Sonarr: No recognized or valid files found in $ingest_path."
     fi
