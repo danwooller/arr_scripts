@@ -61,6 +61,7 @@ while true; do
             for file in "${FILES[@]}"; do
                 # Final check: Ensure it is a file before moving
                 if [ -f "$file" ]; then
+                    subtitle_opts "$file"
                     [[ $LOG_LEVEL == "debug" ]] && log "Moving: $(basename "$file")"
                     # The trailing slash ensures it treats the destination as a directory
                     mv -v "$file" "$DIR_MEDIA_COMPLETED_TV/"
