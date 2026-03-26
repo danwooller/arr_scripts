@@ -178,6 +178,7 @@ while true; do
             rm -f "$FILE_TO_PROCESS"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Deleted temporary copy in $CONVERT_DIR."
             # --- Sonos Verification Check ---
+            sleep 5
             sonos_audio_fix "$OUTPUT_FILE"
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Aplly Sonos conversion $(basename "$OUTPUT_FILE")"
             # --- Move the completed file to the completed folder ---
