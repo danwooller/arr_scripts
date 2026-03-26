@@ -17,7 +17,7 @@ if sudo ssh -o ConnectTimeout=10 "$BASE_HOST6" "zpool status" | grep -q "scrub i
     exit 0
 fi
 
-check_dependencies "ffprobe"
+check_dependencies "ffmpeg"
 
 # --- Logic: Manual vs Scheduled ---
 if [ -n "$1" ]; then
