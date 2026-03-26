@@ -792,12 +792,11 @@ sonos_audio_fix() {
 }
 # --- END SONOS AUDIO ---
 # --- SUBTITLES ---
-# --- END SUBTITLES ---
-# --- Track Selection Logic ---
-# Arguments: $1 = Path to file, $2 = Filename base (for subtitle extraction)
-# Returns: Global variables TRACK_OPTS and NEEDS_PROPEDIT
 subtitle_opts() {
-local file_path="$1"
+    # --- Track Selection Logic ---
+    # Arguments: $1 = Path to file, $2 = Filename base (for subtitle extraction)
+    # Returns: Global variables TRACK_OPTS and NEEDS_PROPEDIT
+    local file_path="$1"
     
     # Reset
     TRACK_OPTS=""
@@ -841,6 +840,7 @@ local file_path="$1"
     export TRACK_OPTS
     export NEEDS_PROPEDIT
 }
+# --- END SUBTITLES ---
 # --- VPN SECTION ---
 
 vpn_restart_containers() {
