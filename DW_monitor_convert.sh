@@ -165,21 +165,12 @@ while true; do
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
         # --- Sonos Verification Check ---
-        #sonos_audio_fix "$OUTPUT_FILE"
-        # Check if the freshly created file has the correct layout
-#        FINAL_LAYOUT=$(ffprobe -v error -select_streams a:0 -show_entries stream=channel_layout -of csv=p=0 "$OUTPUT_FILE")
-#        if [[ "$FINAL_LAYOUT" != "5.1(side)" ]]; then
-#             [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Layout is $FINAL_LAYOUT. Running quick Sonos-Side re-map..."
-#             mv "$OUTPUT_FILE" "${OUTPUT_FILE}.tmp"
-#             ffmpeg -i "${OUTPUT_FILE}.tmp" -c:v copy -c:a ac3 -b:a 640k -af "channelmap=channel_layout=5.1(side)" "$OUTPUT_FILE"
-#             rm "${OUTPUT_FILE}.tmp"
-#        fi
-        #Set the subtitle name.
+        # --- Set the subtitle name ---
         if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
             mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
         fi
         CONVERSION_EXIT_CODE=$?
-        # --- 4. Post-Conversion Cleanup and Move ---
+        # --- Post-Conversion Cleanup and Move ---
         if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
             log "✅ Completed $FILENAME"
             # Cleanup only if conversion was successful
@@ -187,7 +178,7 @@ while true; do
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Deleted temporary copy in $CONVERT_DIR."
             # --- Sonos Verification Check ---
             sonos_audio_fix "$OUTPUT_FILE"
-             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Aplly Sonos conversion $(basename "$OUTPUT_FILE")"
+            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Aplly Sonos conversion $(basename "$OUTPUT_FILE")"
             # --- Move the completed file to the completed folder ---
             #mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
             mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED_TV/"
