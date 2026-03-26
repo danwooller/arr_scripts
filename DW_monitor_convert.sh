@@ -159,9 +159,10 @@ while true; do
             -i "$FILE_TO_PROCESS" \
             -o "$OUTPUT_FILE" \
             --audio-lang-list eng \
-            --aencoder copy \
-            --audio-copy-mask aac,ac3,eac3,truehd,dts,dtshd,mp3,flac \
-            --audio-fallback aac \
+            --aencoder ac3 \
+            --ab 640 \
+            --mixdown 5point1 \
+            --audio-fallback ac3 \
             --optimize \
             $HANDBRAKE_SUB_ARGS < /dev/null
         # --- Sonos Verification Check ---
