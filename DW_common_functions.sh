@@ -797,11 +797,15 @@ sonos_audio_fix() {
 # Arguments: $1 = Path to file, $2 = Filename base (for subtitle extraction)
 # Returns: Global variables TRACK_OPTS and NEEDS_PROPEDIT
 subtitle_opts() {
-    local file="$1"
-    local base_name="$2"
-    local metadata
+    # Argument: $1 = Full path to the media file
+    local file_path="$1"
     
-    metadata=$(mkvmerge --identify "$file" --identification-format json)
+    # Derive the base name for subtitle extraction (e.g., "Movie_Name.mkv" -> "Movie_Name")
+    local file_name=$(basename "$file_path")
+    local base_name="${file_name%.*}"
+    
+    local metadata
+    metadata=$(mkvmerge --identify "$file_path" --identification-format json)
 
     # 1. Search for English or Undefined Audio
     local eng_audio
@@ -811,10 +815,10 @@ subtitle_opts() {
         # --- CASE 1: ENGLISH MOVIE ---
         read -r audio_id audio_uid audio_lang <<< "$eng_audio"
         
-        # Fix Undefined labels
+        # Label Undefined as English
         if [[ "$audio_lang" == "und" || "$audio_lang" == "null" ]]; then
             log "Found Undefined audio (UID: $audio_uid). Labeling as English..."
-            mkvpropedit "$file" --edit "track:=$audio_uid" --set language=eng --set language-ietf=en --tags all: >/dev/null 2>&1
+            mkvpropedit "$file_path" --edit "track:=$audio_uid" --set language=eng --set language-ietf=en --tags all: >/dev/null 2>&1
         fi
 
         # Find only FORCED English subtitles
@@ -822,7 +826,8 @@ subtitle_opts() {
         
         if [ -n "$forced_ids" ]; then
             local primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
-            mkvextract tracks "$file" "$primary_forced:$DIR_MEDIA_SUBTITLES/${base_name}.srt" >/dev/null 2>&1
+            # Extract to your backup dir using the derived base_name
+            mkvextract tracks "$file_path" "$primary_forced:$DIR_MEDIA_SUBTITLES/${base_name}.srt" >/dev/null 2>&1
             TRACK_OPTS="--video-tracks 0 --audio-tracks $audio_id --subtitle-tracks $forced_ids"
             NEEDS_PROPEDIT=true
         else
@@ -832,15 +837,11 @@ subtitle_opts() {
         log "🎯 English Audio detected. Keeping Forced subs only."
     else
         # --- CASE 2: FOREIGN MOVIE ---
-        # Keep the first audio track found (index 0 usually, but we find the first 'audio' type)
         local foreign_audio_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio") | .id' | head -n 1)
-        
-        # Keep ALL English subtitle tracks (SDH, Regular, Forced)
         local all_eng_subs=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng") | .id] | join(",")')
 
         if [ -n "$all_eng_subs" ]; then
             TRACK_OPTS="--video-tracks 0 --audio-tracks $foreign_audio_id --subtitle-tracks $all_eng_subs"
-            # We don't set a single "Forced" flag here because there are multiple tracks
             NEEDS_PROPEDIT=false 
             log "🌏 Foreign Audio detected. Keeping first audio and ALL English subtitles."
         else
@@ -850,7 +851,6 @@ subtitle_opts() {
         fi
     fi
     
-    # Export variables for the main script to use
     export TRACK_OPTS
     export NEEDS_PROPEDIT
 }
