@@ -50,29 +50,29 @@ while true; do
         # 1. Extract the year
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
 
-        # 2. Strip the Year and common tags specifically
-        # We use 's///g' to remove ONLY the matches, not the whole line.
-        clean_name="$FILE_NAME_BASE"
-        clean_name=$(echo "$clean_name" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|H\.264|HEVC|REMUX)//gi")
-        
-        if [ -n "$year" ]; then
-            clean_name=$(echo "$clean_name" | sed "s/$year//g")
-        fi
+        # 2. Clean the title by removing only specific "Junk" words
+        # We convert dots/underscores/dashes to spaces FIRST to make matching easier
+        clean_name=$(echo "$FILE_NAME_BASE" | tr '._-' ' ')
 
-        # 3. Convert all separators (dots, underscores, dashes) to spaces
-        # Then squeeze multiple spaces into one and trim
-        final_title=$(echo "$clean_name" | tr '._-' ' ' | sed -E 's/ +/ /g' | xargs)
+        # 3. Remove the year and common tags individually
+        # Note: We use \b (word boundaries) so we don't accidentally strip "LAMA" out of "ALABAMA"
+        for junk in "$year" "1080p" "720p" "2160p" "BluRay" "BDRip" "WEB-DL" "x264" "x265" "LAMA" "H.264" "HEVC" "REMUX"; do
+            clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
+        done
 
-        # --- DEBUG LOG ---
-        log "DEBUG: Original: $FILE_NAME_BASE | Year: $year | Cleaned: $final_title"
+        # 4. Final Cleanup: Squeeze multiple spaces and trim
+        final_title=$(echo "$clean_name" | sed -E 's/ +/ /g' | xargs)
 
-        # 4. Safety Fallback
-        if [ -z "$final_title" ] || [ "$final_title" = " " ]; then
-            final_title="Unknown_Title"
+        # 5. Safety Fallback (Last Resort)
+        if [ -z "$final_title" ]; then
+            log "⚠️ Naming failed for $FILE_NAME_BASE. Using original."
+            final_title="$FILE_NAME_BASE"
         fi
 
         TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
+        
+        log "🎬 Processing: $TARGET_FILENAME"
 
         if [ -f "$TARGET_PATH" ]; then
             log "⚠️ $TARGET_FILENAME already exists. Skipping."
