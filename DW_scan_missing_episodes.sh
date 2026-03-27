@@ -34,14 +34,14 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     series_name=$(basename "$CURRENT_DIR")
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
     
-    # Clean extraction: Get "5x01" style strings, sort them numerically
-    # 1. Discovery: Extract ONLY the SxE part and sort numerically
-    # We use sed to turn "5x01" into "5 1" so sort -k1,1n -k2,2n works perfectly
+    # 1. Discovery: Extract SxE or SxE-E and normalize to "S E_START E_END"
+    # This turns "5x04-05" into "5 4 5" and "5x01" into "5 1 1"
     mapfile -t ep_list < <(find "$CURRENT_DIR" -type f \
         -not -path "*Specials*" -not -path "*Season 00*" \
         -name "*[0-9]x[0-9]*" -exec basename {} \; | \
-        grep -oE "[0-9]+x[0-9]+" | \
-        sed 's/x/ /' | \
+        grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | \
+        sed -E 's/x|--?/ /g' | \
+        awk '{if ($3 == "") $3=$2; print $1, $2, $3}' | \
         sort -k1,1n -k2,2n | \
         uniq)
 
@@ -52,12 +52,13 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     expected_e=1
 
     for line in "${ep_list[@]}"; do
-        # Expecting "Season Episode" e.g. "5 08"
-        read -r curr_s_raw curr_e_raw <<< "$line"
+        # line format: "Season Start_Episode End_Episode"
+        read -r s_raw e_start_raw e_end_raw <<< "$line"
 
-        # Force Base-10 to avoid Octal errors (08/09)
-        curr_s=$((10#$curr_s_raw))
-        curr_e=$((10#$curr_e_raw))
+        # Force Base-10 (Decimal)
+        curr_s=$((10#$s_raw))
+        curr_e_start=$((10#$e_start_raw))
+        curr_e_end=$((10#$e_end_raw))
 
         # Season Transition
         if [[ "$curr_s" -ne "$prev_s" ]]; then
@@ -66,14 +67,15 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             prev_s=$curr_s
         fi
 
-        # Gap Detection (Using double parentheses for integer math)
-        if (( curr_e > expected_e )); then
-            for ((i=expected_e; i<curr_e; i++)); do
+        # Gap Detection
+        if (( curr_e_start > expected_e )); then
+            for ((i=expected_e; i<curr_e_start; i++)); do
                 missing_in_series+="${curr_s}x$(printf "%02d" $i) "
             done
         fi
         
-        expected_e=$((curr_e + 1))
+        # Next expected is one after the END of the current file/range
+        expected_e=$((curr_e_end + 1))
     done
 
     # --- Final Reporting ---
