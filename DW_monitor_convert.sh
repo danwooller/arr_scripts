@@ -68,7 +68,7 @@ while true; do
                         rm "$file"
                         log "✅ Merge successful: $TARGET_FILE"
                     else
-                        clean_media_name() "$FILENAME"
+                        clean_media_name "$FILENAME"
                         log "$name" "tv" "Merge failed"
                         seerr_sync_issue "$name" "tv" "Merge failed"
                         log "❌ Merge failed for $FILENAME"
