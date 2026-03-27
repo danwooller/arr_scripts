@@ -52,16 +52,21 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     expected_e=1
 
     for line in "${ep_list[@]}"; do
-        # Now we have clean integers from the 'sed' above
-        read -r curr_s curr_e <<< "$line"
+        # Expecting "Season Episode" e.g. "5 08"
+        read -r curr_s_raw curr_e_raw <<< "$line"
+
+        # Force Base-10 to avoid Octal errors (08/09)
+        curr_s=$((10#$curr_s_raw))
+        curr_e=$((10#$curr_e_raw))
 
         # Season Transition
         if [[ "$curr_s" -ne "$prev_s" ]]; then
+            [[ "$prev_s" -ne -1 ]] && [[ "$LOG_LEVEL" == "debug" ]] && log "Moving from Season $prev_s to $curr_s"
             expected_e=1
             prev_s=$curr_s
         fi
 
-        # Gap Detection (Strict Integer Math)
+        # Gap Detection (Using double parentheses for integer math)
         if (( curr_e > expected_e )); then
             for ((i=expected_e; i<curr_e; i++)); do
                 missing_in_series+="${curr_s}x$(printf "%02d" $i) "
@@ -70,6 +75,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         
         expected_e=$((curr_e + 1))
     done
+
     # --- Final Reporting ---
     if [[ -n "$missing_in_series" ]]; then
         log "⚠️ $series_name is missing: $missing_in_series"
