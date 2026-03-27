@@ -9,6 +9,9 @@ else
     exit 1
 fi
 
+# Ensure concat directory exists
+mkdir -p "$DIR_MEDIA_CONCAT"
+
 # 1. Setup Environment
 INPUT_LIST="${TARGET_DIR}/inputs.txt"
 
