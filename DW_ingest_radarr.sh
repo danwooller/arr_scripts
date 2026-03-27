@@ -17,17 +17,13 @@ log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
 while true; do
     # --- 0. Flatten & Cleanup ---
-    # Move media from sub-directories to the parent folder
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) -exec mv -t "$DIR_MEDIA_COMPLETED_MOVIES" {} +
-    # Delete empty sub-directories
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 1 -type d -empty -delete 2>/dev/null
 
     # --- 1. Standardize Spacing ---
-    # Convert spaces to underscores for consistent shell handling
     find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
     # --- 2. Processing Loop ---
-    # Find files, ignoring .tmp and those already in final "Title (Year).mkv" format
     find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) \
     ! -name "*.tmp" \
     ! -regex ".*/.* ([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
@@ -35,26 +31,21 @@ while true; do
         ORIGINAL_FILENAME=$(basename "$file")
         FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
         
-        # Stability Check (Ensure file isn't still being written)
         SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
 
-        # --- 3. Surgical Naming Logic ---
-        # A. Extract Year
+        # --- 3. Robust Naming Logic ---
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
-        
-        # B. Clean separators and convert to spaces
         clean_name=$(echo "$FILE_NAME_BASE" | tr '._-' ' ')
         
-        # C. Remove Year and Tags individually (Prevents the "Empty Title" bug)
-        for junk in "$year" "1080p" "720p" "2160p" "BluRay" "BDRip" "WEB-DL" "x264" "x265" "LAMA" "HEVC"; do
+        # Expanded Junk List (Added: 4K, UHD, HDR, DV, IMAX, HMAX, AMZN, NF, DSNP)
+        for junk in "$year" "1080p" "720p" "2160p" "4K" "UHD" "HDR" "DV" "IMAX" "BluRay" "BDRip" "BRRip" "WEB-DL" "WEB" "x264" "x265" "LAMA" "HEVC" "REMUX" "AMZN" "NF" "DSNP" "HMAX"; do
             clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
         done
 
-        # D. Final trim and squeeze spaces
-        final_title=$(echo "$clean_name" | sed -E 's/ +/ /g' | xargs)
+        # Final Clean & Proper Case (Capitalizes first letter of every word)
+        final_title=$(echo "$clean_name" | sed -E 's/ +/ /g' | sed -E 's/\b([a-z])/\U\1/g' | xargs)
 
-        # E. Fallback if title is empty
         if [ -z "$final_title" ]; then final_title="$FILE_NAME_BASE"; fi
 
         TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
@@ -62,7 +53,7 @@ while true; do
 
         log "🎬 Processing: $TARGET_FILENAME"
 
-        # --- 4. Remux & Archive ---
+        # --- 4. Remux Logic ---
         sonos_audio_fix "$file"
         subtitle_opts "$file"
 
@@ -76,6 +67,7 @@ while true; do
         
         if mkvmerge -q -o "$TARGET_PATH" $TRACK_OPTS "$TEMP_FILE"; then
             if [ "$NEEDS_PROPEDIT" = true ]; then
+                log "🏷️ Setting Forced flags..."
                 mkvpropedit "$TARGET_PATH" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
             fi
 
