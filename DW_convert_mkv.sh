@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-# Checking existence to prevent 'set -e' from killing the script cryptically
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
@@ -15,18 +14,17 @@ EXT_OUT=".mkv"
 
 # Directories to monitor recursively
 WATCH_DIRS=(
-    "/mnt/media/torrent/completed"
-    "/mnt/media/torrent/completed-movies"
+    "DIR_MEDIA_COMPLETED_4KMOVIES"
+    "DIR_MEDIA_COMPLETED_4KTV"
+    "DIR_MEDIA_COMPLETED_MOVIES"
+    "DIR_MEDIA_COMPLETED_TV"
 )
 
-OUTPUT_DIR="/mnt/media/torrent/completed"
-FINISHED_DIR="/mnt/media/torrent/finished/"
-#LOG_LEVEL="debug"
+# Note: OUTPUT_DIR is now used as a fallback or temp if needed, 
+# but we will prioritize the source subfolder.
 POLL_INTERVAL=30
 
-mkdir -p "$DIR_MEDIA_COMPLETED" "$EXT_VIDEO"
-
-# --- Run Dependency Check using the shared function ---
+# --- Run Dependency Check ---
 check_dependencies "HandBrakeCLI" "jq" "mkvmerge" "mkvpropedit" "rename"
 
 log_start
@@ -35,36 +33,32 @@ while true; do
     for TARGET_DIR in "${WATCH_DIRS[@]}"; do
         [[ -d "$TARGET_DIR" ]] || continue
 
-        # 1. Standardize filenames recursively (spaces -> underscores)
-        # Using find to catch files in subfolders
-        #find "$TARGET_DIR" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
-        #disable underscores
-        find "$TARGET_DIR" -depth -name "* *" -print 2>/dev/null
-        # 2. Find and process matching video files recursively
-        # This builds a list of files matching our extensions in any subfolder
+        # 1. Find and process matching video files recursively
         FIND_ARGS=()
         for EXT in "${EXT_VIDEO[@]}"; do
             FIND_ARGS+=("-name" "*.$EXT" "-o")
         done
-        unset 'FIND_ARGS[${#FIND_ARGS[@]}-1]' # Remove trailing "-o"
+        unset 'FIND_ARGS[${#FIND_ARGS[@]}-1]' 
 
-        # Read results into an array
         mapfile -t FILE_LIST < <(find "$TARGET_DIR" -type f \( "${FIND_ARGS[@]}" \))
 
         for FULL_PATH in "${FILE_LIST[@]}"; do
             [[ -e "$FULL_PATH" ]] || continue
 
+            # Get the directory and filename details
+            PARENT_DIR=$(dirname "$FULL_PATH")
             FULL_FILE_NAME=$(basename "$FULL_PATH")
             FILE_NAME="${FULL_FILE_NAME%.*}"
 
             if [ -n "$FILE_NAME" ]; then
                 
-                FINAL_OUTPUT="${OUTPUT_DIR}/${FILE_NAME}${EXT_OUT}"
+                # --- NEW LOGIC: Set output to the same directory as the source ---
+                FINAL_OUTPUT="${PARENT_DIR}/${FILE_NAME}${EXT_OUT}"
                 
                 # --- OVERWRITE CHECK ---
                 if [[ -f "$FINAL_OUTPUT" ]]; then
                     if [[ $LOG_LEVEL = "debug" ]]; then
-                        log "Skipping $FULL_FILE_NAME: Output exists in $DIR_MEDIA_COMPLETED."
+                        log "Skipping $FULL_FILE_NAME: Output already exists in $PARENT_DIR."
                     fi
                     continue
                 fi
@@ -78,32 +72,27 @@ while true; do
                     continue
                 fi
 
-                # 3. Conversion Process
-                log "ℹ️ Converting: ${FULL_FILE_NAME} (from subfolder) -> ${FILE_NAME}${EXT_OUT}"
+                # 2. Conversion Process
+                log "ℹ️ Converting: ${FULL_FILE_NAME} -> ${FILE_NAME}${EXT_OUT} in ${PARENT_DIR}"
                 
-                #mkvmerge -o "${FINAL_OUTPUT}" "${FULL_PATH}" > /dev/null 2>&1
-                # Use '--language 1:eng' which is the standard ID for the first audio track in most MP4s
-                # We also set the video track (usually 0) to 'und' (undetermined) or 'eng' to be clean
                 mkvmerge -o "${FINAL_OUTPUT}" \
                     --language 0:und \
                     --language 1:eng \
                     --track-name 1:"English" \
                     "${FULL_PATH}" > /dev/null 2>&1
 
-
                 if [ $? -eq 0 ]; then
-                    log "ℹ️ Success. Moving ${FULL_FILE_NAME} to finished."
-                    mv "$FULL_PATH" "${FINISHED_DIR}${FULL_FILE_NAME}"
+                    log "ℹ️ Success. Moving original ${FULL_FILE_NAME} to finished."
+                    mv "$FULL_PATH" "${DIR_MEDIA_FINISHED}${FULL_FILE_NAME}"
 
                     log "ℹ️ Removing torrent: $FILE_NAME"
                     manage_remote_torrent "delete" "$FILE_NAME"
+                else
+                    log "⚠️ Error: mkvmerge failed on ${FULL_FILE_NAME}"
                 fi
             fi
         done
     done
-
-    # 4. Clean up output names in the central folder
-    #rename 's/_/ /g' "${OUTPUT_DIR}/"*${EXT_OUT} 2>/dev/null
 
     sleep "$POLL_INTERVAL"
 done
