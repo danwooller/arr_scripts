@@ -47,11 +47,27 @@ while true; do
         subtitle_opts "$file"
         
         # --- Naming & Duplicate Protection ---
+        # --- Naming & Duplicate Protection ---
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
-        clean_title=$(echo "$FILE_NAME_BASE" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|${year:-0000}).*//i" | tr '._' ' ' | xargs)
-        final_title=$(echo "$clean_title" | sed -E 's/ [pP]$//g' | xargs)
-        
-        TARGET_FILENAME="${final_title} (${year}).mkv"
+
+        # 1. Strip common scene tags and resolution
+        # We move the year-strip to a separate step to avoid wiping the whole title
+        clean_title=$(echo "$FILE_NAME_BASE" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA)//gi")
+
+        # 2. Specifically strip the year if it's preceded by a separator
+        if [ -n "$year" ]; then
+            clean_title=$(echo "$clean_title" | sed -E "s/[._(-]${year}[._)-].*//g")
+        fi
+
+        # 3. Clean up separators and trim whitespace
+        final_title=$(echo "$clean_title" | tr '._' ' ' | sed -E 's/ +/ /g' | xargs)
+
+        # Fallback: If title became empty (rare), use the original base name
+        if [ -z "$final_title" ]; then
+            final_title="$FILE_NAME_BASE"
+        fi
+
+        TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
 
         if [ -f "$TARGET_PATH" ]; then
