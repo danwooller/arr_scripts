@@ -31,7 +31,10 @@ check_service() {
         return 1
     fi
 
-    local status=$(curl -s -L -o /dev/null --connect-timeout 5 -w "%{http_code}" -H "X-Api-Key: $key" "$url$endpoint")
+    local status=$(curl -s -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
+        -H "Authorization: $key" \
+        -H "X-Api-Key: $key" \
+        "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
         echo -e "${GREEN}OK (HTTP 200)${NC}"
