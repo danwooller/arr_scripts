@@ -50,26 +50,25 @@ while true; do
         # 1. Extract the year
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
 
-        # 2. Define the "junk" patterns to remove
-        # This list removes common tags without killing the whole string
-        junk_patterns="([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|H[. ]264|HEVC|REMUX)"
+        # 2. Strip the Year and common tags specifically
+        # We use 's///g' to remove ONLY the matches, not the whole line.
+        clean_name="$FILE_NAME_BASE"
+        clean_name=$(echo "$clean_name" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|H\.264|HEVC|REMUX)//gi")
         
-        # 3. Clean the title: 
-        # Remove junk tags first
-        clean_name=$(echo "$FILE_NAME_BASE" | sed -E "s/$junk_patterns//gi")
-        
-        # Remove the year specifically (only if it exists)
         if [ -n "$year" ]; then
             clean_name=$(echo "$clean_name" | sed "s/$year//g")
         fi
 
-        # 4. Final Formatting: 
-        # Convert dots/underscores to spaces, remove double spaces, and trim
+        # 3. Convert all separators (dots, underscores, dashes) to spaces
+        # Then squeeze multiple spaces into one and trim
         final_title=$(echo "$clean_name" | tr '._-' ' ' | sed -E 's/ +/ /g' | xargs)
 
-        # 5. Safety Fallback: If title is somehow empty, use the original base
-        if [ -z "$final_title" ]; then
-            final_title="$FILE_NAME_BASE"
+        # --- DEBUG LOG ---
+        log "DEBUG: Original: $FILE_NAME_BASE | Year: $year | Cleaned: $final_title"
+
+        # 4. Safety Fallback
+        if [ -z "$final_title" ] || [ "$final_title" = " " ]; then
+            final_title="Unknown_Title"
         fi
 
         TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
