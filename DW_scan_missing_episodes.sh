@@ -48,8 +48,11 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             [[ "$series_name" == "$exclude" ]] && continue
         done
         
-        mapfile -t ep_list < <(find "$series_path" -type f -not -path "*Specials*" -not -path "*Season 00*" \
-            -name "*[0-9]x[0-9]*" | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
+        mapfile -t ep_list < <(find "$series_path" -maxdepth 2 -type f \
+            -not -path "*Specials*" \
+            -not -path "*Season 00*" \
+            -name "*[0-9]x[0-9]*" \
+            -exec basename {} \; | grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | sort -V | uniq)
 
         missing_in_series=""
         if [[ ${#ep_list[@]} -ge 2 ]]; then
