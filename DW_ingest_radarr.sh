@@ -47,22 +47,27 @@ while true; do
         subtitle_opts "$file"
         
         # --- Naming & Duplicate Protection ---
-        # --- Naming & Duplicate Protection ---
+        # 1. Extract the year
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
 
-        # 1. Strip common scene tags and resolution
-        # We move the year-strip to a separate step to avoid wiping the whole title
-        clean_title=$(echo "$FILE_NAME_BASE" | sed -E "s/([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA)//gi")
-
-        # 2. Specifically strip the year if it's preceded by a separator
+        # 2. Define the "junk" patterns to remove
+        # This list removes common tags without killing the whole string
+        junk_patterns="([0-9]{3,4}p|BluRay|BDRip|WEB-DL|x26[45]|LAMA|H[. ]264|HEVC|REMUX)"
+        
+        # 3. Clean the title: 
+        # Remove junk tags first
+        clean_name=$(echo "$FILE_NAME_BASE" | sed -E "s/$junk_patterns//gi")
+        
+        # Remove the year specifically (only if it exists)
         if [ -n "$year" ]; then
-            clean_title=$(echo "$clean_title" | sed -E "s/[._(-]${year}[._)-].*//g")
+            clean_name=$(echo "$clean_name" | sed "s/$year//g")
         fi
 
-        # 3. Clean up separators and trim whitespace
-        final_title=$(echo "$clean_title" | tr '._' ' ' | sed -E 's/ +/ /g' | xargs)
+        # 4. Final Formatting: 
+        # Convert dots/underscores to spaces, remove double spaces, and trim
+        final_title=$(echo "$clean_name" | tr '._-' ' ' | sed -E 's/ +/ /g' | xargs)
 
-        # Fallback: If title became empty (rare), use the original base name
+        # 5. Safety Fallback: If title is somehow empty, use the original base
         if [ -z "$final_title" ]; then
             final_title="$FILE_NAME_BASE"
         fi
