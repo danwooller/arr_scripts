@@ -13,7 +13,7 @@ fi
 mkdir -p "$DIR_MEDIA_CONCAT"
 
 # 1. Setup Environment
-INPUT_LIST="${TARGET_DIR}/inputs.txt"
+INPUT_LIST="${DIR_MEDIA_CONCAT}/inputs.txt"
 
 # Move to directory
 cd "$DIR_MEDIA_CONCAT" || { log "Error: Could not enter $DIR_MEDIA_CONCAT"; exit 1; }
