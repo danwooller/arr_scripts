@@ -10,25 +10,22 @@ else
 fi
 
 # 1. Setup Environment
-TARGET_DIR="/mnt/media/torrent/${HOST}/concat"
-OUTPUT_DIR="/mnt/media/torrent/completed"
-FINISHED_DIR="/mnt/media/torrent/finished/"
 INPUT_LIST="${TARGET_DIR}/inputs.txt"
 
 # Move to directory
-cd "$TARGET_DIR" || { log "Error: Could not enter $TARGET_DIR"; exit 1; }
+cd "$DIR_MEDIA_CONCAT" || { log "Error: Could not enter $DIR_MEDIA_CONCAT"; exit 1; }
 
 # 2. Dynamic Naming Logic
 FIRST_FILE=$(ls *.mp4 2>/dev/null | head -n 1)
 
 if [[ -z "$FIRST_FILE" ]]; then
-    log "No MP4 files found in $TARGET_DIR. Nothing to do."
+    log "No MP4 files found in $DIR_MEDIA_CONCAT. Nothing to do."
     exit 0
 fi
 
 BASE_NAME="${FIRST_FILE%.*}"
 CLEAN_NAME=$(echo "$BASE_NAME" | sed 's/[[:space:]_-]*[0-9]\+$//')
-OUTPUT_FILE="${OUTPUT_DIR}/${CLEAN_NAME}.mp4"
+OUTPUT_FILE="${DIR_MEDIA_COMPLETED_TV}/${CLEAN_NAME}.mp4"
 
 # 3. Pre-flight Checks
 check_dependencies ffmpeg
@@ -47,12 +44,12 @@ ffmpeg -f concat -safe 0 -i "$INPUT_LIST" -c copy "$OUTPUT_FILE" -y >> "$LOG_FIL
 if [ $? -eq 0 ]; then
     log "Success! Combined file created at $OUTPUT_FILE"
     
-    log "Moving source files to $FINISHED_DIR..."
+    log "Moving source files to $DIR_MEDIA_FINISHED..."
     # Read the input list we made and move each file mentioned
     while IFS= read -r line; do
         # Extract filename between the single quotes
         FILE_TO_MOVE=$(echo "$line" | cut -d"'" -f2)
-        mv "$FILE_TO_MOVE" "$FINISHED_DIR"
+        mv "$FILE_TO_MOVE" "$DIR_MEDIA_FINISHED"
     done < "$INPUT_LIST"
 
 else
