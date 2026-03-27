@@ -8,6 +8,8 @@ else
     exit 1
 fi
 
+# --- Safety Check: ZFS Scrub ---
+# Prevents heavy disk I/O if the pool is currently scrubbing
 if sudo ssh -o ConnectTimeout=10 "$BASE_HOST6" "zpool status" | grep -q "scrub in progress"; then
     log "⚠️ ZFS Scrub currently in progress on $BASE_HOST6. Exiting to protect disks."
     exit 0
@@ -15,85 +17,91 @@ fi
 
 # --- Logic: Manual vs Scheduled ---
 if [ -n "$1" ]; then
-    # If an argument is passed, we only scan that specific path
     log "Manual scan requested for: $1"
-    TARGET_PATHS=("$1")
+    TARGET_ROOTS=("$1")
 else
-    # If no argument, we run the full array (Systemd Timer mode)
     [[ "$LOG_LEVEL" == "debug" ]] && log "Starting scheduled scan of all TV locations..."
-    TARGET_PATHS=("${DIR_TV[@]}")
+    TARGET_ROOTS=("${DIR_TV[@]}")
 fi
 
 # --- Execution Loop ---
-for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
-    if [ ! -d "$CURRENT_DIR" ] || [ -z "$(ls -A "$CURRENT_DIR" 2>/dev/null)" ]; then
-        log "❌ SKIP: $CURRENT_DIR is missing or empty."
+for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
+    
+    # 1. Validation: Ensure root exists
+    if [ ! -d "$ROOT_DIR" ]; then
+        log "❌ SKIP: Root $ROOT_DIR is unavailable."
         continue
     fi
 
-    series_name=$(basename "$CURRENT_DIR")
-    [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
-    
-    # 1. Discovery: Filter for common video extensions ONLY
-    # This ignores .nfo, .jpg, .srt, etc.
-    mapfile -t ep_list < <(find "$CURRENT_DIR" -type f \
-        \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.m4v" -o -name "*.ts" \) \
-        -not -path "*Specials*" \
-        -not -path "*Season 00*" \
-        -name "*[0-9]x[0-9]*" \
-        -exec basename {} \; | \
-        grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | \
-        sed -E 's/x|--?/ /g' | \
-        awk '{if ($3 == "") $3=$2; print $1, $2, $3}' | \
-        sort -k1,1n -k2,2n | \
-        uniq)
+    # 2. Discovery: Find all Series folders (folders containing 'Season' subdirectories)
+    # This allows the script to run against /mnt/media/TV or a specific show folder.
+    mapfile -t SERIES_LIST < <(find "$ROOT_DIR" -maxdepth 2 -type d -name "Season*" -exec dirname {} \; | sort -u)
 
-    # Add this line immediately after the mapfile -t ep_list line:
-    [[ "$LOG_LEVEL" == "debug" ]] && printf "DEBUG: Raw Episode List for %s:\n%s\n" "$series_name" "$(printf '%s\n' "${ep_list[@]}")"
+    for CURRENT_SERIES_PATH in "${SERIES_LIST[@]}"; do
+        
+        series_name=$(basename "$CURRENT_SERIES_PATH")
+        [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
 
-    if [[ ${#ep_list[@]} -eq 0 ]]; then continue; fi
+        # 3. Episode Extraction: Filter for VIDEO files only
+        # Normalizes "5x04-05" or "5x01" into "Season Start_Ep End_Ep" format
+        mapfile -t ep_list < <(find "$CURRENT_SERIES_PATH" -type f \
+            \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.m4v" -o -name "*.ts" \) \
+            -not -path "*Specials*" -not -path "*Season 00*" \
+            -name "*[0-9]x[0-9]*" -exec basename {} \; | \
+            grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | \
+            sed -E 's/x|--?| / /g' | \
+            awk '{if ($3 == "") $3=$2; print $1, $2, $3}' | \
+            sort -k1,1n -k2,2n | \
+            uniq)
 
-    missing_in_series=""
-    prev_s=-1
-    expected_e=1
-
-    for line in "${ep_list[@]}"; do
-        # line format: "Season Start_Episode End_Episode"
-        read -r s_raw e_start_raw e_end_raw <<< "$line"
-
-        # Force Base-10 (Decimal)
-        curr_s=$((10#$s_raw))
-        curr_e_start=$((10#$e_start_raw))
-        curr_e_end=$((10#$e_end_raw))
-
-        # Season Transition
-        if [[ "$curr_s" -ne "$prev_s" ]]; then
-            [[ "$prev_s" -ne -1 ]] && [[ "$LOG_LEVEL" == "debug" ]] && log "Moving from Season $prev_s to $curr_s"
-            expected_e=1
-            prev_s=$curr_s
+        if [[ ${#ep_list[@]} -eq 0 ]]; then
+            continue
         fi
 
-        # Gap Detection
-        if (( curr_e_start > expected_e )); then
-            for ((i=expected_e; i<curr_e_start; i++)); do
-                missing_in_series+="${curr_s}x$(printf "%02d" $i) "
+        # 4. Gap Detection Logic
+        missing_in_series=""
+        prev_s=-1
+        expected_e=1
+
+        for line in "${ep_list[@]}"; do
+            read -r s_raw e_start_raw e_end_raw <<< "$line"
+
+            # Force Base-10 (Decimal) to prevent Octal errors (08/09)
+            curr_s=$((10#$s_raw))
+            curr_e_start=$((10#$e_start_raw))
+            curr_e_end=$((10#$e_end_raw))
+
+            # Reset expectation on Season Change
+            if [[ "$curr_s" -ne "$prev_s" ]]; then
+                expected_e=1
+                prev_s=$curr_s
+            fi
+
+            # Check for Gaps
+            if (( curr_e_start > expected_e )); then
+                for ((i=expected_e; i<curr_e_start; i++)); do
+                    missing_in_series+="${curr_s}x$(printf "%02d" $i) "
+                done
+            fi
+            
+            # Next expected is one after the current file's end episode
+            expected_e=$((curr_e_end + 1))
+        done
+
+        # 5. Reporting & Seerr Resolution
+        if [[ -n "$missing_in_series" ]]; then
+            log "⚠️ $series_name is missing: $missing_in_series"
+            seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
+        else
+            [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No gaps found for $series_name. Resolving Seerr issues..."
+            # Resolve each season folder found within the series
+            find "$CURRENT_SERIES_PATH" -maxdepth 1 -type d -name "Season*" | while read -r season_folder; do
+                 seerr_resolve_issue "$season_folder"
             done
         fi
-        
-        # Next expected is one after the END of the current file/range
-        expected_e=$((curr_e_end + 1))
-    done
 
-    # --- Final Reporting ---
-    if [[ -n "$missing_in_series" ]]; then
-        log "⚠️ $series_name is missing: $missing_in_series"
-        seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
-    else
-        log "✨ No gaps found for $series_name. Resolving issues..."
-        find "$CURRENT_DIR" -maxdepth 1 -type d -name "Season*" | while read -r season_folder; do
-             seerr_resolve_issue "$season_folder"
-        done
-    fi
+        log "✅ Completed scan for $series_name"
+    done
 done
 
 [[ "$LOG_LEVEL" == "debug" ]] && log "🏁 Tasks finished."
