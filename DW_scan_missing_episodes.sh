@@ -47,30 +47,37 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
 
     missing_in_series=""
     prev_s=-1
-    expected_e=1 # Start expecting episode 1 for the first season found
+    expected_e=1 # Reset to 1 at start
 
     for ep in "${ep_list[@]}"; do
-        # Extract S and E (handles 5x01 and 5x01-02)
-        curr_s=$(echo "$ep" | cut -d'x' -f1)
-        range=$(echo "$ep" | cut -d'x' -f2)
-        start_e=$(echo "${range%%-*}" | sed 's/^0*//')
-        end_e=$(echo "${range##*-}" | sed 's/^0*//')
+        # 1. Cleanly split 5x04 into 5 and 04
+        curr_s="${ep%%x*}"
+        range="${ep#*x}"
         
-        # Reset logic when season changes
+        # 2. Handle ranges like 01-02 and strip ALL leading zeros
+        # We use 10# to force Bash to treat the number as Base-10 (Decimal)
+        start_raw=$(echo "${range%%-*}" | sed 's/^0*//')
+        end_raw=$(echo "${range##*-}" | sed 's/^0*//')
+        
+        # If sed stripped everything (e.g., from "00"), default to 0
+        start_e=${start_raw:-0}
+        end_e=${end_raw:-0}
+
+        # 3. If the season changed, log it and reset the expected episode to 1
         if [[ "$curr_s" -ne "$prev_s" ]]; then
             [[ "$prev_s" -ne -1 ]] && [[ "$LOG_LEVEL" == "debug" ]] && log "Moving from Season $prev_s to $curr_s"
             expected_e=1
             prev_s=$curr_s
         fi
 
-        # Check for gaps
-        if [[ "$start_e" -gt "$expected_e" ]]; then
+        # 4. Check for Gaps
+        if (( start_e > expected_e )); then
             for ((i=expected_e; i<start_e; i++)); do
                 missing_in_series+="${curr_s}x$(printf "%02d" $i) "
             done
         fi
         
-        # Update expectation to the next episode after this file/range
+        # 5. Set expected to the NEXT episode after this file
         expected_e=$((end_e + 1))
     done
 
