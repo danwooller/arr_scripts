@@ -32,7 +32,8 @@ while true; do
             [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Lock file exists. Process may be active. Skipping."
         else
             # 3. Process Files
-            if [ -n "$(ls -A "$DIR_MEDIA_COMPLETED_TV" 2>/dev/null)" ]; then
+            #if [ -n "$(ls -A "$DIR_MEDIA_COMPLETED_TV" 2>/dev/null)" ]; then
+            if find "$DIR_MEDIA_COMPLETED_TV" -maxdepth 1 -name "*.mkv" -print -quit | grep -q .; then
                 touch "$LOCK_FILE"
                 
                 log "📂 Files detected in $DIR_MEDIA_COMPLETED_TV. Starting ingest..."
@@ -45,7 +46,7 @@ while true; do
                 
                 rm -f "$LOCK_FILE"
             else
-                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No files in $DIR_MEDIA_COMPLETED_TV. Skipping."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No mkv files in $DIR_MEDIA_COMPLETED_TV. Skipping."
             fi
         fi
     else
