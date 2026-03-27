@@ -55,8 +55,8 @@ check_service "Dispatcharr Tuner" "$DISPATCHARR_URL" "NONE" "/discover.json"
 check_service "Lidarr" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
 [[ $? -eq 0 ]] && ha_update_status "Lidarr" "online" || ha_update_status "Lidarr" "offline"
 
-# Mealie
-check_service "Mealie" "$MEALIE_API_BASE" "$MEALIE_API_KEY" "/system/status"
+# Mealie (Updated to pass Bearer token format)
+check_service "Mealie" "$MEALIE_API_BASE" "Bearer $MEALIE_API_KEY" "/system/info"
 [[ $? -eq 0 ]] && ha_update_status "Mealie" "online" || ha_update_status "Mealie" "offline"
 
 # Prowlarr
