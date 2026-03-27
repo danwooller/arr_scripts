@@ -70,7 +70,7 @@ while true; do
                     else
                         name=$(clean_media_name "$FILENAME")
                         log "$name" "tv" "Merge failed"
-                        seerr_sync_issue "$name" "tv" "Merge failed"
+                        seerr_sync_issue "$name" "tv" "Merge failed for $FILENAME"
                         log "❌ Merge failed for $FILENAME"
                     fi
                     #[[ $LOG_LEVEL == "debug" ]] && log "Moving: $(basename "$file")"
