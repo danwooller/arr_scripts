@@ -16,7 +16,10 @@ check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
 log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
 while true; do
-    # 1. Standardize spacing (Original Logic)
+    # --- Flatten Directory: Move media from sub-folders to parent and cleanup ---
+    find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) -exec mv -t "$DIR_MEDIA_COMPLETED_MOVIES" {} +
+    find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 1 -type d -empty -delete 2>/dev/null
+    # --- Standardize spacing (Original Logic) ---
     find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
     # 2. Find MKVs: Ignore .tmp and ignore "Title (Year)" files to prevent infinite loops
