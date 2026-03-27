@@ -16,21 +16,24 @@ check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
 log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
 while true; do
-    # --- Flatten Directory: Move media from sub-folders to parent and cleanup ---
+    # 0. Flatten: Move media from sub-folders to parent
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) -exec mv -t "$DIR_MEDIA_COMPLETED_MOVIES" {} +
-    find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 1 -type d -empty -delete 2>/dev/null
-    # --- Standardize spacing (Original Logic) ---
+    
+    # 1. Standardize spacing (Now includes files just moved)
     find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
-    # 2. Find MKVs: Ignore .tmp and ignore "Title (Year)" files to prevent infinite loops
-    #find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f -iname "*.mkv" ! -name "*.tmp" ! -regex ".*([0-9][0-9][0-9][0-9]).*" -print0 | while IFS= read -r -d $'\0' file; do
-    # 2. Find MKV, MP4, or TS: Ignore .tmp and ignore "Title (Year)" files
-    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) ! -name "*.tmp" ! -regex ".*([0-9][0-9][0-9][0-9]).*" -print0 | while IFS= read -r -d $'\0' file; do
+    # 2. Processing Loop
+    # Removed -L and added a more flexible regex check
+    find "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) ! -name "*.tmp" -print0 | while IFS= read -r -d $'\0' file; do
         
+        # Skip if it already matches the "Final" format to prevent loops
+        if [[ "$file" =~ \([0-9]{4}\)\.mkv$ ]]; then
+            continue
+        fi
+
         ORIGINAL_FILENAME=$(basename "$file")
-        FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
         
-        # Stability Check (Ensure qBit is done writing)
+        # Stability Check
         SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
 
