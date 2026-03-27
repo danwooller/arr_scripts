@@ -23,8 +23,9 @@ while true; do
     find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
 
     # 2. Processing Loop
-    # Removed -L and added a more flexible regex check
-    find "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) ! -name "*.tmp" -print0 | while IFS= read -r -d $'\0' file; do
+    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) \
+        ! -name "*.tmp" \
+        ! -regex ".*/.* ([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
         
         # Skip if it already matches the "Final" format to prevent loops
         if [[ "$file" =~ \([0-9]{4}\)\.mkv$ ]]; then
