@@ -34,11 +34,14 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     series_name=$(basename "$CURRENT_DIR")
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
     
-    # 1. Discovery: Extract SxE or SxE-E and normalize to "S E_START E_END"
-    # This turns "5x04-05" into "5 4 5" and "5x01" into "5 1 1"
+    # 1. Discovery: Filter for common video extensions ONLY
+    # This ignores .nfo, .jpg, .srt, etc.
     mapfile -t ep_list < <(find "$CURRENT_DIR" -type f \
-        -not -path "*Specials*" -not -path "*Season 00*" \
-        -name "*[0-9]x[0-9]*" -exec basename {} \; | \
+        \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.m4v" -o -name "*.ts" \) \
+        -not -path "*Specials*" \
+        -not -path "*Season 00*" \
+        -name "*[0-9]x[0-9]*" \
+        -exec basename {} \; | \
         grep -oE "[0-9]+x[0-9]+(-[0-9]+)?" | \
         sed -E 's/x|--?/ /g' | \
         awk '{if ($3 == "") $3=$2; print $1, $2, $3}' | \
