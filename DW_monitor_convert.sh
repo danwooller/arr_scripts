@@ -68,26 +68,21 @@ while true; do
                         rm "$file"
                         log "✅ Merge successful: $TARGET_FILE"
                     else
+                        if [[ ! -e "$file" ]]; then
+                            log "ℹ️ File $FILENAME already moved or gone. Skipping."
+                            return 0
+                        fi
+
                         name=$(clean_media_name "$FILENAME")
-                        log "Cleaned Name: $name"
-                        
-                        # Trigger the Seerr issue
                         seerr_sync_issue "$name" "tv" "Merge failed for $FILENAME"
-                        log "❌ Merge failed for $FILENAME"
                         
-                        # Attempt the move and capture stderr
-                        log "Attempting: mv \"$file\" \"$DIR_MEDIA_HOLD\""
-                        
-                        # Use -v (verbose) and redirect errors to a variable or log
-                        if mv "$file" "$DIR_MEDIA_HOLD" 2>&1; then
-                            log "✅ Successfully moved to hold."
+                        if mv "$file" "$DIR_MEDIA_HOLD/"; then
+                            log "✅ Moved $FILENAME to hold."
                         else
-                            log "I/O Error: The move failed. Check if $DIR_MEDIA_HOLD exists and is writable."
+                            # This catches things like 'Permission Denied' or 'Disk Full'
+                            log "❌ Move failed for $FILENAME. (Check if destination is writable)"
                         fi
                     fi
-                    #[[ $LOG_LEVEL == "debug" ]] && log "Moving: $(basename "$file")"
-                    # The trailing slash ensures it treats the destination as a directory
-                    #mv -v "$file" "$DIR_MEDIA_COMPLETED_TV/"
                 fi
             done
         fi
