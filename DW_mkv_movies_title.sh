@@ -34,6 +34,22 @@ process_mkv() {
         return 1
     fi
 
+    local dir=$(dirname "$file")
+    local base=$(basename "$file")
+    local name_no_ext="${base%.*}"
+    
+    # Regex matches: a literal space, followed by ( , 4 digits, and ) at the end of the string
+    if [[ "$name_no_ext" =~ \ \([0-9]{4}\)$ ]]; then
+        local new_name="${name_no_ext% (*)}$MKV_EXTENSION"
+        local new_path="$dir/$new_name"
+        
+        if [[ "$file" != "$new_path" ]]; then
+            log "ℹ️ RENAME: \"$base\" -> \"$new_name\""
+            mv "$file" "$new_path"
+            file="$new_path" # Update the file variable for subsequent steps
+        fi
+    fi
+
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing: $file"
 
     # 2. Determine the desired title (the name of the containing folder)
