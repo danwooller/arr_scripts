@@ -14,10 +14,10 @@ EXT_OUT=".mkv"
 
 # Directories to monitor recursively
 WATCH_DIRS=(
-    "DIR_MEDIA_COMPLETED_4KMOVIES"
-    "DIR_MEDIA_COMPLETED_4KTV"
-    "DIR_MEDIA_COMPLETED_MOVIES"
-    "DIR_MEDIA_COMPLETED_TV"
+    "$DIR_MEDIA_COMPLETED_4KMOVIES"
+    "$DIR_MEDIA_COMPLETED_4KTV"
+    "$DIR_MEDIA_COMPLETED_MOVIES"
+    "$DIR_MEDIA_COMPLETED_TV"
 )
 
 # Note: OUTPUT_DIR is now used as a fallback or temp if needed, 
