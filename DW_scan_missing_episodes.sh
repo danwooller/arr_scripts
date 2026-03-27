@@ -55,7 +55,15 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         if [[ ${#ep_list[@]} -ge 2 ]]; then
             prev_s=-1; prev_e=-1
             for ep in "${ep_list[@]}"; do
-                curr_s=$(echo "$ep" | cut -d'x' -f1)
+
+
+    echo "DEBUG: Processing Episode: $ep" # Add this
+    curr_s=$(echo "$ep" | cut -d'x' -f1)
+    # ...
+    echo "DEBUG: curr_s=$curr_s, start_e=$start_e, expected=$expected" # Add this
+
+
+#                curr_s=$(echo "$ep" | cut -d'x' -f1)
                 range=$(echo "$ep" | cut -d'x' -f2)
                 start_e=$(echo "$range" | cut -d'-' -f1 | sed 's/^0//'); end_e=$(echo "$range" | cut -d'-' -f2 | sed 's/^0//')
                 if [[ "$curr_s" -eq "$prev_s" ]]; then
