@@ -72,7 +72,7 @@ while true; do
                         log "$name" "tv" "Merge failed"
                         seerr_sync_issue "$name" "tv" "Merge failed for $FILENAME"
                         log "❌ Merge failed for $FILENAME"
-                        log mv "$file DIR_MEDIA_HOLD/"
+                        log mv "$file $DIR_MEDIA_HOLD/"
                         mv "$file" "$DIR_MEDIA_HOLD/"
                     fi
                     #[[ $LOG_LEVEL == "debug" ]] && log "Moving: $(basename "$file")"
