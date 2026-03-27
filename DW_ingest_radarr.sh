@@ -50,31 +50,33 @@ while true; do
         # 1. Extract the year
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
 
-        # 2. Build the title by stripping ONLY the junk, one word at a time
-        # We convert all separators to spaces first
+        # 2. Convert dots, underscores, and dashes to spaces
+        # This turns "Sweeney.Todd-The" into "Sweeney Todd The"
         raw_name=$(echo "$FILE_NAME_BASE" | tr '._-' ' ')
         
-        # 3. Use an array to filter out known tags and the year
+        # 3. Build the title word-by-word
         final_title=""
         for word in $raw_name; do
-            # Convert word to lowercase for comparison
-            lc_word=$(echo "$word" | tr '[:upper:]' '[:lower:]')
-            
-            # If the word is the year or a known tag, STOP adding to the title
-            if [[ "$word" == "$year" ]] || [[ "$lc_word" =~ ^(1080p|720p|2160p|bluray|bdrip|web-dl|x264|x265|lama|h264|hevc|remux)$ ]]; then
+            # If the word is EXACTLY the year, stop adding words
+            if [ "$word" = "$year" ]; then
                 break
             fi
             
-            # Otherwise, append the word to our final title
+            # If the word is a resolution (e.g., 1080p, 720p), stop adding words
+            if [[ "$word" =~ ^[0-9]{3,4}[pP]$ ]]; then
+                break
+            fi
+
+            # Otherwise, add this word to our title
             final_title="$final_title $word"
         done
 
-        # 4. Trim leading/trailing whitespace
+        # 4. Clean up: Trim and capitalize first letters (Optional but looks better)
         final_title=$(echo "$final_title" | xargs)
 
-        # 5. Last Resort Fallback (if the first word was the year)
+        # 5. Safety: If title is still empty, just use the original name minus the extension
         if [ -z "$final_title" ]; then
-            final_title="Unknown_Title"
+            final_title="$FILE_NAME_BASE"
         fi
 
         TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
