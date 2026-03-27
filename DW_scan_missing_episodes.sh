@@ -53,24 +53,35 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
 
         missing_in_series=""
         if [[ ${#ep_list[@]} -ge 2 ]]; then
-            prev_s=-1; prev_e=-1
+            prev_s=-1; prev_e=0  # Start prev_e at 0 for each series
             for ep in "${ep_list[@]}"; do
+                # Split 5x01 into curr_s=5 and range=01
+                curr_s="${ep%%x*}"
+                range="${ep#*x}"
+                
+                # Split range (e.g., 01-02) and strip leading zeros safely
+                start_e=$(echo "${range%%-*}" | sed 's/^0*//')
+                end_e=$(echo "${range##*-}" | sed 's/^0*//')
+                
+                # Handle empty strings from sed if the episode was "00"
+                [[ -z "$start_e" ]] && start_e=0
+                [[ -z "$end_e" ]] && end_e=0
 
-
-    echo "DEBUG: Processing Episode: $ep" # Add this
-    curr_s=$(echo "$ep" | cut -d'x' -f1)
-    # ...
-    echo "DEBUG: curr_s=$curr_s, start_e=$start_e, expected=$expected" # Add this
-
-
-#                curr_s=$(echo "$ep" | cut -d'x' -f1)
-                range=$(echo "$ep" | cut -d'x' -f2)
-                start_e=$(echo "$range" | cut -d'-' -f1 | sed 's/^0//'); end_e=$(echo "$range" | cut -d'-' -f2 | sed 's/^0//')
                 if [[ "$curr_s" -eq "$prev_s" ]]; then
                     expected=$((prev_e + 1))
-                    [[ "$start_e" -gt "$expected" ]] && for ((i=expected; i<start_e; i++)); do missing_in_series+="${curr_s}x$(printf "%02d" $i) "; done
+                    if [[ "$start_e" -gt "$expected" ]]; then
+                        for ((i=expected; i<start_e; i++)); do
+                            missing_in_series+="${curr_s}x$(printf "%02d" $i) "
+                        done
+                    fi
+                else
+                    # New Season detected: reset expectation to the first episode found
+                    # or set to 1 if you want to catch missing 5x01
+                    [[ "$start_e" -gt 1 ]] && for ((i=1; i<start_e; i++)); do missing_in_series+="${curr_s}x$(printf "%02d" $i) "; done
                 fi
-                prev_s=$curr_s; prev_e=$end_e
+                
+                prev_s=$curr_s
+                prev_e=$end_e
             done
         fi
 
