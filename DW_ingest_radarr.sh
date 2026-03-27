@@ -19,6 +19,7 @@ while true; do
     # --- 0. Flatten & Cleanup ---
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) -exec mv -t "$DIR_MEDIA_COMPLETED_MOVIES" {} +
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 1 -type d -empty -delete 2>/dev/null
+    find "$DIR_MEDIA_COMPLETED_MOVIES" -type f \( -name "*.nfo" -o -name "*.txt" -o -name "*.jpg" -o -name "*.png" -o -name "*.url" \) -delete 2>/dev/null
 
     # --- 1. Standardize Spacing ---
     find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
