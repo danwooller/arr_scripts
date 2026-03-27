@@ -50,28 +50,26 @@ while true; do
         # 1. Extract the year
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
 
-        # 2. Clean the title by removing only specific "Junk" words
-        # We convert dots/underscores/dashes to spaces FIRST to make matching easier
-        clean_name=$(echo "$FILE_NAME_BASE" | tr '._-' ' ')
+        # 2. Advanced Clean: Keep everything BEFORE the year or the first resolution tag
+        # This regex looks for the year or 1080p/720p/etc and clips the string there
+        clean_name=$(echo "$FILE_NAME_BASE" | sed -E "s/([._(-]($year|1080p|720p|2160p|BluRay|BDRip|WEB-DL|x26[45]|LAMA)).*//gi")
 
-        # 3. Remove the year and common tags individually
-        # Note: We use \b (word boundaries) so we don't accidentally strip "LAMA" out of "ALABAMA"
-        for junk in "$year" "1080p" "720p" "2160p" "BluRay" "BDRip" "WEB-DL" "x264" "x265" "LAMA" "H.264" "HEVC" "REMUX"; do
-            clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
-        done
+        # 3. If the above failed (e.g., year is at the very start), fallback to stripping just the year
+        if [ -z "$clean_name" ]; then
+            clean_name=$(echo "$FILE_NAME_BASE" | sed "s/$year//g")
+        fi
 
-        # 4. Final Cleanup: Squeeze multiple spaces and trim
-        final_title=$(echo "$clean_name" | sed -E 's/ +/ /g' | xargs)
+        # 4. Final Polish: Convert separators to spaces and trim
+        final_title=$(echo "$clean_name" | tr '._-' ' ' | sed -E 's/ +/ /g' | xargs)
 
-        # 5. Safety Fallback (Last Resort)
+        # 5. Last Resort Fallback
         if [ -z "$final_title" ]; then
-            log "⚠️ Naming failed for $FILE_NAME_BASE. Using original."
-            final_title="$FILE_NAME_BASE"
+            final_title=$(echo "$FILE_NAME_BASE" | tr '._-' ' ' | xargs)
         fi
 
         TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
-        
+
         log "🎬 Processing: $TARGET_FILENAME"
 
         if [ -f "$TARGET_PATH" ]; then
