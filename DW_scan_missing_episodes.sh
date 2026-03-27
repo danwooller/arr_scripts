@@ -45,6 +45,9 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         sort -k1,1n -k2,2n | \
         uniq)
 
+    # Add this line immediately after the mapfile -t ep_list line:
+    [[ "$LOG_LEVEL" == "debug" ]] && printf "DEBUG: Raw Episode List for %s:\n%s\n" "$series_name" "$(printf '%s\n' "${ep_list[@]}")"
+
     if [[ ${#ep_list[@]} -eq 0 ]]; then continue; fi
 
     missing_in_series=""
