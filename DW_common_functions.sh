@@ -268,7 +268,6 @@ synology_tv_show_sync() {
 }
 
 # --- Lidarr section ---
-
 lidarr_targeted_rename() {
     local search_path="$1"
     if [ -z "$LIDARR_API_KEY" ]; then return 1; fi
@@ -312,10 +311,8 @@ lidarr_targeted_rename() {
         log "⚠️ Could not map '$folder_name' to a Lidarr Album ID."
     fi
 }
-
 # --- Lidarr section ---
 # --- PLEX SECTION ---
-
 plex_library_update() {
     # DW_move_movies_synology.sh
     # DW_move_tv_shows_synology.sh
@@ -402,7 +399,6 @@ plex_busy() {
         return 1 # Plex is idle
     fi
 }
-
 # --- END PLEX SECTION ---
 # --- RADARR SECTION ---
 radarr_ingest() {
@@ -848,6 +844,32 @@ subtitle_opts() {
     export NEEDS_PROPEDIT
 }
 # --- END SUBTITLES ---
+# --- TV SHOW NAME CLEAN ---
+clean_media_name() {
+    local input="$1"
+    
+    # 1. Lowercase everything for easier matching
+    local name="${input,,}"
+    
+    # 2. Sequential cleaning (The Order Matters)
+    name=$(echo "$name" | sed -E '
+        s/\.[^.]*$//;                      # Remove file extension
+        s/([-._]?(1080p|720p|2160p|4k|remux|bluray|web-dl|h264|h265|x264|x265|hevc)).*//i; # Strip quality/codec and everything after
+        s/([-._]?(edith|eztv|rarbg|amzn|nf)).*//i; # Strip common release groups
+        s/[0-9]{4}(\.[0-9]{2}){2}.*//;      # Strip YYYY.MM.DD and everything after
+        s/[0-9]{4}(-[0-9]{2}){2}.*//;      # Strip YYYY-MM-DD and everything after
+        s/s[0-9]{2}e[0-9]{2}.*//;          # Strip S01E01 and everything after
+        s/[0-9]+x[0-9]+.*//;               # Strip 1x01 and everything after
+        s/\([0-9]{4}\).*//;                # Strip (2026) and everything after
+        s/[._-]/ /g;                       # Replace separators with spaces
+        s/ +/ /g;                          # Collapse multiple spaces
+        s/^ +| +$//g                       # Trim leading/trailing whitespace
+    ')
+
+    # 3. Capitalize first letter of each word (Optional, but looks better in logs)
+    echo "$name" | sed 's/\b\(.\)/\u\1/g'
+}
+# --- END TV SHOW NAME CLEAN ---
 # --- VPN SECTION ---
 
 vpn_restart_containers() {
