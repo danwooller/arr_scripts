@@ -62,13 +62,16 @@ check_service "Lidarr" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
 check_service "Mealie" "$MEALIE_API_BASE" "Bearer $MEALIE_API_KEY" "/openapi.json"
 [[ $? -eq 0 ]] && ha_update_status "Mealie" "online" || ha_update_status "Mealie" "offline"
 
-# Plex
-check_service "Plex" "$PLEX_URL_LOCAL" "$PLEX_TOKEN" "/system/status"
-[[ $? -eq 0 ]] && ha_update_status "Plex" "online" || ha_update_status "Plex" "offline"
-
 # Prowlarr
 check_service "Prowlarr" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/system/status"
 [[ $? -eq 0 ]] && ha_update_status "Prowlarr" "online" || ha_update_status "Prowlarr" "offline"
+
+# Radarr & Radarr 4K
+check_service "Radarr" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && ha_update_status "Radarr" "online" || ha_update_status "Radarr" "offline"
+
+check_service "Radarr 4K" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && ha_update_status "Radarr 4K" "online" || ha_update_status "Radarr 4K" "offline"
 
 # Seerr
 check_service "Seerr" "$SEERR_API_BASE" "$SEERR_API_KEY" "/status"
@@ -80,13 +83,6 @@ check_service "Sonarr" "$SONARR_API_BASE" "$SONARR_API_KEY" "/system/status"
 
 check_service "Sonarr 4K" "$SONARR4K_API_BASE" "$SONARR4K_API_KEY" "/system/status"
 [[ $? -eq 0 ]] && ha_update_status "Sonarr 4K" "online" || ha_update_status "Sonarr 4K" "offline"
-
-# Radarr & Radarr 4K
-check_service "Radarr" "$RADARR_API_BASE" "$RADARR_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && ha_update_status "Radarr" "online" || ha_update_status "Radarr" "offline"
-
-check_service "Radarr 4K" "$RADARR4K_API_BASE" "$RADARR4K_API_KEY" "/system/status"
-[[ $? -eq 0 ]] && ha_update_status "Radarr 4K" "online" || ha_update_status "Radarr 4K" "offline"
 
 # Tautulli
 check_service "Tautulli" "$TAUTULLI_API_BASE" "$TAUTULLI_API_KEY" "?apikey=$TAUTULLI_API_KEY&cmd=status"
