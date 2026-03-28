@@ -96,6 +96,7 @@ print_section() {
             
             printf "│%b%s%b %s%*s│\n" "$color" "$size_human" "$NC" "$name" "$pad_len" ""
         done
+    fi
 
     # 4. "More" files logic
     if [ "$count" -gt "$MAX_FILES" ]; then
