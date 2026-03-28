@@ -62,8 +62,8 @@ check_service "Lidarr" "$LIDARR_API_BASE" "$LIDARR_API_KEY" "/system/status"
 check_service "Mealie" "$MEALIE_API_BASE" "Bearer $MEALIE_API_KEY" "/openapi.json"
 [[ $? -eq 0 ]] && ha_update_status "Mealie" "online" || ha_update_status "Mealie" "offline"
 
-# Prowlarr
-check_service "Plex" "$PLEX_API_BASE" "$PLEX_API_KEY" "/system/status"
+# Plex
+check_service "Plex" "$PLEX_API_BASE_LOCAL" "$PLEX_TOKEN" "/system/status"
 [[ $? -eq 0 ]] && ha_update_status "Plex" "online" || ha_update_status "Plex" "offline"
 
 # Prowlarr
