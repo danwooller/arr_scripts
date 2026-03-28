@@ -63,6 +63,10 @@ check_service "Mealie" "$MEALIE_API_BASE" "Bearer $MEALIE_API_KEY" "/openapi.jso
 [[ $? -eq 0 ]] && ha_update_status "Mealie" "online" || ha_update_status "Mealie" "offline"
 
 # Prowlarr
+check_service "Plex" "$PLEX_API_BASE" "$PLEX_API_KEY" "/system/status"
+[[ $? -eq 0 ]] && ha_update_status "Plex" "online" || ha_update_status "Plex" "offline"
+
+# Prowlarr
 check_service "Prowlarr" "$PROWLARR_API_BASE" "$PROWLARR_API_KEY" "/system/status"
 [[ $? -eq 0 ]] && ha_update_status "Prowlarr" "online" || ha_update_status "Prowlarr" "offline"
 
