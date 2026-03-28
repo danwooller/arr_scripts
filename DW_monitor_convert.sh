@@ -126,7 +126,8 @@ while true; do
         SUB_TRACK_ID=$(mkvmerge -J "$FILE_TO_PROCESS" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         if [[ -n "$SUB_TRACK_ID" ]]; then
             [[ $LOG_LEVEL == "debug" ]] && log "✅ Found forced subtitle track: $SUB_TRACK_ID"
-            HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-forced"
+            #HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-forced"
+            HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-burned=none --subtitle-forced"
         else
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No English forced subtitles found."
             HANDBRAKE_SUB_ARGS=""
