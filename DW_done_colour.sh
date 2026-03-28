@@ -62,35 +62,40 @@ print_section() {
     else
         # 3. File List with Color-Coded Sizes (Warning for >10G)
         ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
-            # Get human-readable size (Column 5)
             size_human=$(echo "$line" | awk '{print $5}')
-            
-            # Get the filename (Column 9 onwards)
             name=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i (i==NF?"":FS); print ""}')
             
             local color=$NC
             
-            # HIGHLIGHT LOGIC:
-            # 1. Red if file is 10GB or larger (checks if size ends in 'G' and is >= 10)
-            if [[ $size_human == *G ]] && [ "${size_human%G}" -ge 10 ]; then
-                color=$RED
-            # 2. Yellow for any other Gigabyte-sized file
-            elif [[ $size_human == *G ]]; then
-                color=$YELLOW
-            # 3. Green for Megabyte files between 500MB and 999MB
+            # 1. Handle Gigabytes (G)
+            if [[ $size_human == *G ]]; then
+                # Strip 'G' AND strip any decimal (e.g., 3.4G becomes 3)
+                val_raw=${size_human%G}
+                val_int=${val_raw%.*} 
+                
+                if [ "$val_int" -ge 10 ]; then
+                    color=$RED
+                else
+                    color=$YELLOW
+                fi
+                
+            # 2. Handle Megabytes (M)
             elif [[ $size_human == *M ]]; then
-                [[ ${size_human%M} -ge 500 ]] && color=$GREEN
+                val_raw=${size_human%M}
+                val_int=${val_raw%.*}
+                
+                # Green if 500MB or larger
+                [ "$val_int" -ge 500 ] && color=$GREEN
             fi
 
+            # Padding and Display
             local max_n=$(( INNER - ${#size_human} - 1 ))
             [ ${#name} -gt $max_n ] && name="${name:0:$((max_n - 3))}..."
-
             local pad_len=$(( INNER - 1 - ${#size_human} - ${#name} ))
             [ $pad_len -lt 0 ] && pad_len=0
             
             printf "│%b%s%b %s%*s│\n" "$color" "$size_human" "$NC" "$name" "$pad_len" ""
         done
-    fi
 
     # 4. "More" files logic
     if [ "$count" -gt "$MAX_FILES" ]; then
