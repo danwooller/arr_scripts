@@ -838,7 +838,7 @@ subtitle_opts() {
     fi
     
     # --- DEBUG LOGS ---
-    log "DEBUG: Final TRACK_OPTS calculated as: $TRACK_OPTS"
+    [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: Final TRACK_OPTS calculated as: $TRACK_OPTS"
     
     export TRACK_OPTS
     export NEEDS_PROPEDIT
