@@ -62,24 +62,24 @@ print_section() {
     else
         # 3. File List with Color-Coded Sizes (Warning for >10G)
         ls -lh "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | while read -r line; do
+            # Get human-readable size (Column 5)
             size_human=$(echo "$line" | awk '{print $5}')
-            # Get size in bytes for accurate comparison
-            size_bytes=$(ls -s "$dir" 2>/dev/null | tail -n +2 | head -n $MAX_FILES | awk '{print $1}')
             
-            # Simple check: If file is > 10GB (approx 10,000,000 KB)
-            # We use ls -s output in KB blocks
-            current_size_kb=$(echo "$line" | awk '{print $1}')
-            
+            # Get the filename (Column 9 onwards)
             name=$(echo "$line" | awk '{for(i=9;i<=NF;i++) printf $i (i==NF?"":FS); print ""}')
             
             local color=$NC
-            # Highlight files > 10GB in Red
-            if [ "$current_size_kb" -gt 10485760 ]; then
+            
+            # HIGHLIGHT LOGIC:
+            # 1. Red if file is 10GB or larger (checks if size ends in 'G' and is >= 10)
+            if [[ $size_human == *G ]] && [ "${size_human%G}" -ge 10 ]; then
                 color=$RED
-            elif [[ $size_human == *G* ]]; then
+            # 2. Yellow for any other Gigabyte-sized file
+            elif [[ $size_human == *G ]]; then
                 color=$YELLOW
-            elif [[ $size_human == *M* ]]; then
-                [[ ${size_human:0:1} =~ [5-9] ]] && color=$GREEN
+            # 3. Green for Megabyte files between 500MB and 999MB
+            elif [[ $size_human == *M ]]; then
+                [[ ${size_human%M} -ge 500 ]] && color=$GREEN
             fi
 
             local max_n=$(( INNER - ${#size_human} - 1 ))
