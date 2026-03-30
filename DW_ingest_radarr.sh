@@ -43,7 +43,7 @@ while true; do
         clean_name=$(echo "$clean_name" | sed -E 's/\(\)//g' | sed -E 's/ +/ /g')
         
         # Expanded Junk List
-        for junk in "$year" "1080p" "720p" "2160p" "4K" "UHD" "HDR" "DV" "IMAX" "BluRay" "BDRip" "BRRip" "RMTeam" "WEB-DL" "WEB" "x264" "x265" "LAMA" "HEVC" "REMUX" "AMZN" "NF" "DSNP" "HMAX"; do
+        for junk in "$year" "1080p" "720p" "2160p" "4K" "UHD" "HDR" "DV" "IMAX" "BluRay" "BDRip" "BRRip" "RMTeam" "WEB-DL" "x264" "x265" "LAMA" "HEVC" "REMUX" "AMZN" "NF" "DSNP" "HMAX"; do
             clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
         done
         
