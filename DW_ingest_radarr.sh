@@ -49,7 +49,7 @@ while true; do
 
         if [ -z "$final_title" ]; then final_title="$FILE_NAME_BASE"; fi
 
-        TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
+        TARGET_FILENAME="${final_title// /_}_(${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
 
         log "🎬 Processing: $TARGET_FILENAME"
