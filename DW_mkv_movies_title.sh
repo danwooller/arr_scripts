@@ -47,6 +47,7 @@ process_mkv() {
             log "ℹ️ RENAME: \"$base\" -> \"$new_name\""
             mv "$file" "$new_path"
             file="$new_path" # Update the file variable for subsequent steps
+            radarr_targeted_scan "$base"
         fi
     fi
 
@@ -82,7 +83,6 @@ process_mkv() {
 
         if [ $? -eq 0 ]; then
             log "✅ SUCCESS: Title updated to \"$desired_title\""
-            radarr_targeted_scan "$desired_title"
         else
             log "❌ ERROR: Failed to update \"$desired_title\" using mkvpropedit."
             return 1
