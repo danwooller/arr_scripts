@@ -44,8 +44,8 @@ while true; do
         
         # Expanded Junk List (Added RMTeam to catch your specific example)
         for junk in "$year" "1080p" "720p" "2160p" "4K" "UHD" "HDR" "DV" "IMAX" "BluRay" \
-                    "BDRip" "BRRip" "WEB-DL" "WEB" "x264" "x265" "LAMA" "HEVC" "REMUX" \
-                    "AMZN" "NF" "DSNP" "HMAX" "RMTeam"; do
+            "BDRip" "BRRip" "WEB-DL" "WEB" "DL" "x264" "x265" "LAMA" "HEVC" "REMUX" \
+            "AMZN" "NF" "DSNP" "HMAX" "RMTeam"; do
             clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
         done
 
