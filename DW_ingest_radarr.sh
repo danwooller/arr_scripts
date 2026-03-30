@@ -93,3 +93,8 @@ while true; do
             log "❌ Merge failed for $ORIGINAL_FILENAME"
             mv "$TEMP_FILE" "$file"
             manage_remote_torrent "resume" "$FILE_NAME_BASE"
+        fi
+    done
+
+    sleep "$SLEEP_INTERVAL"
+done
