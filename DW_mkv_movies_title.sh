@@ -82,6 +82,7 @@ process_mkv() {
 
         if [ $? -eq 0 ]; then
             log "✅ SUCCESS: Title updated to \"$desired_title\""
+            radarr_targeted_scan "$desired_title"
         else
             log "❌ ERROR: Failed to update \"$desired_title\" using mkvpropedit."
             return 1
