@@ -26,8 +26,8 @@ while true; do
 
     # --- 2. Processing Loop ---
     find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) \
-    ! -name "*.tmp" \
-    ! -regex ".*/.* ([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
+        ! -name "*.tmp" \
+        ! -regex ".*([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
         
         ORIGINAL_FILENAME=$(basename "$file")
         FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
@@ -45,7 +45,7 @@ while true; do
         done
 
         # Final Clean & Proper Case (Capitalizes first letter of every word)
-        final_title=$(echo "$clean_name" | sed -E 's/ +/ /g' | sed -E 's/\b([a-z])/\U\1/g' | xargs)
+        final_title=$(echo "$clean_name" | sed -E 's/[(_)]//g' | sed -E 's/ +/ /g' | sed -E 's/\b([a-z])/\U\1/g' | xargs)
 
         if [ -z "$final_title" ]; then final_title="$FILE_NAME_BASE"; fi
 
