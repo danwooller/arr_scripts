@@ -14,6 +14,8 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_concat_mp4.sh**](./DW_concat_mp4.sh) | Merges two mp4 files using ffmpeg into a single file and outputs to the completed directory. _Running on ubuntu9 & ubuntu24_ |
 | [**DW_convert_mkv.sh**](./DW_convert_mkv.sh) | Monitors for mp4/m4v and converts them to mkv. _Running on ubuntu9_ |
 | [**DW_done.sh**](./DW_done.sh) | Terminal monitor for DW_moniotr_convert.sh progress. _Running on pi14, pi16 & ubuntu9_ |
+| [**DW_ingest_radarr.sh**](./DW_ingest_radarr.sh) | Monitors a folder for incoming movies, cleans the filename for ingestion into RADARR. _Running on ubuntu24_ |
+| [**DW_ingest_sonarr.sh**](./DW_ingest_sonarr.sh) | Monitors a folder for incoming TV episodes for ingestion into SONARR. _Running on ubuntu24_ |
 | [**DW_install_sort_tv.sh**](./DW_install_sort_tv.sh) | Installs a custome sorttv as a service. Includes patched for Ubutnu 24.04. _Running on ubuntu24_ |
 | [**DW_merge_forced_subtitles.sh**](./DW_merge_forced_subtitles.sh) | Syncs media files with external subtitles and remuxes to MKV with "Forced" flags set. _Running on ubuntu9_ |
 | [**DW_mkv_movies_title.sh**](./DW_mkv_movies_title.sh) | Loops through TV directories and matched the video title to the parent directory name. _Running on ubuntu9_ |
