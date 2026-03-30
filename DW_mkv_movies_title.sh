@@ -47,7 +47,7 @@ process_mkv() {
             log "ℹ️ RENAME: \"$base\" -> \"$new_name\""
             mv "$file" "$new_path"
             file="$new_path" # Update the file variable for subsequent steps
-            radarr_targeted_scan "$base"
+            radarr_targeted_scan "$name_no_ext"
         fi
     fi
 
