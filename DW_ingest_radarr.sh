@@ -36,29 +36,30 @@ while true; do
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
 
         # --- 2. Robust Naming Logic ---
-        # Get the year
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
         
-        # Convert dots, underscores, and dashes to spaces for clean boundary matching
+        # Convert dots, underscores, and dashes to spaces for clean matching
         clean_name=$(echo "$FILE_NAME_BASE" | tr '._-' ' ')
-        
-        # Expanded Junk List (Added RMTeam to catch your specific example)
-        for junk in "$year" "1080p" "720p" "2160p" "4K" "UHD" "HDR" "DV" "IMAX" "BluRay" \
-            "BDRip" "BRRip" "WEB-DL" "WEB" "DL" "x264" "x265" "LAMA" "HEVC" "REMUX" \
-            "AMZN" "NF" "DSNP" "HMAX" "RMTeam"; do
+
+        # Strip the year specifically
+        if [ -n "$year" ]; then
+            clean_name=$(echo "$clean_name" | sed -E "s/\b$year\b//gi")
+        fi
+
+        # Strip all global junk tags from the common_functions array
+        for junk in "${MEDIA_JUNK_TAGS[@]}"; do
             clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
         done
 
         # Remove existing empty parentheses and collapse double spaces
         clean_name=$(echo "$clean_name" | sed -E 's/\(\)//g' | sed -E 's/ +/ /g')
 
-        # Final Clean & Proper Case
+        # Final Clean & Proper Case (Capitalizes first letter of every word)
         final_title=$(echo "$clean_name" | sed -E 's/\b([a-z])/\U\1/g' | xargs)
 
         if [ -z "$final_title" ]; then final_title="$FILE_NAME_BASE"; fi
 
-        # Construct target name (Converting spaces to underscores here for your preference)
-        # Result: Wuthering_Heights_(2026).mkv
+        # Construct target name with clean spaces
         TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
 
