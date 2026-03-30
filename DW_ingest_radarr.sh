@@ -93,6 +93,7 @@ while true; do
         else
             log "❌ Merge failed for $ORIGINAL_FILENAME"
             mv "$TEMP_FILE" "$file"
+            ha_notification "⚠️ Ingest Failed" "mkvmerge failed for: $ORIGINAL_FILENAME."
             manage_remote_torrent "resume" "$FILE_NAME_BASE"
         fi
     done
