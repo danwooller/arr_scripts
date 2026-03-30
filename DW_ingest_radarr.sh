@@ -17,47 +17,54 @@ log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
 while true; do
     # --- 0. Flatten & Cleanup ---
+    # Move files from subfolders to root, then delete empty folders and junk files
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) -exec mv -t "$DIR_MEDIA_COMPLETED_MOVIES" {} +
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 1 -type d -empty -delete 2>/dev/null
     find "$DIR_MEDIA_COMPLETED_MOVIES" -type f \( -name "*.nfo" -o -name "*.txt" -o -name "*.jpg" -o -name "*.png" -o -name "*.url" \) -delete 2>/dev/null
 
-    # --- 1. Standardize Spacing ---
-    find "$DIR_MEDIA_COMPLETED_MOVIES" -depth -name "* *" -execdir rename 's/ /_/g' "{}" + 2>/dev/null
-
-    # --- 2. Processing Loop ---
+    # --- 1. Processing Loop ---
+    # Regex updated to ignore ANY file ending in (YYYY).mkv regardless of space or underscore
     find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) \
-        ! -name "*.tmp" \
-        ! -regex ".*([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
+    ! -name "*.tmp" \
+    ! -regex ".*([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
         
         ORIGINAL_FILENAME=$(basename "$file")
         FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
         
+        # Check if file is still being written
         SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
 
-        # --- 3. Robust Naming Logic ---
+        # --- 2. Robust Naming Logic ---
+        # Get the year
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
+        
+        # Convert dots, underscores, and dashes to spaces for clean boundary matching
         clean_name=$(echo "$FILE_NAME_BASE" | tr '._-' ' ')
         
-        # ADD THIS LINE: Specifically remove existing empty parens or double spaces
-        clean_name=$(echo "$clean_name" | sed -E 's/\(\)//g' | sed -E 's/ +/ /g')
-        
-        # Expanded Junk List
-        for junk in "$year" "1080p" "720p" "2160p" "4K" "UHD" "HDR" "DV" "IMAX" "BluRay" "BDRip" "BRRip" "WEB-DL" "WEB" "x264" "x265" "LAMA" "HEVC" "REMUX" "AMZN" "NF" "DSNP" "HMAX"; do
+        # Expanded Junk List (Added RMTeam to catch your specific example)
+        for junk in "$year" "1080p" "720p" "2160p" "4K" "UHD" "HDR" "DV" "IMAX" "BluRay" \
+                    "BDRip" "BRRip" "WEB-DL" "WEB" "x264" "x265" "LAMA" "HEVC" "REMUX" \
+                    "AMZN" "NF" "DSNP" "HMAX" "RMTeam"; do
             clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
         done
-        
+
+        # Remove existing empty parentheses and collapse double spaces
+        clean_name=$(echo "$clean_name" | sed -E 's/\(\)//g' | sed -E 's/ +/ /g')
+
         # Final Clean & Proper Case
-        final_title=$(echo "$clean_name" | sed -E 's/ +/ /g' | sed -E 's/\b([a-z])/\U\1/g' | xargs)
+        final_title=$(echo "$clean_name" | sed -E 's/\b([a-z])/\U\1/g' | xargs)
 
         if [ -z "$final_title" ]; then final_title="$FILE_NAME_BASE"; fi
 
+        # Construct target name (Converting spaces to underscores here for your preference)
+        # Result: Wuthering_Heights_(2026).mkv
         TARGET_FILENAME="${final_title// /_}_(${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
 
         log "🎬 Processing: $TARGET_FILENAME"
 
-        # --- 4. Remux Logic ---
+        # --- 3. Remux Logic ---
         sonos_audio_fix "$file"
         subtitle_opts "$file"
 
@@ -86,8 +93,3 @@ while true; do
             log "❌ Merge failed for $ORIGINAL_FILENAME"
             mv "$TEMP_FILE" "$file"
             manage_remote_torrent "resume" "$FILE_NAME_BASE"
-        fi
-    done
-
-    sleep "$SLEEP_INTERVAL"
-done
