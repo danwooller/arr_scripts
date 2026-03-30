@@ -111,6 +111,20 @@ check_dependencies() {
     fi
 }
 
+# ---- Home Asistant ----
+
+ha_notification() {
+    local title="$1"
+    local message="$2"
+    
+    if [[ -n "$HA_URL" && -n "$HA_TOKEN" ]]; then
+        curl -X POST -H "Authorization: Bearer $HA_TOKEN" \
+             -H "Content-Type: application/json" \
+             -d "{\"title\": \"$title\", \"message\": \"$message\"}" \
+             "$HA_URL/api/services/persistent_notification/create" >/dev/null 2>&1
+    fi
+}
+
 ha_update_status() {
     # DW_check_media_stack.sh
     local service_name=$1
@@ -129,6 +143,8 @@ ha_update_status() {
     # The JSON payload (-d) includes the state (online/offline) and the friendly name.
     # The final URL uses 'tr' to convert "Media Server" into "sensor.media_server" for HA compatibility.
 }
+
+# ---- End Home Asistant ----
 
 manage_remote_torrent() {
     # DW_clean_malicious.sh
