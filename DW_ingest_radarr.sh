@@ -59,7 +59,7 @@ while true; do
 
         # Construct target name (Converting spaces to underscores here for your preference)
         # Result: Wuthering_Heights_(2026).mkv
-        TARGET_FILENAME="${final_title// /_}_(${year:-0000}).mkv"
+        TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
 
         log "🎬 Processing: $TARGET_FILENAME"
