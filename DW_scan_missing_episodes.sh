@@ -26,7 +26,7 @@ fi
 
 # --- Execution Loop ---
 for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
-    
+
     # 1. Validation: Ensure root exists
     if [ ! -d "$ROOT_DIR" ]; then
         log "❌ SKIP: Root $ROOT_DIR is unavailable."
@@ -38,7 +38,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
     mapfile -t SERIES_LIST < <(find "$ROOT_DIR" -maxdepth 2 -type d -name "Season*" -exec dirname {} \; | sort -u)
 
     for CURRENT_SERIES_PATH in "${SERIES_LIST[@]}"; do
-        
+
         series_name=$(basename "$CURRENT_SERIES_PATH")
         [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
 
@@ -61,19 +61,20 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         # 4. Gap Detection Logic
         missing_in_series=""
         prev_s=-1
-        expected_e=1
+        expected_e=-1 # Changed from 1 to a flag
 
         for line in "${ep_list[@]}"; do
             read -r s_raw e_start_raw e_end_raw <<< "$line"
 
-            # Force Base-10 (Decimal) to prevent Octal errors (08/09)
             curr_s=$((10#$s_raw))
             curr_e_start=$((10#$e_start_raw))
             curr_e_end=$((10#$e_end_raw))
 
-            # Reset expectation on Season Change
+            # Reset logic on Season Change
             if [[ "$curr_s" -ne "$prev_s" ]]; then
-                expected_e=1
+                # On a new season, set the expectation to the first episode found
+                # This prevents marking 01 as missing if the season starts at 05
+                expected_e=$curr_e_start 
                 prev_s=$curr_s
             fi
 
