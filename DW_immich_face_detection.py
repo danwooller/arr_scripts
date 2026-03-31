@@ -1,6 +1,7 @@
 import requests
 import time
 
+# To run: python3 /usr/local/bin/DW_immich_face_detection.py
 # --- CONFIGURATION ---
 IMMICH_URL = "http://localhost:2283"
 IMMICH_API_KEY = "npt5SLd0TG7u43MX0JvZo6lcZRTf1cmmwSm5OnbkxM"
