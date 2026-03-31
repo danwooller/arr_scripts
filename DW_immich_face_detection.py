@@ -30,7 +30,7 @@ def clean_name(text):
 
 def run_legacy_sync():
     start_time = time.time()
-    print(f"🚀 Starting Deep Scan (100k) on: {IMMICH_URL}")
+    print(f"🚀 Starting Deep Scan on: {IMMICH_URL}")
     
     success_count = 0
     already_named = 0
