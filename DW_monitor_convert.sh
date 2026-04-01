@@ -49,67 +49,14 @@ while true; do
     # --- Cleanup local Directories ---
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
-    # --- Move weekly shows (Case-Insensitive) ---
-    shopt -s nocaseglob
-    shopt -s nullglob
-    for pattern in "${WEEKLY_SHOWS[@]}"; do
-        FILES=("$SOURCE_DIR"/$pattern)
-        if [ ${#FILES[@]} -gt 0 ]; then
-            for file in "${FILES[@]}"; do
-                if [ -f "$file" ]; then
-                    
-                    # 1. NEW: Wait for the file to be 'unlocked'
-                    # Checks if any process is still using the file
-                    while lsof "$file" >/dev/null 2>&1; do
-                        log "⏳ File $file is busy. Waiting..."
-                        sleep 5
-                    done
-    
-                    # 2. Sanitize using Bash-native logic
-                    FILENAME=$(basename "$file")
-                    DIR=$(dirname "$file")
-                    SAFE_NAME="${FILENAME//\[/_}"
-                    SAFE_NAME="${SAFE_NAME//\]/_}"
-                    SAFE_FILE="$DIR/$SAFE_NAME"
-    
-                    if [[ "$FILENAME" != "$SAFE_NAME" ]]; then
-                        if mv -n -- "$file" "$SAFE_FILE"; then
-                            file="$SAFE_FILE"
-                            log "ℹ️ Sanitized filename: $SAFE_NAME"
-                        else
-                            log "❌ Rename failed: $FILENAME"
-                            continue
-                        fi
-                    fi
-    
-                    # 3. Proceed to Merge
-                    TARGET_FILE="${SAFE_NAME%.*}.mkv"
-                    subtitle_opts "$file"
-    
-                    if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
-                        CLEAN_BASE="${FILENAME%.*}" # Removes the .mkv extension from the bracketed name
-                        manage_remote_torrent "delete" "$CLEAN_BASE"
-                        rm -- "$file"
-                        log "✅ Merge successful: $TARGET_FILE"
-                    else
-                        # Error handling...
-                        name=$(clean_media_name "$FILENAME")
-                        seerr_sync_issue "$name" "tv" "Merge failed for $FILENAME"
-                        mv -- "$file" "$DIR_MEDIA_HOLD/"
-                    fi
-                fi
-            done
-        fi
-    done
-    # Reset shell options
-    shopt -u nocaseglob
-    shopt -u nullglob
-    # Use 'find' with -name filters
+    # --- Move weekly shows ---
+    sonarr_weekly_shows
+    # --- Use 'find' with -name filters ---
     find "$SOURCE_DIR" -type f \
         -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.flv" -o -iname "*.webm" \) \
         -print0 | while IFS= read -r -d $'\0' SOURCE_FILE; do
-        # Get filename and base name
+        # --- Get filename and base name ---
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
         EXTENSION="${FILENAME##*.}"
