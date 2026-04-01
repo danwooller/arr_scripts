@@ -61,14 +61,18 @@ while true; do
                 if [ -f "$file" ]; then
                     # 1. SANITIZE FILENAME EARLY
                     # Replace [ and ] with underscores to fix mkvmerge "open file error"
-                    SAFE_FILE=$(echo "$file" | tr '[]' '__')
+                    FILENAME=$(basename "$file")
+                    SAFE_NAME="${FILENAME//\[/_}" # Replace [ with _
+                    SAFE_NAME="${SAFE_NAME//\]/_}" # Replace ] with _
+                    SAFE_FILE="$(dirname "$file")/$SAFE_NAME"
                     
                     if [[ "$file" != "$SAFE_FILE" ]]; then
-                        if mv "$file" "$SAFE_FILE"; then
+                        # The -- tells mv to stop looking for flags/glob patterns
+                        if mv -- "$file" "$SAFE_FILE"; then
                             file="$SAFE_FILE"
-                            log "ℹ️ Sanitized filename: $(basename "$file")"
+                            log "ℹ️ Sanitized filename: $SAFE_NAME"
                         else
-                            log "❌ Failed to rename $file, skipping."
+                            log "❌ Failed to rename: $FILENAME (Check permissions or if file is in use)"
                             continue
                         fi
                     fi
