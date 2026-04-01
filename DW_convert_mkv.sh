@@ -83,7 +83,7 @@ while true; do
 
                 if [ $? -eq 0 ]; then
                     log "ℹ️ Success. Moving original ${FULL_FILE_NAME} to finished."
-                    mv "$FULL_PATH" "${DIR_MEDIA_FINISHED}${FULL_FILE_NAME}"
+                    mv "$FULL_PATH" "${DIR_MEDIA_FINISHED}/${FULL_FILE_NAME}"
 
                     log "ℹ️ Removing torrent: $FILE_NAME"
                     manage_remote_torrent "delete" "$FILE_NAME"
