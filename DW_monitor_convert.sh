@@ -87,6 +87,7 @@ while true; do
                     subtitle_opts "$file"
     
                     if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
+                        manage_remote_torrent "delete" "$FILENAME"
                         rm -- "$file"
                         log "✅ Merge successful: $TARGET_FILE"
                     else
