@@ -64,6 +64,7 @@ while true; do
                     FILENAME=$(basename "$file")
                     TARGET_FILE="${FILENAME%.*}.mkv"                
                     subtitle_opts "$file"
+log "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE $TRACK_OPTS $file"
                     if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
                         rm "$file"
                         log "✅ Merge successful: $TARGET_FILE"
