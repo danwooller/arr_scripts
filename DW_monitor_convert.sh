@@ -55,51 +55,45 @@ while true; do
     for pattern in "${WEEKLY_SHOWS[@]}"; do
         FILES=("$SOURCE_DIR"/$pattern)
         if [ ${#FILES[@]} -gt 0 ]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "📂 Found ${#FILES[@]} match(es) for: $pattern"
-            
             for file in "${FILES[@]}"; do
                 if [ -f "$file" ]; then
-                    # 1. SANITIZE FILENAME EARLY
-                    # Replace [ and ] with underscores to fix mkvmerge "open file error"
-                    FILENAME=$(basename "$file")
-                    SAFE_NAME="${FILENAME//\[/_}" # Replace [ with _
-                    SAFE_NAME="${SAFE_NAME//\]/_}" # Replace ] with _
-                    SAFE_FILE="$(dirname "$file")/$SAFE_NAME"
                     
-                    if [[ "$file" != "$SAFE_FILE" ]]; then
-                        # The -- tells mv to stop looking for flags/glob patterns
-                        if mv -- "$file" "$SAFE_FILE"; then
+                    # 1. NEW: Wait for the file to be 'unlocked'
+                    # Checks if any process is still using the file
+                    while lsof "$file" >/dev/null 2>&1; do
+                        log "⏳ File $file is busy. Waiting..."
+                        sleep 5
+                    done
+    
+                    # 2. Sanitize using Bash-native logic
+                    FILENAME=$(basename "$file")
+                    DIR=$(dirname "$file")
+                    SAFE_NAME="${FILENAME//\[/_}"
+                    SAFE_NAME="${SAFE_NAME//\]/_}"
+                    SAFE_FILE="$DIR/$SAFE_NAME"
+    
+                    if [[ "$FILENAME" != "$SAFE_NAME" ]]; then
+                        if mv -n -- "$file" "$SAFE_FILE"; then
                             file="$SAFE_FILE"
                             log "ℹ️ Sanitized filename: $SAFE_NAME"
                         else
-                            log "❌ Failed to rename: $FILENAME (Check permissions or if file is in use)"
+                            log "❌ Rename failed: $FILENAME"
                             continue
                         fi
                     fi
     
-                    # 2. Proceed with sanitized file path
-                    FILENAME=$(basename "$file")
-                    TARGET_FILE="${FILENAME%.*}.mkv"                
-                    
+                    # 3. Proceed to Merge
+                    TARGET_FILE="${SAFE_NAME%.*}.mkv"
                     subtitle_opts "$file"
+    
                     if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
-                        rm "$file"
+                        rm -- "$file"
                         log "✅ Merge successful: $TARGET_FILE"
                     else
-                        if [[ ! -e "$file" ]]; then
-                            log "ℹ️ File $FILENAME already moved or gone. Skipping."
-                            return 0
-                        fi
-
+                        # Error handling...
                         name=$(clean_media_name "$FILENAME")
                         seerr_sync_issue "$name" "tv" "Merge failed for $FILENAME"
-                        
-                        if mv "$file" "$DIR_MEDIA_HOLD/"; then
-                            log "✅ Moved $FILENAME to hold."
-                        else
-                            # This catches things like 'Permission Denied' or 'Disk Full'
-                            log "❌ Move failed for $FILENAME. (Check if destination is writable)"
-                        fi
+                        mv -- "$file" "$DIR_MEDIA_HOLD/"
                     fi
                 fi
             done
