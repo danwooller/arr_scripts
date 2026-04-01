@@ -50,19 +50,33 @@ while true; do
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
     # --- Move weekly shows (Case-Insensitive) ---
-    # Enable case-insensitive matching and nullglob
     shopt -s nocaseglob
     shopt -s nullglob
     for pattern in "${WEEKLY_SHOWS[@]}"; do
-        # Expand to array
         FILES=("$SOURCE_DIR"/$pattern)
         if [ ${#FILES[@]} -gt 0 ]; then
             [[ $LOG_LEVEL == "debug" ]] && log "📂 Found ${#FILES[@]} match(es) for: $pattern"
+            
             for file in "${FILES[@]}"; do
-                # Final check: Ensure it is a file before moving
                 if [ -f "$file" ]; then
+                    # 1. SANITIZE FILENAME EARLY
+                    # Replace [ and ] with underscores to fix mkvmerge "open file error"
+                    SAFE_FILE=$(echo "$file" | tr '[]' '__')
+                    
+                    if [[ "$file" != "$SAFE_FILE" ]]; then
+                        if mv "$file" "$SAFE_FILE"; then
+                            file="$SAFE_FILE"
+                            log "ℹ️ Sanitized filename: $(basename "$file")"
+                        else
+                            log "❌ Failed to rename $file, skipping."
+                            continue
+                        fi
+                    fi
+    
+                    # 2. Proceed with sanitized file path
                     FILENAME=$(basename "$file")
                     TARGET_FILE="${FILENAME%.*}.mkv"                
+                    
                     subtitle_opts "$file"
                     if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
                         rm "$file"
