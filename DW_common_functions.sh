@@ -812,49 +812,50 @@ sonos_audio_fix() {
 # --- END SONOS AUDIO ---
 # --- SUBTITLES ---
 subtitle_opts() {
-    # --- Track Selection Logic ---
-    # Arguments: $1 = Path to file, $2 = Filename base (for subtitle extraction)
-    # Returns: Global variables TRACK_OPTS and NEEDS_PROPEDIT
     local file_path="$1"
-    
-    # Reset
     TRACK_OPTS=""
     NEEDS_PROPEDIT=false
     
-    local file_name=$(basename "$file_path")
-    local base_name="${file_name%.*}"
+    local base_name=$(basename "$file_path")
+    base_name="${base_name%.*}"
+    
     local metadata
     metadata=$(mkvmerge --identify "$file_path" --identification-format json)
 
-    # Audio Logic
-    local eng_audio
-    eng_audio=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="eng" or .properties.language=="und" or .properties.language==null)) | "\(.id) \(.properties.uid) \(.properties.language)"' | head -n 1)
+    # 1. Improved Audio Selection: Search for English/Undetermined, fallback to first available audio
+    local audio_data
+    audio_data=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio") | 
+        {id: .id, lang: (.properties.language // "und"), forced: .properties.forced_track} | 
+        "\(.id) \(.lang)"' | sort -k2,2r | head -n 1)
 
-    if [ -n "$eng_audio" ]; then
-        read -r audio_id audio_uid audio_lang <<< "$eng_audio"
-        
+    # Note: sort -k2,2r puts 'eng' or 'und' ahead of many others, 
+    # but a specific select is safer:
+    local eng_audio_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="eng" or .properties.language=="und" or .properties.language==null)) | .id' | head -n 1)
+
+    # Fallback to the first audio track if no English/Und is found
+    if [ -z "$eng_audio_id" ]; then
+        eng_audio_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio") | .id' | head -n 1)
+    fi
+
+    if [ -n "$eng_audio_id" ]; then
         # Subtitle Logic
+        local forced_ids
         forced_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id] | join(",")')
         
         if [ -n "$forced_ids" ]; then
             local primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
+            # Ensure your output DIR exists
             mkvextract tracks "$file_path" "$primary_forced:$DIR_MEDIA_SUBTITLES/${base_name}.srt" >/dev/null 2>&1
-            TRACK_OPTS="--video-tracks 0 --audio-tracks $audio_id --subtitle-tracks $forced_ids"
+            TRACK_OPTS="--video-tracks 0 --audio-tracks $eng_audio_id --subtitle-tracks $forced_ids"
             NEEDS_PROPEDIT=true
         else
-            # DEBUG: We are explicitly telling it NO subtitles
-            TRACK_OPTS="--video-tracks 0 --audio-tracks $audio_id --no-subtitles"
+            TRACK_OPTS="--video-tracks 0 --audio-tracks $eng_audio_id --no-subtitles"
             NEEDS_PROPEDIT=false
         fi
     else
-        # Foreign Logic
-        local foreign_audio_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio") | .id' | head -n 1)
-        local all_eng_subs=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng") | .id] | join(",")')
-        TRACK_OPTS="--video-tracks 0 --audio-tracks $foreign_audio_id --subtitle-tracks $all_eng_subs"
+        # If absolutely no audio tracks exist, handle gracefully
+        TRACK_OPTS="--video-tracks 0 --no-audio --no-subtitles"
     fi
-    
-    # --- DEBUG LOGS ---
-    [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: Final TRACK_OPTS calculated as: $TRACK_OPTS"
     
     export TRACK_OPTS
     export NEEDS_PROPEDIT
