@@ -88,6 +88,7 @@ while true; do
     
                     if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
                         CLEAN_BASE="${FILENAME%.*}" # Removes the .mkv extension from the bracketed name
+                        log "$CLEAN_BASE"
                         manage_remote_torrent "delete" "$CLEAN_BASE"
                         rm -- "$file"
                         log "✅ Merge successful: $TARGET_FILE"
