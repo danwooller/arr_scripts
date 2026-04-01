@@ -736,6 +736,78 @@ sonarr_targeted_rename() {
         log "⚠️ Could not map '$show_name' to Sonarr"
     fi
 }
+
+sonarr_weekly_shows() {
+    # Expects WEEKLY_SHOWS array and SOURCE_DIR to be defined globally
+    # or you can pass them as arguments.
+    
+    shopt -s nocaseglob
+    shopt -s nullglob
+
+    for pattern in "${WEEKLY_SHOWS[@]}"; do
+        local FILES=("$SOURCE_DIR"/$pattern)
+        
+        if [ ${#FILES[@]} -gt 0 ]; then
+            [[ $LOG_LEVEL == "debug" ]] && log "📂 Found ${#FILES[@]} match(es) for: $pattern"
+            
+            for file in "${FILES[@]}"; do
+                if [ -f "$file" ]; then
+                    
+                    # 1. Wait for File Lock (TrueNAS/Torrent Safety)
+                    while lsof "$file" >/dev/null 2>&1; do
+                        log "⏳ File $(basename "$file") is busy. Waiting..."
+                        sleep 5
+                    done
+
+                    # 2. Capture Names & Sanitize
+                    local FILENAME=$(basename "$file")
+                    local DIR=$(dirname "$file")
+                    local SAFE_NAME="${FILENAME//\[/_}"
+                    SAFE_NAME="${SAFE_NAME//\]/_}"
+                    local SAFE_FILE="$DIR/$SAFE_NAME"
+
+                    # Rename if brackets exist
+                    if [[ "$FILENAME" != "$SAFE_NAME" ]]; then
+                        if mv -n -- "$file" "$SAFE_FILE"; then
+                            file="$SAFE_FILE"
+                            log "ℹ️ Sanitized filename: $SAFE_NAME"
+                        else
+                            log "❌ Rename failed: $FILENAME. Skipping."
+                            continue
+                        fi
+                    fi
+
+                    # 3. Mkvmerge Processing
+                    local TARGET_FILE="${SAFE_NAME%.*}.mkv"
+                    
+                    # Call subtitle logic (Sets TRACK_OPTS and NEEDS_PROPEDIT)
+                    subtitle_opts "$file"
+
+                    if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
+                        # 4. Success: Cleanup Remote and Local
+                        local CLEAN_BASE="${FILENAME%.*}" 
+                        manage_remote_torrent "delete" "$CLEAN_BASE"
+                        
+                        rm -f -- "$file"
+                        log "✅ Merge successful: $TARGET_FILE"
+                    else
+                        # 5. Failure: Notify and Move to Hold
+                        local name=$(clean_media_name "$FILENAME")
+                        seerr_sync_issue "$name" "tv" "Merge failed for $FILENAME"
+                        
+                        if mv -- "$file" "$DIR_MEDIA_HOLD/"; then
+                            log "⚠️ Merge failed. $SAFE_NAME moved to hold."
+                        fi
+                    fi
+                fi
+            done
+        fi
+    done
+    
+    # Reset glob settings to default
+    shopt -u nocaseglob
+    shopt -u nullglob
+}
 # --- END SONARR SECTION ---
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
