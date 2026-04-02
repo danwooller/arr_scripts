@@ -62,7 +62,7 @@ while true; do
             SIZE2=$(stat -c%s "$FULL_PATH")
             [[ "$SIZE1" -ne "$SIZE2" ]] && continue
 
-            OUTPUT_FILE="${DIR_MEDIA_COMPLETED_TV}${FILE_NAME}.mkv"
+            OUTPUT_FILE="${DIR_MEDIA_COMPLETED_TV}/${FILE_NAME}.mkv"
             CLEAN_TITLE=$(echo "$FILE_NAME" | sed "s/_/ /g")
 
             log "Merging: $BASE_FILE (Verified English Subs)"
