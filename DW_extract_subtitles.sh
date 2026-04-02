@@ -40,8 +40,8 @@ while true; do
         HANDBRAKE_SUB_ARGS=""
         SUB_FILE_EXTRACTED=false
 
-        # --- 3. Extract English Forced Subtitles and copy to $SUBTITLE_DIR ---
-        SUB_FILE="$SUBTITLE_DIR/$BASE_NAME.srt"
+        # --- 3. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
+        SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."
         TRACK_INFO=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null)
         SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
