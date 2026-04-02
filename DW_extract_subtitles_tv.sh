@@ -12,7 +12,7 @@ else
 fi
 
 # --- Configuration ---
-SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/extract"
+SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/extract/tv"
 
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
@@ -53,6 +53,7 @@ while true; do
         else
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No suitable English forced subtitle track found in the source file."
         fi
+        mv "$SOURCE_FILE" "$DIR_MEDIA_COMPLETED_TV/"
     done
     
     # Wait for the next poll cycle
