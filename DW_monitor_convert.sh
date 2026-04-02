@@ -69,11 +69,11 @@ while true; do
         OUTPUT_FILE="$WORKING_DIR/$BASE_NAME.mkv"
         # *** Robust Check to prevent HandBrake Exit Code 3 ***
         if [[ ! -f "$FILE_TO_PROCESS" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS does not exist after rsync. Skipping."
+            [[ $LOG_LEVEL == "debug" ]] && log "❌ Local copy file $FILE_TO_PROCESS does not exist after rsync. Skipping."
             continue 
         fi
         if [[ ! -r "$FILE_TO_PROCESS" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "❌ FATAL ERROR: Local copy file $FILE_TO_PROCESS is not readable by script user. Skipping."
+            [[ $LOG_LEVEL == "debug" ]] && log "❌ Local copy file $FILE_TO_PROCESS is not readable by script user. Skipping."
             continue 
         fi
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Local copy confirmed and readable."
@@ -100,7 +100,7 @@ while true; do
             mkvextract tracks "$FILE_TO_PROCESS" "$SUB_TRACK_ID:$SUB_FILE"
             if [[ $? -eq 0 ]]; then
                 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
-                HANDBRAKE_SUB_ARGS="--subtitle none --srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
+                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
                 SUB_FILE_EXTRACTED=true
             else
                [[ $LOG_LEVEL == "debug" ]] && log "❌ Subtitle extraction failed. Will NOT embed subtitles."
