@@ -15,7 +15,7 @@ HEADERS = {
 
 STOP_WORDS = [
     " accept ", "accepts ", " attend ", "attends ", " arrive ", "arrives ",
-    " backstage ", " during a ", " during the ",
+    " backstage ", " during a ", " during the ", " general view".
     "members of ", "with the ", "("
 ]
 
