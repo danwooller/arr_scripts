@@ -20,11 +20,11 @@ log "--- Starting Media Renamer Script (Continuous Mode) ---"
 
 # Check if the directories exist
 if [[ ! -d "$CONVERT_DIR" ]]; then
-    log "Error: Video directory not found: $CONVERT_DIR" >&2
+    log "❌ Video directory not found: $CONVERT_DIR" >&2
     exit 1
 fi
 if [[ ! -d "$DIR_MEDIA_NZB" ]]; then
-    log "Error: Metadata directory not found: $DIR_MEDIA_NZB" >&2
+    log "❌ Metadata directory not found: $DIR_MEDIA_NZB" >&2
     exit 1
 fi
 
