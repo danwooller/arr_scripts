@@ -43,138 +43,90 @@ log_start "$SOURCE_DIR"
 
 # --- Main Monitoring Loop (Polling) ---
 while true; do
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Polling $SOURCE_DIR for video files (age > ${MIN_FILE_AGE}m)..."
-    # --- Setup timestamp for original fimnished files ---
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Polling $SOURCE_DIR for video files..."
     TIMESTAMP=$(date +"%H-%M")
-    # --- Cleanup local Directories ---
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
-    # --- Move weekly shows ---
-    sonarr_weekly_shows
-    # --- Use 'find' with -name filters ---
+
     find "$SOURCE_DIR" -type f \
         -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.flv" -o -iname "*.webm" \) \
         -print0 | while IFS= read -r -d $'\0' SOURCE_FILE; do
-        # --- Get filename and base name ---
+
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
         EXTENSION="${FILENAME##*.}"
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing $FILENAME"
-        # --- 1. Copy the file to the conversion folder ---
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Copying to $CONVERT_DIR..."
-        #Copying to local directory.
+        
+        # 1. Prepare Paths
         cp "$SOURCE_FILE" "$CONVERT_DIR/"
         FILE_TO_PROCESS="$CONVERT_DIR/$FILENAME"
-        OUTPUT_FILE="$WORKING_DIR/$BASE_NAME.mkv"
-        # *** Robust Check to prevent HandBrake Exit Code 3 ***
-        if [[ ! -f "$FILE_TO_PROCESS" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "❌ Local copy file $FILE_TO_PROCESS does not exist after rsync. Skipping."
-            continue 
-        fi
-        if [[ ! -r "$FILE_TO_PROCESS" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "❌ Local copy file $FILE_TO_PROCESS is not readable by script user. Skipping."
-            continue 
-        fi
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Local copy confirmed and readable."
-        # Reset HandBrake subtitle argument.
-        HANDBRAKE_SUB_ARGS=""
-        SUB_FILE_EXTRACTED=false
-        # --- 2. Extract English Forced Subtitles and copy to $DIR_MEDIA_SUBTITLES ---
+        TEMP_OUTPUT="$WORKING_DIR/${BASE_NAME}_temp.mkv"
+        FINAL_OUTPUT="$WORKING_DIR/$BASE_NAME.mkv"
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking for English forced subtitles..."        
-        TRACK_INFO=$(mkvmerge -J "$FILE_TO_PROCESS" 2>/dev/null)
+
+        # 2. Extract and CONVERT Subtitles to True SRT
+        # We use ffmpeg instead of mkvextract to force the format change from ASS to SRT
         SUB_TRACK_ID=$(mkvmerge -J "$FILE_TO_PROCESS" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
+
+        HAS_SUBTITLES=false
         if [[ -n "$SUB_TRACK_ID" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "✅ Found forced subtitle track: $SUB_TRACK_ID"
-            #HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-forced"
-            HANDBRAKE_SUB_ARGS="--subtitle --subtitle $SUB_TRACK_ID --subtitle-burned=none --subtitle-forced"
-        else
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No English forced subtitles found."
-            HANDBRAKE_SUB_ARGS=""
-        fi
-        SUB_TRACK_ID=$(echo "$TRACK_INFO" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
-        [[ $LOG_LEVEL == "debug" ]] && log "Extracted Forced Track ID: $SUB_TRACK_ID"
-        if [[ -n "$SUB_TRACK_ID" ]]; then
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
-            #mkvextract tracks "$FILE_TO_PROCESS" "$SUB_TRACK_ID:$SUB_FILE"
-            ffmpeg -i "$FILE_TO_PROCESS" -map 0:$SUB_TRACK_ID -c:s srt "$SUB_FILE" -y
+            log "ℹ️ Converting Forced Subtitle (ID: $SUB_TRACK_ID) to SRT..."
+            ffmpeg -i "$FILE_TO_PROCESS" -map 0:"$SUB_TRACK_ID" -c:s srt "$SUB_FILE" -y -loglevel error
             if [[ $? -eq 0 ]]; then
-                [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
-                # We use --subtitle none to kill the preset's defaults
-                # We use --srt-file to inject our clean conversion
-                # We REMOVE --native-language eng (which can trigger a re-scan of the source)
-                HANDBRAKE_SUB_ARGS="--subtitle none --srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --subtitle-lang eng --subtitle-forced 1 --subtitle-default 1"
-                SUB_FILE_EXTRACTED=true
-            else
-               [[ $LOG_LEVEL == "debug" ]] && log "❌ Subtitle extraction failed. Will NOT embed subtitles."
+                log "✅ SRT Conversion Successful."
+                HAS_SUBTITLES=true
             fi
-        else
-            [[ $LOG_LEVEL == "debug" ]] && log "⚠️ No suitable English forced subtitle track found in the source file."
         fi
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Determining preset based on filename content..."
-        # --- 3. Determine Preset (Wrapped in quotes to prevent "Very" error) ---
+
+        # 3. Determine Preset
         LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
-        if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then
-            PRESET="$PRESET_4K"
-        elif [[ "$LOWER_FILENAME" =~ "1080p.x265" ]]; then
-            PRESET="$PRESET_1080P_X265"
-        elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then
-            PRESET="$PRESET_1080P"
-        elif [[ "$LOWER_FILENAME" =~ "720p" ]]; then
-            PRESET="$PRESET_720P"
-        elif [[ "$LOWER_FILENAME" =~ "576p" ]]; then
-            PRESET="$PRESET_576P"
-        else
-            PRESET="$PRESET_SD"
-        fi
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Using preset: $PRESET"
+        if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then PRESET="$PRESET_4K"
+        elif [[ "$LOWER_FILENAME" =~ "1080p.x265" ]]; then PRESET="$PRESET_1080P_X265"
+        elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then PRESET="$PRESET_1080P"
+        elif [[ "$LOWER_FILENAME" =~ "720p" ]]; then PRESET="$PRESET_720P"
+        else PRESET="$PRESET_SD"; fi
+
+        # 4. Transcode Video/Audio ONLY (Ignore internal subs)
+        log "ℹ️ Transcoding with HandBrake (Ignoring internal subs)..."
         HandBrakeCLI \
             --preset "$PRESET" \
             -q 24.0 \
             -i "$FILE_TO_PROCESS" \
-            -o "$OUTPUT_FILE" \
+            -o "$TEMP_OUTPUT" \
             --audio-lang-list eng \
             --aencoder ac3 \
             --ab 640 \
             --mixdown 5point1 \
-            --audio-fallback ac3 \
-            --optimize \
-            $HANDBRAKE_SUB_ARGS < /dev/null
-        # --- Sonos Verification Check ---
-        # --- Set the subtitle name ---
-        if [[ -n "$HANDBRAKE_SUB_ARGS" ]]; then
-            mkvpropedit "$OUTPUT_FILE" --edit track:s1 --set name="Forced" --set language=eng
+            --subtitle none \
+            --optimize < /dev/null
+
+        # 5. Final Remux: Combine Video/Audio with the CLEAN SRT
+        if [[ -f "$TEMP_OUTPUT" ]]; then
+            if [ "$HAS_SUBTITLES" = true ]; then
+                log "ℹ️ Remuxing clean SRT into final container..."
+                # --no-subtitles ignores anything HandBrake might have snuck in
+                mkvmerge -o "$FINAL_OUTPUT" \
+                    --no-subtitles "$TEMP_OUTPUT" \
+                    --language 0:eng --track-name 0:"Forced" --forced-track 0:yes --default-track 0:yes "$SUB_FILE"
+            else
+                mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
+            fi
         fi
-        CONVERSION_EXIT_CODE=$?
-        # --- Post-Conversion Cleanup and Move ---
-        if [[ $CONVERSION_EXIT_CODE -eq 0 ]]; then
+
+        # 6. Post-Processing & Cleanup
+        if [[ -f "$FINAL_OUTPUT" ]]; then
             log "✅ Completed $FILENAME"
-            # Cleanup only if conversion was successful
-            rm -f "$FILE_TO_PROCESS"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Deleted temporary copy in $CONVERT_DIR."
-            # --- Sonos Verification Check ---
-            sleep 5
-            sonos_audio_fix "$OUTPUT_FILE"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Aplly Sonos conversion $(basename "$OUTPUT_FILE")"
-            # --- Move the completed file to the completed folder ---
-            #mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED/"
-            mv "$OUTPUT_FILE" "$DIR_MEDIA_COMPLETED_TV/"
-            #erroneous mkv files in the root directory
-            #mv /*.mkv "$DIR_MEDIA_COMPLETED/"
-            #[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED."
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved completed file to $DIR_MEDIA_COMPLETED_TV"
-            # --- Move the original file to the finished folder ---
+            rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT"
+            
+            # Run your existing Sonos fix
+            sonos_audio_fix "$FINAL_OUTPUT"
+            
+            mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"
             mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$TIMESTAMP.$EXTENSION"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Moved original file to $DIR_MEDIA_FINISHED/$BASE_NAME_$TIMESTAMP.$EXTENSION."
-            # --- Search & Delete across all 5 servers ---
             manage_remote_torrent "delete" "$BASE_NAME"
-            #sonarr_ingest "$DIR_MEDIA_COMPLETED_TV"
         else
-            log "❌ $CONVERSION_EXIT_CODE for $FILENAME."
-            # --- Clean up working file if conversion failed ---
-            rm -f "$OUTPUT_FILE"
-            [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleaned up failed output file."
+            log "❌ Conversion failed for $FILENAME"
+            rm -f "$TEMP_OUTPUT" "$FINAL_OUTPUT"
         fi
     done
     # --- Wait for the next poll cycle ---
