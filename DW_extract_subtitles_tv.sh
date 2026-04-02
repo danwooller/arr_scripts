@@ -14,6 +14,8 @@ fi
 # --- Configuration ---
 SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/extract/tv"
 
+mkdir -p "$SOURCE_DIR"
+
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
 MIN_FILE_AGE=5 
