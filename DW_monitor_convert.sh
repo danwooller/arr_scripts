@@ -47,27 +47,24 @@ while true; do
     TIMESTAMP=$(date +"%H-%M")
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
-
+    # --- Move weekly shows ---
+    sonarr_weekly_shows
     find "$SOURCE_DIR" -type f \
         -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.flv" -o -iname "*.webm" \) \
         -print0 | while IFS= read -r -d $'\0' SOURCE_FILE; do
-
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
         EXTENSION="${FILENAME##*.}"
-        
         # 1. Prepare Paths
         cp "$SOURCE_FILE" "$CONVERT_DIR/"
         FILE_TO_PROCESS="$CONVERT_DIR/$FILENAME"
         TEMP_OUTPUT="$WORKING_DIR/${BASE_NAME}_temp.mkv"
         FINAL_OUTPUT="$WORKING_DIR/$BASE_NAME.mkv"
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
-
         # 2. Extract and CONVERT Subtitles to True SRT
         # We use ffmpeg instead of mkvextract to force the format change from ASS to SRT
         SUB_TRACK_ID=$(mkvmerge -J "$FILE_TO_PROCESS" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
-
         HAS_SUBTITLES=false
         if [[ -n "$SUB_TRACK_ID" ]]; then
             log "ℹ️ Converting Forced Subtitle (ID: $SUB_TRACK_ID) to SRT..."
@@ -77,7 +74,6 @@ while true; do
                 HAS_SUBTITLES=true
             fi
         fi
-
         # 3. Determine Preset
         LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
         if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then PRESET="$PRESET_4K"
@@ -85,9 +81,7 @@ while true; do
         elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then PRESET="$PRESET_1080P"
         elif [[ "$LOWER_FILENAME" =~ "720p" ]]; then PRESET="$PRESET_720P"
         else PRESET="$PRESET_SD"; fi
-
         # 4. Transcode Video/Audio ONLY (Ignore internal subs)
-        log "ℹ️ Transcoding with HandBrake (Ignoring internal subs)..."
         HandBrakeCLI \
             --preset "$PRESET" \
             -q 24.0 \
@@ -99,7 +93,6 @@ while true; do
             --mixdown 5point1 \
             --subtitle none \
             --optimize < /dev/null
-
         # 5. Final Remux: Combine Video/Audio with the CLEAN SRT
         if [[ -f "$TEMP_OUTPUT" ]]; then
             if [ "$HAS_SUBTITLES" = true ]; then
@@ -112,15 +105,12 @@ while true; do
                 mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
             fi
         fi
-
         # 6. Post-Processing & Cleanup
         if [[ -f "$FINAL_OUTPUT" ]]; then
             log "✅ Completed $FILENAME"
             rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT"
-            
             # Run your existing Sonos fix
-            sonos_audio_fix "$FINAL_OUTPUT"
-            
+            sonos_audio_fix "$FINAL_OUTPUT"  
             mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"
             mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$TIMESTAMP.$EXTENSION"
             manage_remote_torrent "delete" "$BASE_NAME"
