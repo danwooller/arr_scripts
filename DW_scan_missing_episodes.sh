@@ -101,7 +101,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             done
         fi
 
-        log "✅ Completed scan for $series_name"
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed scan for $series_name"
     done
 done
 
