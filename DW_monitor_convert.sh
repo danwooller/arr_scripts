@@ -88,7 +88,7 @@ while true; do
         if [[ -n "$SUB_TRACK_ID" ]]; then
             [[ $LOG_LEVEL == "debug" ]] && log "✅ Found forced subtitle track: $SUB_TRACK_ID"
             #HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-forced"
-            HANDBRAKE_SUB_ARGS="--subtitle $SUB_TRACK_ID --subtitle-burned=none --subtitle-forced"
+            HANDBRAKE_SUB_ARGS="--subtitle --subtitle $SUB_TRACK_ID --subtitle-burned=none --subtitle-forced"
         else
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No English forced subtitles found."
             HANDBRAKE_SUB_ARGS=""
@@ -101,7 +101,10 @@ while true; do
             ffmpeg -i "$FILE_TO_PROCESS" -map 0:$SUB_TRACK_ID -c:s srt "$SUB_FILE" -y
             if [[ $? -eq 0 ]]; then
                 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
-                HANDBRAKE_SUB_ARGS="--subtitle none --srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
+                # We use --subtitle none to kill the preset's defaults
+                # We use --srt-file to inject our clean conversion
+                # We REMOVE --native-language eng (which can trigger a re-scan of the source)
+                HANDBRAKE_SUB_ARGS="--subtitle none --srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --srt-lang eng --srt-forced --srt-default"
                 SUB_FILE_EXTRACTED=true
             else
                [[ $LOG_LEVEL == "debug" ]] && log "❌ Subtitle extraction failed. Will NOT embed subtitles."
