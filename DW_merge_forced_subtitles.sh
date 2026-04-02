@@ -20,7 +20,7 @@ EXT_VIDEO=("mp4" "mkv" "m4v")
 SUBTITLE_EXT="srt"
 POLL_INTERVAL=60
 
-mkdir -p "$DIR_MEDIA_COMPLETED" "$DIR_MEDIA_HOLD" "$WATCH_DIR"
+mkdir -p "$DIR_MEDIA_COMPLETED_TV" "$DIR_MEDIA_HOLD" "$WATCH_DIR"
 
 check_dependencies "mkvmerge" "mkvpropedit" "rename" "find"
 
@@ -62,7 +62,7 @@ while true; do
             SIZE2=$(stat -c%s "$FULL_PATH")
             [[ "$SIZE1" -ne "$SIZE2" ]] && continue
 
-            OUTPUT_FILE="${DIR_MEDIA_COMPLETED}${FILE_NAME}.mkv"
+            OUTPUT_FILE="${DIR_MEDIA_COMPLETED_TV}${FILE_NAME}.mkv"
             CLEAN_TITLE=$(echo "$FILE_NAME" | sed "s/_/ /g")
 
             log "Merging: $BASE_FILE (Verified English Subs)"
@@ -90,7 +90,7 @@ while true; do
     done
 
     # 6. Cleanup output names
-    rename 's/_/ /g' "${DIR_MEDIA_COMPLETED}"/*.mkv 2>/dev/null
+    rename 's/_/ /g' "${DIR_MEDIA_COMPLETED_TV}"/*.mkv 2>/dev/null
 
     sleep "$POLL_INTERVAL"
 done
