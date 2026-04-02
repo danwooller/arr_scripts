@@ -15,14 +15,12 @@ fi
 
 # --- Configuration ---
 HOST=$(hostname -s)
-WATCH_DIR="/mnt/media/torrent/${HOST}/subtitles/forced"
+WATCH_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/forced"
 EXT_VIDEO=("mp4" "mkv" "m4v")
 SUBTITLE_EXT="srt"
-COMPLETED_DIR="/mnt/media/torrent/completed/"
-HOLD_DIR="/mnt/media/torrent/hold/"
 POLL_INTERVAL=60
 
-mkdir -p "$COMPLETED_DIR" "$HOLD_DIR" "$WATCH_DIR"
+mkdir -p "$DIR_MEDIA_COMPLETED" "$DIR_MEDIA_HOLD" "$WATCH_DIR"
 
 check_dependencies "mkvmerge" "mkvpropedit" "rename" "find"
 
@@ -64,7 +62,7 @@ while true; do
             SIZE2=$(stat -c%s "$FULL_PATH")
             [[ "$SIZE1" -ne "$SIZE2" ]] && continue
 
-            OUTPUT_FILE="${COMPLETED_DIR}${FILE_NAME}.mkv"
+            OUTPUT_FILE="${DIR_MEDIA_COMPLETED}${FILE_NAME}.mkv"
             CLEAN_TITLE=$(echo "$FILE_NAME" | sed "s/_/ /g")
 
             log "Merging: $BASE_FILE (Verified English Subs)"
@@ -80,8 +78,8 @@ while true; do
                     --edit track:v1 --set language=en > /dev/null 2>&1
                 
                 # 5. Cleanup
-                rm -f "$HOLD_DIR$BASE_FILE"
-                mv "$FULL_PATH" "$HOLD_DIR/"
+                rm -f "$DIR_MEDIA_HOLD$BASE_FILE"
+                mv "$FULL_PATH" "$DIR_MEDIA_HOLD/"
                 rm -f "$SUB_FILE"
                 
                 log "✅ Successfully merged $CLEAN_TITLE"
@@ -92,7 +90,7 @@ while true; do
     done
 
     # 6. Cleanup output names
-    rename 's/_/ /g' "${COMPLETED_DIR}"/*.mkv 2>/dev/null
+    rename 's/_/ /g' "${DIR_MEDIA_COMPLETED}"/*.mkv 2>/dev/null
 
     sleep "$POLL_INTERVAL"
 done
