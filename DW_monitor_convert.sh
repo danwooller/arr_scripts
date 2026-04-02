@@ -124,6 +124,7 @@ while true; do
         else
             PRESET="$PRESET_SD"
         fi
+log "$HANDBRAKE_SUB_ARGS"
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Using preset: $PRESET"
         HandBrakeCLI \
             --preset "$PRESET" \
