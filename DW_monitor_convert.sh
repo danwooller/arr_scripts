@@ -97,10 +97,11 @@ while true; do
         [[ $LOG_LEVEL == "debug" ]] && log "Extracted Forced Track ID: $SUB_TRACK_ID"
         if [[ -n "$SUB_TRACK_ID" ]]; then
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ English Forced subtitle track found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
-            mkvextract tracks "$FILE_TO_PROCESS" "$SUB_TRACK_ID:$SUB_FILE"
+            #mkvextract tracks "$FILE_TO_PROCESS" "$SUB_TRACK_ID:$SUB_FILE"
+            ffmpeg -i "$FILE_TO_PROCESS" -map 0:$SUB_TRACK_ID -c:s srt "$SUB_FILE" -y
             if [[ $? -eq 0 ]]; then
                 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Subtitles extracted successfully."
-                HANDBRAKE_SUB_ARGS="--srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
+                HANDBRAKE_SUB_ARGS="--subtitle none --srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
                 SUB_FILE_EXTRACTED=true
             else
                [[ $LOG_LEVEL == "debug" ]] && log "❌ Subtitle extraction failed. Will NOT embed subtitles."
