@@ -104,7 +104,7 @@ while true; do
                 # We use --subtitle none to kill the preset's defaults
                 # We use --srt-file to inject our clean conversion
                 # We REMOVE --native-language eng (which can trigger a re-scan of the source)
-                HANDBRAKE_SUB_ARGS="--subtitle none --srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --native-language eng --subtitle-default 1 --subtitle-forced 1 --subname "Forced""
+                HANDBRAKE_SUB_ARGS="--subtitle none --srt-file \"$SUB_FILE\" --srt-codeset UTF-8 --subtitle-lang eng --subtitle-forced 1 --subtitle-default 1"
                 SUB_FILE_EXTRACTED=true
             else
                [[ $LOG_LEVEL == "debug" ]] && log "❌ Subtitle extraction failed. Will NOT embed subtitles."
