@@ -635,7 +635,7 @@ seerr_sync_issue() {
 sonarr_ingest() {
     local ingest_path="${1:-$DIR_MEDIA_COMPLETED}"
     
-    # 1. Probe the folder to see what Sonarr recognizes
+    # 1. Probe the folder to see what Sonarr recognises
     # We use the manualimport endpoint to get Sonarr's internal identification
     local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
         "$SONARR_API_BASE/manualimport?folder=$ingest_path")
@@ -654,7 +654,7 @@ sonarr_ingest() {
 
     if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
         local file_count=$(echo "$files_json" | jq 'length')
-        log "🚀 Sonarr: Found $file_count recognizable files. Triggering Force Import..."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "🚀 Found $file_count file(s). Triggering import..."
         
         # 3. Execute the Import Command
         local response=$(curl -s -X POST "$SONARR_API_BASE/command" \
@@ -663,9 +663,9 @@ sonarr_ingest() {
             -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
             
         local command_id=$(echo "$response" | jq -r '.id')
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Sonarr ingest queued: $command_id"
+        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Ingest queued: $command_id"
     else
-        log "⚠️ Sonarr: No recognized or valid files found in $ingest_path."
+        log "⚠️ Nothing found in $ingest_path."
     fi
 }
 
