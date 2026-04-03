@@ -51,13 +51,13 @@ while true; do
             
             # --- ENGLISH CONTENT CHECK ---
             # Checks for common English words (case insensitive) to verify track language
-            if ! grep -qiE " a | about | all | an | and | as | at | be | but | by | do | for \
-                | from | get | go | have | he | her | his | hold | I | if | in | it | me | my \
-                | not | of | on | one | or | out | say | she | so | that | the | their | there \
-                | they | this | to | up | we | what | which | who | will | with | would | you " "$SUB_FILE"; then
-                log "Skipping $BASE_FILE: Subtitle file does not appear to be English."
-                continue
-            fi
+#            if ! grep -qiE " a | about | all | an | and | as | at | be | but | by | do | for \
+#                | from | get | go | have | he | her | his | hold | I | if | in | it | me | my \
+#                | not | of | on | one | or | out | say | she | so | that | the | their | there \
+#                | they | this | to | up | we | what | which | who | will | with | would | you " "$SUB_FILE"; then
+#                log "Skipping $BASE_FILE: Subtitle file does not appear to be English."
+#                continue
+#            fi
             
             # Stability Check
             SIZE1=$(stat -c%s "$FULL_PATH")
