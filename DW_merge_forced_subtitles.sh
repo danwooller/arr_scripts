@@ -71,7 +71,8 @@ while true; do
             log "Merging: $BASE_FILE (Verified English Subs)"
 
             # 3. Merge
-            mkvmerge -o "$OUTPUT_FILE" "$FULL_PATH" "$SUB_FILE" --title "$CLEAN_TITLE" > /dev/null 2>&1
+#            mkvmerge -o "$OUTPUT_FILE" "$FULL_PATH" "$SUB_FILE" --title "$CLEAN_TITLE" > /dev/null 2>&1
+            mkvmerge -o "$OUTPUT_FILE" -S "$FULL_PATH" "$SUB_FILE" --title "$CLEAN_TITLE" > /dev/null 2>&1
 
             if [ $? -eq 0 ]; then
                 # 4. Metadata tagging
