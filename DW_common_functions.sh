@@ -835,7 +835,6 @@ sonos_audio_fix() {
         return 1
     fi
 
-    # NEW LOGIC: Only skip if Layout is correct AND Codec is standard AC3
     if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 && "$CODEC" == "ac3" ]]; then 
         [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized (AC3 5.1 Side): $(basename "$media_name")"
         return 0
@@ -846,31 +845,30 @@ sonos_audio_fix() {
     temp_file="${media_name}.processing.tmp"
     mv "$media_name" "$temp_file"
 
-    local lnorm="loudnorm=I=-16:TP=-1.5:LRA=11"
-
-    # 3. ADDED: -metadata SONOS_FIXED="true" to the ffmpeg command
+    # 3. FIXED FFMPEG COMMANDS
     if [[ "$CHANNELS" -gt 2 ]]; then
-        log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Normalizing..."
+        log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Preserving Subtitles..."
 
-        # -ac 6 forces 5.1 output
-        # channelmap ensures the 'side' layout Sonos loves
-        #ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
-        #-c:v copy -c:a ac3 -b:a 640k -ac 6 \
-        #-af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
-        #-metadata SONOS_FIXED="true" "$media_name"
-
-        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
-        -c:v copy -c:a ac3 -b:a 640k -ac 6 \
+        ffmpeg -v error -nostdin -y -i "$temp_file" \
+        -map 0:v -map 0:a -map 0:s? \
+        -c:v copy \
+        -c:s copy \
+        -c:a ac3 -b:a 640k -ac 6 \
         -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
         -metadata SONOS_FIXED="true" \
         -metadata:s:a:0 codec_name="ac3" \
         "$media_name"
     else
-        # Stereo/Mono logic stays the same
-        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 \
-        -c:v copy -c:a ac3 -b:a 640k \
+        log "🔊 Normalizing Stereo/Mono AC3 + Preserving Subtitles..."
+        
+        ffmpeg -v error -nostdin -y -i "$temp_file" \
+        -map 0:v -map 0:a -map 0:s? \
+        -c:v copy \
+        -c:s copy \
+        -c:a ac3 -b:a 640k \
         -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
-        -metadata SONOS_FIXED="true" "$media_name"
+        -metadata SONOS_FIXED="true" \
+        "$media_name"
     fi
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
