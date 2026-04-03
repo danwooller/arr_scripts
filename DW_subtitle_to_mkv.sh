@@ -22,39 +22,45 @@ fi
 STAGING_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/forced"
 mkdir -p "$STAGING_DIR"
 
-log "🚀 Starting subtitle restoration scan (skipping files with existing forced subs)..."
+log "🚀 Starting subtitle restoration scan (Flexible Naming Mode)..."
 
-# Loop through SRT files
+# Loop through SRT files (Format: SHOW_1x01_EPISODE.srt)
 find "$DIR_MEDIA_SUBTITLES/forced/tv" -name "*.srt" | while read -r SRT_PATH; do
     SRT_FILE=$(basename "$SRT_PATH")
     
     # Extract parts: SHOW_1x01_EPISODE.srt
     if [[ $SRT_FILE =~ ^(.*)_([0-9]+)x([0-9]+)_(.*)\.srt$ ]]; then
-        SHOW_NAME="${BASH_REMATCH[1]}"
+        # The raw name from the SRT (has underscores)
+        RAW_SHOW_NAME="${BASH_REMATCH[1]}"
+        # The sanitized name for searching (replace underscores with spaces)
+        CLEAN_SHOW_NAME="${RAW_SHOW_NAME//_/ }"
+        
         SEASON="${BASH_REMATCH[2]}"
         EPISODE="${BASH_REMATCH[3]}"
         
+        # Search patterns
         SEARCH_STR="${SEASON}x${EPISODE}"
         ALT_SEARCH_STR=$(printf "S%02dE%02d" "$SEASON" "$EPISODE")
 
         MATCH_FOUND=false
         for BASE_TV_DIR in "${DIR_SDTV[@]}"; do
-            # Find the candidate mkv
-            MKV_PATH=$(find "$BASE_TV_DIR" -type f -name "*.mkv" | grep -i "$SHOW_NAME" | grep -Ei "($SEARCH_STR|$ALT_SEARCH_STR)" | head -n 1)
+            # 1. We search for the Show Name using either underscores OR spaces
+            # 2. We search for the Season/Episode code
+            MKV_PATH=$(find "$BASE_TV_DIR" -type f -name "*.mkv" | \
+                grep -Ei "($RAW_SHOW_NAME|$CLEAN_SHOW_NAME)" | \
+                grep -Ei "($SEARCH_STR|$ALT_SEARCH_STR)" | head -n 1)
 
             if [ -n "$MKV_PATH" ]; then
-                # --- NEW CHECK: Check for existing forced subtitle stream ---
-                # This returns "1" if a forced subtitle is found, "0" otherwise
+                # Check for existing forced subtitle track
                 HAS_FORCED=$(ffprobe -v error -select_streams s -show_entries stream_disposition=forced -of csv=p=0 "$MKV_PATH" | grep -c "1")
 
                 if [ "$HAS_FORCED" -gt 0 ]; then
                     log "⏭️ SKIPPING: $(basename "$MKV_PATH") already has a forced subtitle track."
-                    MATCH_FOUND=true # Mark as found so we don't log a "not found" error, but we don't move it
+                    MATCH_FOUND=true
                     break
                 fi
-                # -------------------------------------------------------------
 
-                log "✅ Missing forced sub. Staging: $(basename "$MKV_PATH")"
+                log "✅ Match found (Space/Underscore flex): $(basename "$MKV_PATH")"
                 
                 cp "$SRT_PATH" "$STAGING_DIR/"
                 mv "$MKV_PATH" "$STAGING_DIR/"
@@ -65,7 +71,7 @@ find "$DIR_MEDIA_SUBTITLES/forced/tv" -name "*.srt" | while read -r SRT_PATH; do
         done
 
         if [ "$MATCH_FOUND" = false ]; then
-            log "❌ No MKV match found for: $SRT_FILE"
+            log "❌ No MKV match found for: $SRT_FILE (Checked '$CLEAN_SHOW_NAME' and '$RAW_SHOW_NAME')"
         fi
     fi
 done
