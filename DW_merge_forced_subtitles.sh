@@ -51,10 +51,10 @@ while true; do
             
             # --- ENGLISH CONTENT CHECK ---
             # Checks for common English words (case insensitive) to verify track language
-            if ! grep -qiE " the | be | to | of | and | a | in | that | have | I | it | for \
-                | not | on | with | he | as | you | do | at | this | but | his | by | from | they \
-                | we | say | her | she | or | an | will | my | one | all | would | there | their \
-                | what | so | up | out | if | about | who | get | which | go | me " "$SUB_FILE"; then
+            if ! grep -qiE " a | about | all | an | and | as | at | be | but | by | do | for \
+                | from | get | go | have | he | her | his | hold | I | if | in | it | me | my \
+                | not | of | on | one | or | out | say | she | so | that | the | their | there \
+                | they | this | to | up | we | what | which | who | will | with | would | you " "$SUB_FILE"; then
                 log "Skipping $BASE_FILE: Subtitle file does not appear to be English."
                 continue
             fi
