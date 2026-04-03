@@ -22,51 +22,57 @@ fi
 STAGING_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/forced"
 mkdir -p "$STAGING_DIR"
 
-log "🚀 Starting subtitle restoration scan (Flexible Naming Mode)..."
+log "🚀 Starting subtitle restoration scan (Fuzzy Naming Mode)..."
 
-# Loop through SRT files (Format: SHOW_1x01_EPISODE.srt)
+# Loop through SRT files in the forced TV directory
+# Pattern: SHOW_1x01_EPISODE.srt
 find "$DIR_MEDIA_SUBTITLES/forced/tv" -name "*.srt" | while read -r SRT_PATH; do
     SRT_FILE=$(basename "$SRT_PATH")
     
-    # Extract parts: Hijack_1x06_Comply_Slowly.srt
-    # BASH_REMATCH[1] = Hijack
-    # BASH_REMATCH[2] = 1
-    # BASH_REMATCH[3] = 06
+    # Extract parts using regex: (Show)_(S)x(EE)_(Title).srt
     if [[ $SRT_FILE =~ ^(.*)_([0-9]+)x([0-9]+)_(.*)\.srt$ ]]; then
         RAW_SHOW_NAME="${BASH_REMATCH[1]}"
-        # Replace underscores with spaces for the show name search
-        CLEAN_SHOW_NAME="${RAW_SHOW_NAME//_/ }"
-        
         SEASON="${BASH_REMATCH[2]}"
         EPISODE="${BASH_REMATCH[3]}"
         
-        # Define the two most common episode formats
-        S_CODE="${SEASON}x${EPISODE}"               # e.g., 1x06
-        E_CODE=$(printf "S%02dE%02d" "$SEASON" "$EPISODE") # e.g., S01E06
+        # 1. Create a "Super Clean" version of the show name for matching
+        # Strips underscores, hyphens, and spaces, then converts to lowercase
+        # e.g., Monarch-_Legacy_of_Monsters -> monarchlegacyofmonsters
+        FUZZY_SHOW_NAME=$(echo "$RAW_SHOW_NAME" | sed 's/[-_ ]//g' | tr '[:upper:]' '[:lower:]')
+        
+        # Define search patterns for the episode
+        S_CODE="${SEASON}x${EPISODE}"
+        E_CODE=$(printf "S%02dE%02d" "$SEASON" "$EPISODE")
 
         MATCH_FOUND=false
         
+        # Search through your TV library directories
         for BASE_TV_DIR in "${DIR_SDTV[@]}"; do
-            # 1. Find all MKVs in the directory
-            # 2. Filter for the episode code (1x06 or S01E06)
-            # 3. Filter for the Show Name (Hijack)
-            # We use -i for case-insensitive to be safe
-            MKV_PATH=$(find "$BASE_TV_DIR" -type f -name "*.mkv" | \
-                grep -iE "$S_CODE|$E_CODE" | \
-                grep -iE "$RAW_SHOW_NAME|$CLEAN_SHOW_NAME" | head -n 1)
+            
+            # Find MKVs matching the episode code, then fuzzy-check the name
+            MKV_PATH=$(find "$BASE_TV_DIR" -type f -iname "*.mkv" | grep -Ei "$S_CODE|$E_CODE" | while read -r candidate; do
+                # Strip noise from the found filename to compare against our fuzzy show name
+                FUZZY_CANDIDATE=$(basename "$candidate" | sed 's/[-_ ]//g' | tr '[:upper:]' '[:lower:]')
+                
+                if [[ "$FUZZY_CANDIDATE" == *"$FUZZY_SHOW_NAME"* ]]; then
+                    echo "$candidate"
+                    break
+                fi
+            done | head -n 1)
 
             if [ -n "$MKV_PATH" ]; then
-                # Check for existing forced subtitle track
+                # 2. Check for existing forced subtitle track
                 HAS_FORCED=$(ffprobe -v error -select_streams s -show_entries stream_disposition=forced -of csv=p=0 "$MKV_PATH" | grep -c "1")
 
                 if [ "$HAS_FORCED" -gt 0 ]; then
-                    log "⏭️ SKIPPING: $(basename "$MKV_PATH") already has forced subs."
+                    log "⏭️ SKIPPING: $(basename "$MKV_PATH") already has a forced subtitle track."
                     MATCH_FOUND=true
                     break
                 fi
 
-                log "✅ MATCH: $(basename "$MKV_PATH")"
+                log "✅ FUZZY MATCH: $(basename "$MKV_PATH")"
                 
+                # 3. Copy SRT and Move MKV to staging
                 cp "$SRT_PATH" "$STAGING_DIR/"
                 mv "$MKV_PATH" "$STAGING_DIR/"
                 
@@ -76,8 +82,11 @@ find "$DIR_MEDIA_SUBTITLES/forced/tv" -name "*.srt" | while read -r SRT_PATH; do
         done
 
         if [ "$MATCH_FOUND" = false ]; then
-            log "❌ NOT FOUND: $SRT_FILE (Looked for '$S_CODE'/'$E_CODE' + '$CLEAN_SHOW_NAME' in ${DIR_SDTV[*]})"
+            # Logging the fuzzy name we tried to help with debugging
+            log "❌ NOT FOUND: $SRT_FILE (Fuzzy search: '$FUZZY_SHOW_NAME')"
         fi
+    else
+        log "⚠️ Could not parse SRT filename format: $SRT_FILE"
     fi
 done
 
