@@ -22,38 +22,27 @@ fi
 STAGING_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/forced"
 mkdir -p "$STAGING_DIR"
 
-log "🚀 Starting subtitle restoration scan (Fuzzy Naming Mode)..."
+log "🚀 Starting full library sync and restoration..."
 
-# Loop through SRT files in the forced TV directory
-# Pattern: SHOW_1x01_EPISODE.srt
+# Loop through SRT files
 find "$DIR_MEDIA_SUBTITLES/forced/tv" -name "*.srt" | while read -r SRT_PATH; do
+    SRT_DIR=$(dirname "$SRT_PATH")
     SRT_FILE=$(basename "$SRT_PATH")
     
-    # Extract parts using regex: (Show)_(S)x(EE)_(Title).srt
+    # Extract parts: SHOW_1x01_EPISODE.srt
     if [[ $SRT_FILE =~ ^(.*)_([0-9]+)x([0-9]+)_(.*)\.srt$ ]]; then
         RAW_SHOW_NAME="${BASH_REMATCH[1]}"
-        SEASON="${BASH_REMATCH[2]}"
-        EPISODE="${BASH_REMATCH[3]}"
-        
-        # 1. Create a "Super Clean" version of the show name for matching
-        # Strips underscores, hyphens, and spaces, then converts to lowercase
-        # e.g., Monarch-_Legacy_of_Monsters -> monarchlegacyofmonsters
         FUZZY_SHOW_NAME=$(echo "$RAW_SHOW_NAME" | sed 's/[-_ ]//g' | tr '[:upper:]' '[:lower:]')
         
-        # Define search patterns for the episode
-        S_CODE="${SEASON}x${EPISODE}"
-        E_CODE=$(printf "S%02dE%02d" "$SEASON" "$EPISODE")
+        S_CODE="${BASH_REMATCH[2]}x${BASH_REMATCH[3]}"
+        E_CODE=$(printf "S%02dE%02d" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}")
 
         MATCH_FOUND=false
         
-        # Search through your TV library directories
         for BASE_TV_DIR in "${DIR_SDTV[@]}"; do
-            
-            # Find MKVs matching the episode code, then fuzzy-check the name
+            # Find candidate MKVs using fuzzy matching
             MKV_PATH=$(find "$BASE_TV_DIR" -type f -iname "*.mkv" | grep -Ei "$S_CODE|$E_CODE" | while read -r candidate; do
-                # Strip noise from the found filename to compare against our fuzzy show name
                 FUZZY_CANDIDATE=$(basename "$candidate" | sed 's/[-_ ]//g' | tr '[:upper:]' '[:lower:]')
-                
                 if [[ "$FUZZY_CANDIDATE" == *"$FUZZY_SHOW_NAME"* ]]; then
                     echo "$candidate"
                     break
@@ -61,19 +50,33 @@ find "$DIR_MEDIA_SUBTITLES/forced/tv" -name "*.srt" | while read -r SRT_PATH; do
             done | head -n 1)
 
             if [ -n "$MKV_PATH" ]; then
-                # 2. Check for existing forced subtitle track
-                HAS_FORCED=$(ffprobe -v error -select_streams s -show_entries stream_disposition=forced -of csv=p=0 "$MKV_PATH" | grep -c "1")
+                # 1. PERMANENT RENAME AT SOURCE
+                # Define the new name based on the video file found
+                MKV_FILENAME=$(basename "$MKV_PATH")
+                SYNCED_SRT_NAME="${MKV_FILENAME%.mkv}.srt"
+                NEW_SRT_PATH="$SRT_DIR/$SYNCED_SRT_NAME"
 
+                if [ "$SRT_FILE" != "$SYNCED_SRT_NAME" ]; then
+                    log "📝 Syncing filename: $SRT_FILE -> $SYNCED_SRT_NAME"
+                    mv "$SRT_PATH" "$NEW_SRT_PATH"
+                    # Update variable for the rest of this loop iteration
+                    CURRENT_SRT_PATH="$NEW_SRT_PATH"
+                else
+                    CURRENT_SRT_PATH="$SRT_PATH"
+                fi
+
+                # 2. CHECK FORCED STATUS (STAGING ONLY)
+                HAS_FORCED=$(ffprobe -v error -select_streams s -show_entries stream_disposition=forced -of csv=p=0 "$MKV_PATH" | grep -c "1")
+                
                 if [ "$HAS_FORCED" -gt 0 ]; then
-                    log "⏭️ SKIPPING: $(basename "$MKV_PATH") already has a forced subtitle track."
+                    log "⏭️  SKIPPING STAGING: $(basename "$MKV_PATH") already fixed."
                     MATCH_FOUND=true
                     break
                 fi
 
-                log "✅ FUZZY MATCH: $(basename "$MKV_PATH")"
-                
-                # 3. Copy SRT and Move MKV to staging
-                cp "$SRT_PATH" "$STAGING_DIR/"
+                # 3. STAGE FOR PROCESSING
+                log "✅ MATCH FOUND: Staging $MKV_FILENAME"
+                cp "$CURRENT_SRT_PATH" "$STAGING_DIR/"
                 mv "$MKV_PATH" "$STAGING_DIR/"
                 
                 MATCH_FOUND=true
@@ -82,13 +85,10 @@ find "$DIR_MEDIA_SUBTITLES/forced/tv" -name "*.srt" | while read -r SRT_PATH; do
         done
 
         if [ "$MATCH_FOUND" = false ]; then
-            # Logging the fuzzy name we tried to help with debugging
-            log "❌ NOT FOUND: $SRT_FILE (Fuzzy search: '$FUZZY_SHOW_NAME')"
+            log "❌ NOT FOUND: $SRT_FILE"
         fi
-    else
-        log "⚠️ Could not parse SRT filename format: $SRT_FILE"
     fi
 done
 
-log "🏁 Restoration staging complete."
+log "🏁 Task complete. Subtitle library synced and missing files staged."
 exit 0
