@@ -89,9 +89,9 @@ while true; do
         HB_COMM=$(get_hb_index "$COMM_ID")
 
         if [[ -n "$HB_COMM" && "$HB_COMM" != "$HB_MAIN" ]]; then
-            AUDIO_PARAMS="--audio $HB_MAIN,$HB_COMM --aencoder ac3,ac3 --ab 640,192 --mixdown 5point1,stereo --aname Main,Commentary"
+            AUDIO_PARAMS="--audio $HB_MAIN,$HB_COMM --aencoder ac3,ac3 --ab 640,192 --mixdown 5point1,stereo --aname English,Commentary"
         else
-            AUDIO_PARAMS="--audio $HB_MAIN --aencoder ac3 --ab 640 --mixdown 5point1 --aname Main"
+            AUDIO_PARAMS="--audio $HB_MAIN --aencoder ac3 --ab 640 --mixdown 5point1 --aname English"
         fi
 
         # --- Preset & Transcode ---
