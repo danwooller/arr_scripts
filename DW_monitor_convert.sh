@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Monitors a folder looking for unconverted Linux ISOs, copies them to a local folder,
-# determines whether the file is 1080p or 4K and converts the file using HandBrakeCLI
-# before copying back to the network for further sorting.
+# Monitors a folder for unconverted video files, converts them using HandBrakeCLI
+# (Sonos-safe AC3 5.1/2.0), and handles English commentary and forced subtitles.
 
 # --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
@@ -34,13 +33,14 @@ check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge" "ffprobe"
 
 log_start "$SOURCE_DIR"
 
-# --- Main Monitoring Loop ---
+# --- Main Monitoring Loop (Polling) ---
 while true; do
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Polling $SOURCE_DIR for video files..."
     TIMESTAMP=$(date +"%H-%M")
     rm -f $CONVERT_DIR/*
     rm -f $WORKING_DIR/*
     
+    # Process Sonarr weekly shows if function exists
     sonarr_weekly_shows
     
     find "$SOURCE_DIR" -type f \
@@ -60,6 +60,7 @@ while true; do
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
 
         # 2. Extract Forced Subtitles
+        # Using mkvmerge -J to find English forced tracks
         SUB_TRACK_ID=$(mkvmerge -J "$FILE_TO_PROCESS" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         HAS_SUBTITLES=false
         if [[ -n "$SUB_TRACK_ID" ]]; then
@@ -68,73 +69,31 @@ while true; do
             [[ $? -eq 0 ]] && HAS_SUBTITLES=true
         fi
 
-        # 3. Audio Track Detection (Sonos Optimized)
-        # Find Main English Audio (Preferably 6ch)
-        MAIN_AUDIO=$(ffprobe -v error -select_streams a -show_entries stream=index,channels:stream_tags=language -of json "$FILE_TO_PROCESS" | jq -r '.streams[] | select(.tags.language=="eng") | sort_by(.channels) | reverse | .[0].index' | head -n 1)
-        
-        # Find Commentary (English, title contains "Commentary", and not the main track)
-        COMM_AUDIO=$(ffprobe -v error -select_streams a -show_entries stream=index,channels:stream_tags=title,language -of json "$FILE_TO_PROCESS" | jq -r ".streams[] | select(.tags.language==\"eng\" and (.tags.title? | strings | test(\"Commentary\"; \"i\"))) | .index" | head -n 1)
-        
-        # Fallback for Commentary: If no title match, look for a secondary English stereo track
-        if [[ -z "$COMM_AUDIO" ]]; then
-            COMM_AUDIO=$(ffprobe -v error -select_streams a -show_entries stream=index,channels:stream_tags=language -of json "$FILE_TO_PROCESS" | jq -r ".streams[] | select(.tags.language==\"eng\" and .channels==2 and .index != $MAIN_AUDIO) | .index" | head -n 1)
-        fi
+        # 3. Audio Track Detection (MKVToolNix Logic)
+        TRACK_JSON=$(mkvmerge -J "$FILE_TO_PROCESS")
 
-        # Adjust for HandBrake (HB uses 1-based indexing)
-        HB_MAIN=$((MAIN_AUDIO + 1))
+        # Find Main English Audio (Excluding tracks named "Commentary")
+        MAIN_ID=$(echo "$TRACK_JSON" | jq -r '
+            .tracks[] | 
+            select(.type == "audio" and .properties.language == "eng" and 
+            (.properties.track_name // "" | test("Commentary"; "i") | not)) | 
+            .id' | head -n 1)
+
+        # Fallback: If no English non-commentary track found, take the first audio track
+        [[ -z "$MAIN_ID" ]] && MAIN_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio") | .id' | head -n 1)
+
+        # Find Commentary (English track named "Commentary")
+        COMM_ID=$(echo "$TRACK_JSON" | jq -r '
+            .tracks[] | 
+            select(.type == "audio" and .properties.language == "eng" and 
+            (.properties.track_name // "" | test("Commentary"; "i"))) | 
+            .id' | head -n 1)
+
+        # HandBrake uses 1-based indexing (mkvmerge ID + 1)
+        HB_MAIN=$((MAIN_ID + 1))
         
-        if [[ -n "$COMM_AUDIO" && "$COMM_AUDIO" != "$MAIN_AUDIO" ]]; then
-            HB_COMM=$((COMM_AUDIO + 1))
+        if [[ -n "$COMM_ID" && "$COMM_ID" != "$MAIN_ID" ]]; then
+            HB_COMM=$((COMM_ID + 1))
+            # Encode both: 5.1 Main + Stereo Commentary (AC3 for Sonos)
             AUDIO_PARAMS="--audio $HB_MAIN,$HB_COMM --aencoder ac3,ac3 --ab 640,192 --mixdown 5point1,stereo --aname Main,Commentary"
-            log "ℹ️ Found Main (Track $HB_MAIN) and Commentary (Track $HB_COMM)"
-        else
-            AUDIO_PARAMS="--audio $HB_MAIN --aencoder ac3 --ab 640 --mixdown 5point1 --aname Main"
-            log "ℹ️ Found Main (Track $HB_MAIN). No commentary detected."
-        fi
-
-        # 4. Determine Video Preset
-        LOWER_FILENAME=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
-        if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then PRESET="$PRESET_4K"
-        elif [[ "$LOWER_FILENAME" =~ "1080p.x265" ]]; then PRESET="$PRESET_1080P_X265"
-        elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then PRESET="$PRESET_1080P"
-        elif [[ "$LOWER_FILENAME" =~ "720p" ]]; then PRESET="$PRESET_720P"
-        else PRESET="$PRESET_SD"; fi
-
-        # 5. Transcode
-        HandBrakeCLI \
-            --preset "$PRESET" \
-            -q 24.0 \
-            -i "$FILE_TO_PROCESS" \
-            -o "$TEMP_OUTPUT" \
-            $AUDIO_PARAMS \
-            --subtitle none \
-            --optimize < /dev/null
-
-        # 6. Final Remux with SRT
-        if [[ -f "$TEMP_OUTPUT" ]]; then
-            if [ "$HAS_SUBTITLES" = true ]; then
-                log "ℹ️ Remuxing clean SRT into final container..."
-                mkvmerge -o "$FINAL_OUTPUT" \
-                    --no-subtitles "$TEMP_OUTPUT" \
-                    --language 0:eng --track-name 0:"Forced" --forced-track 0:yes --default-track 0:yes "$SUB_FILE"
-            else
-                mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
-            fi
-        fi
-
-        # 7. Post-Processing & Cleanup
-        if [[ -f "$FINAL_OUTPUT" ]]; then
-            log "✅ Completed $FILENAME"
-            rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT"
-            sonos_audio_fix "$FINAL_OUTPUT"  
-            mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"
-            mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$TIMESTAMP.$EXTENSION"
-            manage_remote_torrent "delete" "$BASE_NAME"
-        else
-            log "❌ Conversion failed for $FILENAME"
-            rm -f "$TEMP_OUTPUT" "$FINAL_OUTPUT"
-        fi
-    done
-
-    sleep "$POLL_INTERVAL"
-done
+            log "ℹ️ Found Tracks: Main ($HB_MAIN
