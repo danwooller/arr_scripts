@@ -61,37 +61,54 @@ while true; do
         # 2. Extract Forced Subtitles
         SUB_TRACK_ID=$(mkvmerge -J "$FILE_TO_PROCESS" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         HAS_SUBTITLES=false
-        if [[ -n "$SUB_TRACK_ID" ]]; then
+        if [[ -n "$SUB_TRACK_ID" && "$SUB_TRACK_ID" != "null" ]]; then
             log "ℹ️ Converting Forced Subtitle (ID: $SUB_TRACK_ID) to SRT..."
             ffmpeg -i "$FILE_TO_PROCESS" -map 0:"$SUB_TRACK_ID" -c:s srt "$SUB_FILE" -y -loglevel error
             [[ $? -eq 0 ]] && HAS_SUBTITLES=true
         fi
 
-        # 3. Audio Track Detection (Fixed Quote Nesting)
+        # 3. Audio Track Detection (Mapping mkvmerge IDs to HandBrake Indices)
         TRACK_JSON=$(mkvmerge -J "$FILE_TO_PROCESS")
+        
+        # Get list of all audio track IDs in order of appearance
+        AUDIO_IDS=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio") | .id')
 
-        # Find Main English Audio (Excluding tracks named "Commentary")
+        # Helper to convert mkvmerge ID to HandBrake Index (1-based)
+        get_hb_index() {
+            local search_id=$1
+            local count=1
+            for id in $AUDIO_IDS; do
+                if [[ "$id" == "$search_id" ]]; then
+                    echo "$count"
+                    return
+                fi
+                ((count++))
+            done
+        }
+
+        # Find Main English Audio ID (Exclude tracks titled "Commentary")
         MAIN_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio" and .properties.language == "eng" and (.properties.track_name // "" | test("Commentary"; "i") | not)) | .id' | head -n 1)
-
-        # Fallback: If no English non-commentary track found, take the first audio track
+        
+        # Fallback for Main: If no specific match, take the first audio track ID
         if [[ -z "$MAIN_ID" || "$MAIN_ID" == "null" ]]; then
-            MAIN_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio") | .id' | head -n 1)
+            MAIN_ID=$(echo "$AUDIO_IDS" | head -n 1)
         fi
 
-        # Find Commentary (English track named "Commentary")
+        # Find Commentary ID (English + titled "Commentary")
         COMM_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio" and .properties.language == "eng" and (.properties.track_name // "" | test("Commentary"; "i"))) | .id' | head -n 1)
 
-        # Safety: Ensure IDs are integers to prevent math crashes
-        [[ -z "$MAIN_ID" || "$MAIN_ID" == "null" ]] && MAIN_ID=0
-        HB_MAIN=$((MAIN_ID + 1))
-        
-        if [[ -n "$COMM_ID" && "$COMM_ID" != "null" && "$COMM_ID" != "$MAIN_ID" ]]; then
-            HB_COMM=$((COMM_ID + 1))
+        # Resolve Final HandBrake Indices
+        HB_MAIN=$(get_hb_index "$MAIN_ID")
+        HB_COMM=$(get_hb_index "$COMM_ID")
+
+        if [[ -n "$HB_COMM" && "$HB_COMM" != "$HB_MAIN" ]]; then
+            # Both Tracks: Main (5.1) + Commentary (Stereo)
             AUDIO_PARAMS="--audio $HB_MAIN,$HB_COMM --aencoder ac3,ac3 --ab 640,192 --mixdown 5point1,stereo --aname Main,Commentary"
-            log "ℹ️ Found Tracks: Main ($HB_MAIN) and Commentary ($HB_COMM)"
+            log "ℹ️ Identified: Main (Track $HB_MAIN) and Commentary (Track $HB_COMM)"
         else
+            # Only Main Track
             AUDIO_PARAMS="--audio $HB_MAIN --aencoder ac3 --ab 640 --mixdown 5point1 --aname Main"
-            log "ℹ️ Found Main Track ($HB_MAIN). No commentary detected."
+            log "ℹ️ Identified: Main (Track $HB_MAIN). No commentary detected."
         fi
 
         # 4. Determine Video Preset
@@ -112,7 +129,7 @@ while true; do
             --subtitle none \
             --optimize < /dev/null
 
-        # 6. Final Remux
+        # 6. Final Remux: Combine with SRT if available
         if [[ -f "$TEMP_OUTPUT" ]]; then
             if [ "$HAS_SUBTITLES" = true ]; then
                 log "ℹ️ Remuxing clean SRT into final container..."
