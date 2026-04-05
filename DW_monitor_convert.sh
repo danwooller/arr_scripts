@@ -38,6 +38,7 @@ while true; do
         
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
+        EXTENSION="${FILENAME##*.}"
         cp "$SOURCE_FILE" "$CONVERT_DIR/"
         FILE_TO_PROCESS="$CONVERT_DIR/$FILENAME"
         TEMP_OUTPUT="$WORKING_DIR/${BASE_NAME}_temp.mkv"
