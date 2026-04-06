@@ -95,4 +95,22 @@ for mkv_file in "${files_to_process[@]}"; do
     process_mkv "$mkv_file"
 done
 
+case "$TARGET_DIR" in
+    "/TV/"|"TV")
+        plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
+        ;;
+    "/4kTV/"|"4kTV")
+        plex_library_update "$PLEX_4KTV_SRC" "$PLEX_4KTV_NAME"
+        ;;
+    "/Movies/"|"Movies")
+        plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
+        ;;
+    "/4kMovies/"|"4kMovies")
+        plex_library_update "$PLEX_4KMOVIES_SRC" "$PLEX_4KMOVIES_NAME"
+        ;;
+    *)
+        echo "Directory $CURRENT_DIR did not match any library."
+        ;;
+esac
+
 [[ $LOG_LEVEL == "debug" ]] && log_end "$TARGET_DIR"
