@@ -63,9 +63,9 @@ process_mkv() {
         mkvpropedit "$file" --edit info --set "title=$folder_name"
 
         if [ $? -eq 0 ]; then
-            log "✅ SUCCESS: Metadata updated to \"$folder_name\""
+            log "✅ Metadata updated to \"$folder_name\""
         else
-            log "❌ ERROR: mkvpropedit failed."
+            log "❌ mkvpropedit failed."
             return 1
         fi
     fi
@@ -109,7 +109,7 @@ case "$TARGET_DIR" in
         plex_library_update "$PLEX_4KMOVIES_SRC" "$PLEX_4KMOVIES_NAME"
         ;;
     *)
-        echo "Directory $CURRENT_DIR did not match any library."
+        log "❌ Directory $CURRENT_DIR did not match any library."
         ;;
 esac
 
