@@ -61,7 +61,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
                         # Apply your requested metadata updates
                         if [ "$NEEDS_PROPEDIT" = true ]; then
                              log "📝 Naming track 'Forced' and setting flags..."
-                             mkvpropedit "${file%.*}.mkv" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 < /dev/null >/dev/null 2>&1
+                             mkvpropedit "${file%.*}.mkv" --edit track:s1 --set language=eng --set name="Forced" --set flag-forced=1 --set flag-default=1 < /dev/null >/dev/null 2>&1
                         fi
                     else
                         log "❌ FAILED: mkvmerge failed for $file_name"
