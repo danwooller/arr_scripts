@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# --- Load Shared Functions & Subtitle Logic ---
+# --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
@@ -16,7 +16,6 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM
 
-# Logic: Manual vs Scheduled
 if [ -n "$1" ]; then
     TARGET_PATHS=("${1}")
 else
@@ -26,63 +25,54 @@ fi
 for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     if [ ! -d "$CURRENT_DIR" ]; then continue; fi
 
-    find "$CURRENT_DIR" -type f -name "*.mkv" | while read -r file; do
+    # Use 'read -d' to handle filenames with spaces/special chars better
+    find "$CURRENT_DIR" -type f -name "*.mkv" -print0 | while array=() read -r -d $'\0' file; do
         
         file_name=$(basename "$file")
         temp_file="${file%.*}_smart_tmp.mkv"
-        temp_srt="/tmp/dw_conv_${file_name%.*}.srt"
+        temp_srt="/tmp/dw_conv_$(date +%s).srt"
 
-        # 1. Run the shared logic (Populates $TRACK_OPTS and $NEEDS_PROPEDIT)
+        # 1. Run shared logic
         subtitle_opts "$file"
 
-        # 2. Check for problematic codecs to determine if we act
+        # 2. Check for problematic codecs
         problem_subs=$(ffprobe -v error -select_streams s -show_entries stream=codec_name -of csv=p=0 "$file" | grep -E "ass|hdmv_pgs_subtitle|dvd_subtitle")
 
         if [ -n "$problem_subs" ]; then
-            log "🔧 FIXING: $file_name (Converting to SRT & Cleaning)"
+            log "🔧 FIXING: $file_name (Converting to SRT)"
 
-            # --- INTERCEPT LOGIC: Convert ASS to SRT if it was selected ---
-            # Extract the subtitle ID from the shared TRACK_OPTS
+            # INTERCEPT: Get the ID from the shared TRACK_OPTS
+            # We look for the ID specifically assigned to subtitles
             sub_id=$(echo "$TRACK_OPTS" | grep -oP '(?<=--subtitle-tracks )\d+')
 
             if [ -n "$sub_id" ]; then
-                # Convert the specific track to SRT via ffmpeg
-                # mkvmerge IDs usually match ffmpeg stream indices for MKVs
+                # Convert to SRT
                 if ffmpeg -i "$file" -map 0:"$sub_id" "$temp_srt" -y >/dev/null 2>&1; then
-                    # REWRITE TRACK_OPTS: Remove the internal ASS track and add the SRT file
-                    # We use --no-subtitles to strip the original internal tracks
-                    BASE_OPTS=$(echo "$TRACK_OPTS" | sed -E 's/--subtitle-tracks [0-9,]+//')
-                    TRACK_OPTS="$BASE_OPTS --no-subtitles $temp_srt"
+                    # Rebuild the command carefully
+                    # We strip the existing subtitle flag and add the new file
+                    CLEAN_OPTS=$(echo "$TRACK_OPTS" | sed -E 's/--subtitle-tracks [0-9,]+//')
+                    
+                    # RUN MKVMERGE
+                    # Note: We put the $temp_srt AFTER the original $file so it appends
+                    if mkvmerge -o "$temp_file" $CLEAN_OPTS --no-subtitles "$file" "$temp_srt" >/dev/null 2>&1; then
+                        mv "$file" "$DIR_MEDIA_HOLD/${file_name}.original"
+                        mv "$temp_file" "${file%.*}.mkv"
+                        log "✨ SUCCESS: $file_name converted to SRT."
+                        
+                        if [ "$NEEDS_PROPEDIT" = true ]; then
+                             mkvpropedit "${file%.*}.mkv" --edit track:s1 --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
+                        fi
+                    else
+                        log "❌ FAILED: mkvmerge failed for $file_name"
+                    fi
+                else
+                    log "❌ FAILED: ffmpeg conversion failed for $file_name"
                 fi
             fi
-
-            # 3. Execute Remux
-            if mkvmerge -o "$temp_file" $TRACK_OPTS "$file" >/dev/null 2>&1; then
-                
-                # 4. Swap and Backup
-                mv "$file" "$DIR_MEDIA_HOLD/${file_name}.original"
-                mv "$temp_file" "${file%.*}.mkv"
-                
-                log "✨ SUCCESS: $file_name now contains SRT. (Used: $TRACK_OPTS)"
-                
-                if [ "$NEEDS_PROPEDIT" = true ]; then
-                    log "📝 Flagging SRT as Forced..."
-                    mkvpropedit "${file%.*}.mkv" --edit track:s1 --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
-                fi
-                
-                # Cleanup temp srt
-                rm -f "$temp_srt"
-            else
-                log "❌ FAILED: mkvmerge failed for $file_name"
-                [ -f "$temp_file" ] && rm "$temp_file"
-                rm -f "$temp_srt"
-            fi
+            rm -f "$temp_srt"
         else
-            [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SKIP: $file_name already compliant."
+            [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SKIP: $file_name is already compliant."
         fi
-
     done
     log "✅ Completed scan for $CURRENT_DIR"
 done
-
-exit 0
