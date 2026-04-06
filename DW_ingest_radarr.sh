@@ -38,27 +38,32 @@ while true; do
         # --- 2. Robust Naming Logic ---
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
         
-        # 1. Remove everything inside and including square brackets []
-        # 2. Convert dots, underscores, and dashes to spaces
+        # Kill everything in square brackets [YTS.BZ] etc.
+        # Convert dots, underscores, dashes to spaces
         clean_name=$(echo "$FILE_NAME_BASE" | sed 's/\[[^]]*\]//g' | tr '._-' ' ')
 
-        # Strip the year specifically
+        # Strip the year specifically (if found)
         if [ -n "$year" ]; then
             clean_name=$(echo "$clean_name" | sed -E "s/\b$year\b//gi")
         fi
 
-        # Strip all global junk tags from the common_functions array
+        # Strip global junk tags
+        # We add a trailing space to the replacement to ensure words don't "smush"
         for junk in "${MEDIA_JUNK_TAGS[@]}"; do
-            clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
+            clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b/ /gi")
         done
 
-        # Clean up: remove empty parentheses, collapse multiple spaces, and trim ends
-        # We replace 'xargs' with sed to prevent word-smashing
-        clean_name=$(echo "$clean_name" | sed -E 's/\(\)//g' | sed -E 's/[[:space:]]+/ /g' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
-
-        # Final Clean & Proper Case (Capitalizes first letter of every word)
+        # Capitalize the first letter of every word BEFORE final space cleanup
+        # This helps sed 'see' the word boundaries better
         final_title=$(echo "$clean_name" | sed -E 's/\b([a-z])/\U\1/g')
 
+        # FINAL CLEANUP:
+        # 1. Remove empty parentheses
+        # 2. Collapse multiple spaces into one
+        # 3. Trim leading/trailing whitespace
+        final_title=$(echo "$final_title" | sed -E 's/\(\)//g' | sed -E 's/[[:space:]]+/ /g' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
+
+        # Fallback if title becomes empty
         if [ -z "$final_title" ]; then final_title="$FILE_NAME_BASE"; fi
 
         # Construct target name
