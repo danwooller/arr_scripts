@@ -66,7 +66,7 @@ while true; do
         log "🎬 Processing: $TARGET_FILENAME"
 
         # --- 3. Remux Logic ---
-        sonos_audio_fix "$file"
+        #sonos_audio_fix "$file"
         subtitle_opts "$file"
 
         if [ -f "$TARGET_PATH" ]; then
