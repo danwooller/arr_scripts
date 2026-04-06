@@ -24,7 +24,7 @@ WORKING_DIR="$HOME_DIR/${HOST}_done"
 POLL_INTERVAL=30
 MIN_FILE_AGE=5
 
-mkdir -p "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$DIR_MEDIA_SUBTITLES" "$DIR_MEDIA_FINISHED"
+mkdir -p "$DIR_MEDIA_TORRENT/${HOST}" "$SOURCE_DIR" "$CONVERT_DIR" "$WORKING_DIR" "$DIR_MEDIA_SUBTITLES" "$DIR_MEDIA_FINISHED"
 check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge" "ffprobe"
 log_start "$SOURCE_DIR"
 
