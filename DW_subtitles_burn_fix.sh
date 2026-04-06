@@ -8,8 +8,6 @@ else
     exit 1
 fi
 
-# --- [PASTE YOUR subtitle_opts() FUNCTION HERE] ---
-
 cleanup() {
     log "⚠️ Interruption. Cleaning up..."
     find "${TARGET_PATHS[@]}" -type f -name "*_smart_tmp.mkv" -delete 2>/dev/null
