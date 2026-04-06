@@ -10,6 +10,7 @@ fi
 
 cleanup() {
     log "⚠️ Interruption. Cleaning up..."
+    # Use a safer delete for tmp files
     find "${TARGET_PATHS[@]}" -type f -name "*_smart_tmp.mkv" -delete 2>/dev/null
     rm -f /tmp/dw_conv_*.srt 2>/dev/null
     exit 1
@@ -17,7 +18,7 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 if [ -n "$1" ]; then
-    TARGET_PATHS=("${1}")
+    TARGET_PATHS=("$1")
 else
     TARGET_PATHS=("${DIR_TV[@]}" "${DIR_MOVIES[@]}")
 fi
@@ -25,8 +26,12 @@ fi
 for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     if [ ! -d "$CURRENT_DIR" ]; then continue; fi
 
-    # Use 'read -d' to handle filenames with spaces/special chars better
-    find "$CURRENT_DIR" -type f -name "*.mkv" -print0 | while array=() read -r -d $'\0' file; do
+    # CRITICAL: -print0 and read -d '' handles spaces in filenames perfectly
+    find "$CURRENT_DIR" -type f -name "*.mkv" -print0 | while IFS= read -r -d '' file; do
+        
+        # Reset variables for each file to prevent "bleeding" logic
+        unset TRACK_OPTS
+        unset NEEDS_PROPEDIT
         
         file_name=$(basename "$file")
         temp_file="${file%.*}_smart_tmp.mkv"
@@ -36,24 +41,23 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         subtitle_opts "$file"
 
         # 2. Check for problematic codecs
+        # We wrap "$file" in quotes to ensure ffprobe sees the full path
         problem_subs=$(ffprobe -v error -select_streams s -show_entries stream=codec_name -of csv=p=0 "$file" | grep -E "ass|hdmv_pgs_subtitle|dvd_subtitle")
 
         if [ -n "$problem_subs" ]; then
             log "🔧 FIXING: $file_name (Converting to SRT)"
 
-            # INTERCEPT: Get the ID from the shared TRACK_OPTS
-            # We look for the ID specifically assigned to subtitles
+            # INTERCEPT: Get the Subtitle ID from the shared TRACK_OPTS
             sub_id=$(echo "$TRACK_OPTS" | grep -oP '(?<=--subtitle-tracks )\d+')
 
             if [ -n "$sub_id" ]; then
-                # Convert to SRT
+                # Convert specific track to SRT
                 if ffmpeg -i "$file" -map 0:"$sub_id" "$temp_srt" -y >/dev/null 2>&1; then
-                    # Rebuild the command carefully
-                    # We strip the existing subtitle flag and add the new file
+                    
+                    # Strip the internal subtitle flags from TRACK_OPTS
                     CLEAN_OPTS=$(echo "$TRACK_OPTS" | sed -E 's/--subtitle-tracks [0-9,]+//')
                     
-                    # RUN MKVMERGE
-                    # Note: We put the $temp_srt AFTER the original $file so it appends
+                    # EXECUTE: Input MKV (stripping subs) + Input SRT
                     if mkvmerge -o "$temp_file" $CLEAN_OPTS --no-subtitles "$file" "$temp_srt" >/dev/null 2>&1; then
                         mv "$file" "$DIR_MEDIA_HOLD/${file_name}.original"
                         mv "$temp_file" "${file%.*}.mkv"
