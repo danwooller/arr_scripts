@@ -55,8 +55,10 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         # use 'log "📄 Found: $file"' instead.
 		sonos_audio_fix "$file"
     done
+	plex basename "${CURRENT_DIR%/}"
     [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Completed scan for $CURRENT_DIR"
 done
 
+plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
 [[ "$LOG_LEVEL" == "debug" ]] && log "🏁 Tasks finished."
 exit 0
