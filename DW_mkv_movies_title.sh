@@ -32,42 +32,41 @@ process_mkv() {
     local name_no_ext="${base%.*}"
     
     # 1. Determine the Desired Name (The Parent Folder Name)
-    # Example Folder: /mnt/synology/Movies/Solo Mio (2026) -> Result: Solo Mio (2026)
     local folder_name=$(basename "$dir")
 
-    # 2. RENAME LOGIC
-    # If the filename (solo.mio.2026...) doesn't match folder (Solo Mio (2026)), rename it.
+    # 2. RENAME LOGIC (Keep the year in the filename)
     if [[ "$name_no_ext" != "$folder_name" ]]; then
         local new_name="${folder_name}${MKV_EXTENSION}"
         local new_path="$dir/$new_name"
         
         log "ℹ️ RENAME: \"$base\" -> \"$new_name\""
         mv "$file" "$new_path"
-        file="$new_path" # Update variable for metadata step
+        file="$new_path" 
         
-        # Trigger Radarr scan if the function is available in your shared functions
         if declare -f radarr_targeted_scan > /dev/null; then
             radarr_targeted_scan "$folder_name"
         fi
     fi
 
+    # 3. METADATA LOGIC (Strip the year for the internal title)
+    # This creates a "clean" version of the folder name for the metadata tag
+    # Example: "Solo Mio (2026)" becomes "Solo Mio"
+    local clean_title=$(echo "$folder_name" | sed 's/ ([0-9]\{4\})$//')
+
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking Metadata: $file"
 
-    # 3. METADATA LOGIC
-    # Read the current internal "Title" property
     local current_title=$(mkvinfo "$file" 2>/dev/null | grep -m 1 "Title:" | sed 's/^.*Title: //; s/^ *//; s/ *$//')
 
-    # Compare internal title to the folder name
-    if [[ "$current_title" == "$folder_name" ]]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Title metadata already matches folder. No action."
+    if [[ "$current_title" == "$clean_title" ]]; then
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Title metadata already matches \"$clean_title\". No action."
     else
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Updating Title Metadata to: \"$folder_name\""
-        mkvpropedit "$file" --edit info --set "title=$folder_name"
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Updating Title Metadata to: \"$clean_title\""
+        mkvpropedit "$file" --edit info --set "title=$clean_title"
 
         if [ $? -eq 0 ]; then
-            log "✅ SUCCESS: Metadata updated to \"$folder_name\""
+            log "✅ SUCCESS: Metadata updated to \"$clean_title\""
         else
-            log "❌ ERROR: mkvpropedit failed for \"$file\""
+            log "❌ ERROR: mkvpropedit failed."
             return 1
         fi
     fi
