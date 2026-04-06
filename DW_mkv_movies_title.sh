@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # A script to check and update the "Title" field in an MKV file
-# using mkvinfo and mkvpropedit. The desired title is set to match
-# the name of the immediate containing folder.
+# and ensure the filename matches the containing folder.
 
 # --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
@@ -13,12 +12,11 @@ else
 fi
 
 # --- Run Dependency Check ---
-check_dependencies "mkvpropedit"
+check_dependencies "mkvpropedit" "mkvinfo"
 
 # --- Configuration ---
 MKV_EXTENSION=".mkv"
 DEFAULT_TARGET_DIR="/mnt/media/Movies"
-#LOG_LEVEL="debug"
 
 # Function to process a single MKV file
 process_mkv() {
@@ -33,44 +31,43 @@ process_mkv() {
     local base=$(basename "$file")
     local name_no_ext="${base%.*}"
     
-    if [[ "$name_no_ext" =~ \ \([0-9]{4}\)$ ]]; then
-        local new_name="${name_no_ext% (*)}$MKV_EXTENSION"
+    # 1. Determine the Desired Name (The Parent Folder Name)
+    # Example Folder: /mnt/synology/Movies/Solo Mio (2026) -> Result: Solo Mio (2026)
+    local folder_name=$(basename "$dir")
+
+    # 2. RENAME LOGIC
+    # If the filename (solo.mio.2026...) doesn't match folder (Solo Mio (2026)), rename it.
+    if [[ "$name_no_ext" != "$folder_name" ]]; then
+        local new_name="${folder_name}${MKV_EXTENSION}"
         local new_path="$dir/$new_name"
         
-        if [[ "$file" != "$new_path" ]]; then
-            log "ℹ️ RENAME: \"$base\" -> \"$new_name\""
-            mv "$file" "$new_path"
-            file="$new_path" 
-            radarr_targeted_scan "$name_no_ext"
+        log "ℹ️ RENAME: \"$base\" -> \"$new_name\""
+        mv "$file" "$new_path"
+        file="$new_path" # Update variable for metadata step
+        
+        # Trigger Radarr scan if the function is available in your shared functions
+        if declare -f radarr_targeted_scan > /dev/null; then
+            radarr_targeted_scan "$folder_name"
         fi
     fi
 
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing: $file"
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Checking Metadata: $file"
 
-    local file_dir=$(dirname "$file")
-    local desired_title=$(basename "$file_dir")
-
+    # 3. METADATA LOGIC
+    # Read the current internal "Title" property
     local current_title=$(mkvinfo "$file" 2>/dev/null | grep -m 1 "Title:" | sed 's/^.*Title: //; s/^ *//; s/ *$//')
 
-    if [[ -z "$current_title" ]]; then
-        current_title=""
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Current Title: <None Set>"
+    # Compare internal title to the folder name
+    if [[ "$current_title" == "$folder_name" ]]; then
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Title metadata already matches folder. No action."
     else
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Current Title: \"$current_title\""
-    fi
-
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Desired Title: \"$desired_title\""
-
-    if [[ "$current_title" == "$desired_title" ]]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Title already matches the folder name. No action required."
-    else
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Updating \"$desired_title\""
-        mkvpropedit "$file" --edit info --set "title=$desired_title"
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Updating Title Metadata to: \"$folder_name\""
+        mkvpropedit "$file" --edit info --set "title=$folder_name"
 
         if [ $? -eq 0 ]; then
-            log "✅ SUCCESS: Title updated to \"$desired_title\""
+            log "✅ SUCCESS: Metadata updated to \"$folder_name\""
         else
-            log "❌ ERROR: Failed to update \"$desired_title\" using mkvpropedit."
+            log "❌ ERROR: mkvpropedit failed for \"$file\""
             return 1
         fi
     fi
@@ -78,28 +75,26 @@ process_mkv() {
 
 # --- Main Script Logic ---
 
-# 1. Determine the Target Directory
-# Use $1 if provided; otherwise, use the default.
+# Use $1 as target directory, fallback to default if $1 is empty
 TARGET_DIR="${1:-$DEFAULT_TARGET_DIR}"
 
-# 2. Validate Directory Existence
+# Ensure the directory exists
 if [[ ! -d "$TARGET_DIR" ]]; then
-    log "❌ Error: Target directory '$TARGET_DIR' does not exist."
+    echo "❌ Error: Target directory '$TARGET_DIR' does not exist."
     exit 1
 fi
 
-files_to_process=()
 log_start "$TARGET_DIR"
+files_to_process=()
 
-# 3. Collect files
 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Searching recursively for *${MKV_EXTENSION} in $TARGET_DIR..."
 
-# Use find -print0 for robust handling of spaces in filenames
+# Use find -print0 for robust handling of spaces
 while IFS= read -r -d $'\0' file; do
     files_to_process+=("$file")
 done < <(find "$TARGET_DIR" -type f -name "*${MKV_EXTENSION}" -print0)
 
-# 4. Process the identified files
+# Process the identified files
 if [ ${#files_to_process[@]} -eq 0 ]; then
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No ${MKV_EXTENSION} files found in: $TARGET_DIR"
     exit 0
