@@ -96,16 +96,16 @@ for mkv_file in "${files_to_process[@]}"; do
 done
 
 case "$TARGET_DIR" in
-    "/TV/"|"TV")
+    *"/TV"*|*"TV"*)
         plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
         ;;
-    "/4kTV/"|"4kTV")
+    *"/4kTV"*|*"4kTV"*)
         plex_library_update "$PLEX_4KTV_SRC" "$PLEX_4KTV_NAME"
         ;;
-    "/Movies/"|"Movies")
+    *"/Movies"*|*"Movies"*)
         plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
         ;;
-    "/4kMovies/"|"4kMovies")
+    *"/4kMovies"*|*"4kMovies"*)
         plex_library_update "$PLEX_4KMOVIES_SRC" "$PLEX_4KMOVIES_NAME"
         ;;
     *)
