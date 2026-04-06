@@ -109,7 +109,7 @@ case "$TARGET_DIR" in
         plex_library_update "$PLEX_4KMOVIES_SRC" "$PLEX_4KMOVIES_NAME"
         ;;
     *)
-        log "❌ Directory $CURRENT_DIR did not match any library."
+        log "❌ Directory $TARGET_DIR did not match any library."
         ;;
 esac
 
