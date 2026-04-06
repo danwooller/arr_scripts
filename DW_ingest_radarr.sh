@@ -38,8 +38,9 @@ while true; do
         # --- 2. Robust Naming Logic ---
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
         
-        # Convert dots, underscores, and dashes to spaces for clean matching
-        clean_name=$(echo "$FILE_NAME_BASE" | tr '._-' ' ')
+        # 1. Remove everything inside and including square brackets []
+        # 2. Convert dots, underscores, and dashes to spaces
+        clean_name=$(echo "$FILE_NAME_BASE" | sed 's/\[[^]]*\]//g' | tr '._-' ' ')
 
         # Strip the year specifically
         if [ -n "$year" ]; then
@@ -51,15 +52,16 @@ while true; do
             clean_name=$(echo "$clean_name" | sed -E "s/\b$junk\b//gi")
         done
 
-        # Remove existing empty parentheses and collapse double spaces
-        clean_name=$(echo "$clean_name" | sed -E 's/\(\)//g' | sed -E 's/ +/ /g')
+        # Clean up: remove empty parentheses, collapse multiple spaces, and trim ends
+        # We replace 'xargs' with sed to prevent word-smashing
+        clean_name=$(echo "$clean_name" | sed -E 's/\(\)//g' | sed -E 's/[[:space:]]+/ /g' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
 
         # Final Clean & Proper Case (Capitalizes first letter of every word)
-        final_title=$(echo "$clean_name" | sed -E 's/\b([a-z])/\U\1/g' | xargs)
+        final_title=$(echo "$clean_name" | sed -E 's/\b([a-z])/\U\1/g')
 
         if [ -z "$final_title" ]; then final_title="$FILE_NAME_BASE"; fi
 
-        # Construct target name with clean spaces
+        # Construct target name
         TARGET_FILENAME="${final_title} (${year:-0000}).mkv"
         TARGET_PATH="$DIR_MEDIA_COMPLETED_MOVIES/$TARGET_FILENAME"
 
@@ -67,7 +69,7 @@ while true; do
 
         # --- 3. Remux Logic ---
         #sonos_audio_fix "$file"
-        subtitle_opts "$file"
+        #subtitle_opts "$file"
 
         if [ -f "$TARGET_PATH" ]; then
             log "⚠️ $TARGET_FILENAME already exists. Skipping."
