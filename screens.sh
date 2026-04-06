@@ -2,7 +2,8 @@
 
 # Get a list of detached screens
 # The output format of 'screen -ls' is parsed to get the session IDs
-sessions=$(screen -ls | grep Detached | awk '{print $1}')
+#sessions=$(screen -ls | grep Detached | awk '{print $1}')
+sessions=$(screen -ls | grep "(Detached)" | awk '{print $1}')
 
 if [ -z "$sessions" ]; then
     echo "No detached screen sessions found."
