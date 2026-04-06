@@ -30,7 +30,7 @@ fi
 
 # --- Execution Loop ---
 for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
-    
+
     # 1. Existence and Mount Check
     if [ ! -d "$CURRENT_DIR" ]; then
         log "❌ SKIP: $CURRENT_DIR is not available."
@@ -44,7 +44,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     fi
 
     [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing: $CURRENT_DIR"
-    
+
     # 3. Find and Log Filenames
     # This finds all files, excludes common non-media paths, and logs just the name
     find "$CURRENT_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" \) \
