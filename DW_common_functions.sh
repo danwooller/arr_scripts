@@ -332,6 +332,7 @@ lidarr_targeted_rename() {
 plex_library_update() {
     # DW_move_movies_synology.sh
     # DW_move_tv_shows_synology.sh
+    # DW_sonos_audio_fix.sh
     # DW_sort_tv.sh
     local section_id="$1"
     local library_name="$2"
@@ -380,7 +381,7 @@ plex_active_streams() {
     local token="$PLEX_TOKEN"
     
     # Fetch data and count video sessions
-    # We redirect stderr to /dev/null so curl errors don't clutter your logs
+    # Redirect stderr to /dev/null so curl errors don't clutter logs
     local response
     response=$(curl -s -H "X-Plex-Token: $token" "$url/status/sessions" 2>/dev/null)
     
