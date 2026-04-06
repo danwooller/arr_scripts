@@ -5,7 +5,6 @@
 # the name of the immediate containing folder.
 
 # --- Load Shared Functions ---
-# Checking existence to prevent 'set -e' from killing the script cryptically
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
@@ -13,14 +12,11 @@ else
     exit 1
 fi
 
-# --- Run Dependency Check using the shared function ---
+# --- Run Dependency Check ---
 check_dependencies "mkvpropedit"
 
 # --- Configuration ---
-# Set the MKV extension to check for
 MKV_EXTENSION=".mkv"
-# Set the default directory to scan if no files are provided as arguments
-# This default is used if the user doesn't specify a directory or files.
 DEFAULT_TARGET_DIR="/mnt/media/Movies"
 #LOG_LEVEL="debug"
 
@@ -28,7 +24,6 @@ DEFAULT_TARGET_DIR="/mnt/media/Movies"
 process_mkv() {
     local file="$1"
     
-    # 1. Check if the file exists and is a regular file
     if [[ ! -f "$file" ]]; then
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Skipping: $file is not a regular file."
         return 1
@@ -38,7 +33,6 @@ process_mkv() {
     local base=$(basename "$file")
     local name_no_ext="${base%.*}"
     
-    # Regex matches: a literal space, followed by ( , 4 digits, and ) at the end of the string
     if [[ "$name_no_ext" =~ \ \([0-9]{4}\)$ ]]; then
         local new_name="${name_no_ext% (*)}$MKV_EXTENSION"
         local new_path="$dir/$new_name"
@@ -46,24 +40,18 @@ process_mkv() {
         if [[ "$file" != "$new_path" ]]; then
             log "ℹ️ RENAME: \"$base\" -> \"$new_name\""
             mv "$file" "$new_path"
-            file="$new_path" # Update the file variable for subsequent steps
+            file="$new_path" 
             radarr_targeted_scan "$name_no_ext"
         fi
     fi
 
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Processing: $file"
 
-    # 2. Determine the desired title (the name of the containing folder)
-    # We first get the path of the parent directory, then extract its base name.
     local file_dir=$(dirname "$file")
     local desired_title=$(basename "$file_dir")
 
-    # 3. Read the current "Title" property from the MKV file
-    # We use mkvinfo and grep, focusing on the global document title.
-    # The 'sed' command strips everything before "Title: "
     local current_title=$(mkvinfo "$file" 2>/dev/null | grep -m 1 "Title:" | sed 's/^.*Title: //; s/^ *//; s/ *$//')
 
-    # If the current_title is empty (meaning no title is set), use an empty string for comparison
     if [[ -z "$current_title" ]]; then
         current_title=""
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Current Title: <None Set>"
@@ -73,12 +61,10 @@ process_mkv() {
 
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Desired Title: \"$desired_title\""
 
-    # 4. Compare and Update
     if [[ "$current_title" == "$desired_title" ]]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️Title already matches the folder name. No action required."
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Title already matches the folder name. No action required."
     else
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Updating \"$desired_title\""
-        # Use mkvpropedit to set the segment title
         mkvpropedit "$file" --edit info --set "title=$desired_title"
 
         if [ $? -eq 0 ]; then
@@ -92,50 +78,37 @@ process_mkv() {
 
 # --- Main Script Logic ---
 
-# Determine files to process
-files_to_process=()
-TARGET_DIR="$DEFAULT_TARGET_DIR"
+# 1. Determine the Target Directory
+# Use $1 if provided; otherwise, use the default.
+TARGET_DIR="${1:-$DEFAULT_TARGET_DIR}"
 
+# 2. Validate Directory Existence
+if [[ ! -d "$TARGET_DIR" ]]; then
+    log "❌ Error: Target directory '$TARGET_DIR' does not exist."
+    exit 1
+fi
+
+files_to_process=()
 log_start "$TARGET_DIR"
 
-if [ "$#" -gt 0 ]; then
-    # Check if the first argument is a directory
-    if [[ -d "$1" ]]; then
-        # If $1 is a directory, use it as the new TARGET_DIR for a recursive search
-        TARGET_DIR="$1"
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Directory provided as argument. Searching recursively for *.mkv in $TARGET_DIR..."
-        # Use find -print0 for robust, recursive searching.
-        while IFS= read -r -d $'\0' file; do
-            files_to_process+=("$file")
-        done < <(find "$TARGET_DIR" -type f -name "*${MKV_EXTENSION}" -print0)
+# 3. Collect files
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Searching recursively for *${MKV_EXTENSION} in $TARGET_DIR..."
 
-    else
-        # If arguments are provided but $1 is NOT a directory, assume arguments are specific files
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Arguments provided are not a directory. Processing specific files..."
-        files_to_process=("$@")
-    fi
-else
-    # If no arguments are provided, process the default directory recursively
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No files specified. Searching recursively for *.mkv in $TARGET_DIR..."
-    if [[ ! -d "$TARGET_DIR" ]]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "❌ Default target directory '$TARGET_DIR' does not exist or is not a directory." >&2
-        exit 1
-    fi
-    
-    # Use find -print0 for robust, recursive searching.
-    while IFS= read -r -d $'\0' file; do
-        files_to_process+=("$file")
-    done < <(find "$TARGET_DIR" -type f -name "*${MKV_EXTENSION}" -print0)
-fi
+# Use find -print0 for robust handling of spaces in filenames
+while IFS= read -r -d $'\0' file; do
+    files_to_process+=("$file")
+done < <(find "$TARGET_DIR" -type f -name "*${MKV_EXTENSION}" -print0)
 
-
-# Process the identified files
+# 4. Process the identified files
 if [ ${#files_to_process[@]} -eq 0 ]; then
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No ${MKV_EXTENSION} files found to process in the specified location: $TARGET_DIR"
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No ${MKV_EXTENSION} files found in: $TARGET_DIR"
     exit 0
 fi
+
 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Found ${#files_to_process[@]} file(s) to check."
+
 for mkv_file in "${files_to_process[@]}"; do
     process_mkv "$mkv_file"
 done
+
 [[ $LOG_LEVEL == "debug" ]] && log_end "$TARGET_DIR"
