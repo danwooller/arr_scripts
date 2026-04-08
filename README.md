@@ -39,7 +39,7 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_sort_tv.sh**](./DW_sort_tv.sh) | Wraps the Perl script sorttv in a service. Currently has problems with Daily Show/Colbert on Ubutnu 24.04. _ubuntu24_ |
 | [**DW_unnamed_episodes.sh**](./DW_unnamed_episodes.sh) | Looks for files named '* .mkv' and '*_.mkv'. and triggers a rename on Sonarr. _ubuntu24_ |
 | [**update-docker.sh**](./update-docker.sh) | Runs a linux update then backs up the containers to the network while updating. _ubuntu9 ubuntu24_ |
-| [**DW_usenet_org.sh**](./DW_usenet_org.sh) | Looks for media files without readable filenames and attempts to convert them using folder names. _ubuntu9_ |
+| [**usenet_org.sh**](./usenet_org.sh) | Looks for media files without readable filenames and attempts to convert them using folder names. _ubuntu9_ |
 
 ### 🔧 System & Maintenance Tools
 | File | Description |
