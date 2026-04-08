@@ -50,6 +50,19 @@ while true; do
         
         # 1. Try Forced English
         SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
+
+        if [[ -n "$SUB_TRACK_ID" && "$SUB_TRACK_ID" != "null" ]]; then
+            SUB_NAME="Forced"
+        else
+            # 2. Check if we need English Audio to decide on Subtitle Fallback
+            HAS_ENG_AUDIO=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio" and .properties.language == "eng") | .id' | head -n 1)
+            
+            # 3. If NO English audio exists, Fallback to FIRST English subtitle
+            if [[ -z "$HAS_ENG_AUDIO" || "$HAS_ENG_AUDIO" == "null" ]]; then
+                SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng") | .id' | head -n 1)
+                SUB_NAME="English"
+            fi
+        fi
         
         # 2. Check if we need English Audio to decide on Subtitle Fallback
         HAS_ENG_AUDIO=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio" and .properties.language == "eng") | .id' | head -n 1)
@@ -107,11 +120,19 @@ while true; do
         # --- Remux ---
         if [[ -f "$TEMP_OUTPUT" ]]; then
             if [ "$HAS_SUBTITLES" = true ]; then
-                mkvmerge -o "$FINAL_OUTPUT" --no-subtitles "$TEMP_OUTPUT" --language 0:eng --track-name 0:"English" --default-track 0:yes "$SUB_FILE"
+                    # Determine if the forced flag should be set in the MKV header
+                    FORCED_FLAG="no"
+                    [[ "$SUB_NAME" == "Forced" ]] && FORCED_FLAG="yes"
+                    mkvmerge -o "$FINAL_OUTPUT" \
+                        --no-subtitles "$TEMP_OUTPUT" \
+                        --language 0:eng \
+                        --track-name 0:"$SUB_NAME" \
+                        --forced-display 0:"$FORCED_FLAG" \
+                        --default-track 0:"$FORCED_FLAG" \
+                        "$SUB_FILE"
             else
                 mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
             fi
-            
             log "✅ Completed $FILENAME"
             sonos_audio_fix "$FINAL_OUTPUT"  
             mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"
