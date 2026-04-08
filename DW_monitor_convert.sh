@@ -16,7 +16,7 @@ fi
 
 # --- Configuration ---
 HOST=$(hostname -s)
-SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/convert"
+SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/${HOST}_convert"
 [[ $HOST == "pi"* ]] && HOME_DIR="/home/pi" || HOME_DIR="/home/dan"
 CONVERT_DIR="$HOME_DIR/convert"
 WORKING_DIR="$HOME_DIR/${HOST}_done"
