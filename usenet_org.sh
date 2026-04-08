@@ -8,7 +8,7 @@ source "/usr/local/bin/common_functions.sh"
 
 # --- Configuration ---
 HOST=$(hostname)
-BASE_DIR="/mnt/media/torrent/${HOST}_convert"
+BASE_DIR="/mnt/media/torrent/${HOST}/${HOST}_convert"
 TARGET_DIR="$BASE_DIR"
 
 SEARCH_DEPTH_MIN=2
