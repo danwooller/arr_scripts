@@ -34,47 +34,33 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         temp_file="${file%.*}_smart_tmp.mkv"
         temp_srt="/tmp/dw_conv_$(date +%s).srt"
 
-        # 1. Run shared logic for Audio/Video track selection
         subtitle_opts "$file"
 
-        # 2. Check for problematic codecs and get the stream index
-        # We query the first subtitle stream (s:0) for the codec and the global index
-        sub_info=$(ffprobe -v error -select_streams s:0 -show_entries stream=index,codec_name -of csv=p=0 "$file")
+        # Identify chosen subtitle ID and its codec
+        sub_id=$(echo "$TRACK_OPTS" | grep -oP '(?<=--subtitle-tracks )\d+')
         
-        if [ -n "$sub_info" ]; then
-            sub_id=$(echo "$sub_info" | cut -d',' -f1)
-            codec_type=$(echo "$sub_info" | cut -d',' -f2)
-        fi
+        if [ -n "$sub_id" ]; then
+            codec_type=$(ffprobe -v error -select_streams "$sub_id" -show_entries stream=codec_name -of csv=p=0 "$file")
+            
+            if [[ "$codec_type" =~ ^(ass|hdmv_pgs_subtitle|dvd_subtitle)$ ]]; then
+                log "🔧 FIXING: $file_name ($codec_type -> SRT)"
 
-        if [[ "$codec_type" =~ ^(ass|hdmv_pgs_subtitle|dvd_subtitle)$ ]]; then
-            log "🔧 FIXING: $file_name ($codec_type -> SRT)"
-
-            # 3. Convert specific problematic stream to SRT
-            if ffmpeg -i "$file" -map 0:"$sub_id" "$temp_srt" -y < /dev/null >/dev/null 2>&1; then
-                
-                # 4. Clean TRACK_OPTS: Remove existing sub flags and the --no-subtitles restriction
-                # so we can inject our new SRT manually.
-                CLEAN_OPTS=$(echo "$TRACK_OPTS" | sed -E 's/--subtitle-tracks [0-9,]+//; s/--no-subtitles//')
-                
-                # 5. Remux: Use chosen V/A tracks, strip ALL old subs, add the new SRT
-                if mkvmerge -o "$temp_file" $CLEAN_OPTS --no-subtitles "$file" "$temp_srt" < /dev/null >/dev/null 2>&1; then
-                    mv "$file" "$DIR_MEDIA_HOLD/${file_name}.original"
-                    mv "$temp_file" "${file%.*}.mkv"
+                if ffmpeg -i "$file" -map 0:"$sub_id" "$temp_srt" -y < /dev/null >/dev/null 2>&1; then
+                    CLEAN_OPTS=$(echo "$TRACK_OPTS" | sed -E 's/--subtitle-tracks [0-9,]+//; s/--no-subtitles//')
                     
-                    log "✨ SUCCESS: $file_name converted to SRT."
-                    
-                    # 6. Metadata: Since we used --no-subtitles, the new SRT is track s1
-                    log "📝 Naming track 'Forced' and setting flags..."
-                    mkvpropedit "${file%.*}.mkv" --edit track:s1 --set language=eng --set name="Forced" --set flag-forced=1 --set flag-default=1 < /dev/null >/dev/null 2>&1
-                else
-                    log "❌ FAILED: mkvmerge failed for $file_name"
+                    if mkvmerge -o "$temp_file" $CLEAN_OPTS --no-subtitles "$file" "$temp_srt" < /dev/null >/dev/null 2>&1; then
+                        mv "$file" "$DIR_MEDIA_HOLD/${file_name}.original"
+                        mv "$temp_file" "${file%.*}.mkv"
+                        log "✨ SUCCESS: $file_name converted to SRT."
+                        mkvpropedit "${file%.*}.mkv" --edit track:s1 --set language=eng --set name="Forced" --set flag-forced=1 --set flag-default=1 < /dev/null >/dev/null 2>&1
+                    fi
                 fi
+                rm -f "$temp_srt"
             else
-                log "❌ FAILED: ffmpeg conversion failed for $file_name"
+                # If it's already SRT but needs remuxing to apply our track selection
+                log "✅ KEEPING: $file_name already has SRT or compliant sub."
+                # [Optional: You could add a remux block here if you want to strip extra tracks even if no conversion is needed]
             fi
-            rm -f "$temp_srt"
-        else
-            [[ "$LOG_LEVEL" == "debug" ]] && log "✅ SKIP: $file_name is already compliant ($codec_type)."
         fi
     done
 
