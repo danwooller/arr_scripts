@@ -20,7 +20,7 @@ fi
 
 LOCAL_DONE_FOLDER="$HOME_DIR/$(hostname)_done"
 LOCAL_CONVERT_FOLDER="$HOME_DIR/convert"
-REMOTE_CONVERT_FOLDER="$DIR_MEDIA_TORRENT/$(hostname)/convert"
+REMOTE_CONVERT_FOLDER="$DIR_MEDIA_TORRENT/$(hostname)/$(hostname)_convert"
 REMOTE_FORCED_FOLDER="$DIR_MEDIA_TORRENT/$(hostname)/subtitles/forced"
 
 REFRESH_INTERVAL=10
