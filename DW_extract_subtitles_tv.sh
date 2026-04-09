@@ -12,9 +12,16 @@ else
 fi
 
 # --- Configuration ---
-SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/extract/tv"
+SOURCE_DIR="${1:-$DIR_MEDIA_TORRENT/$HOST/subtitles/extract/tv}"
+[ -z "$1" ] && mkdir -p "$SOURCE_DIR"
 
-mkdir -p "$SOURCE_DIR"
+#easier way
+#if [ -z "$1" ]; then
+#    SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/extract/tv"
+#    mkdir -p "$SOURCE_DIR"
+#else
+#    SOURCE_DIR="$1"
+#fi
 
 # File types to process (no variable needed when using -iname)
 POLL_INTERVAL=30
