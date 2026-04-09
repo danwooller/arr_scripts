@@ -62,7 +62,9 @@ while true; do
         else
             [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No suitable English forced subtitle track found in the source file."
         fi
-        mv "$SOURCE_FILE" "$DIR_MEDIA_COMPLETED_TV/"
+        if [ -z "$1" ]; then
+            mv "$SOURCE_FILE" "$DIR_MEDIA_COMPLETED_TV/"
+        fi
     done
     
     # Wait for the next poll cycle
