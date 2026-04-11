@@ -41,7 +41,7 @@ fi
 
 # --- Configuration ---
 DOCKER="/usr/bin/docker"
-BACKUP_DEST="${MOUNT_ROOT}/backup/${HOSTNAME}/opt"
+BACKUP_DEST="$DIR_MEDIA_BACKUP/${HOSTNAME}/opt"
 REQUIRED_SPACE_MB=5000
 LOG_LEVEL="debug"
 
@@ -146,7 +146,7 @@ fi
 if [ "$SKIP_BACKUP" = true ]; then
     log "⏩ Skipping rsync backup as requested."
 else
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Syncing /opt to $BACKUP_DEST..."
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Syncing /opt/docker to $BACKUP_DEST..."
     
     # -r: recursive
     # -l: copy symlinks as symlinks
@@ -155,7 +155,7 @@ else
     # --delete: remove deleted files
     # --no-p -no-o -no-g: skip permissions/owner/group (SMB unfriendly)
     
-    sudo rsync -rlth /opt/ "$BACKUP_DEST" \
+    sudo rsync -rlth /opt/docker "$BACKUP_DEST" \
         --delete \
         --no-perms \
         --no-owner \
