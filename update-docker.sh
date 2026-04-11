@@ -121,6 +121,29 @@ for dir in /opt/*/ ; do
     fi
 done
 
+if [ "$SKIP_BACKUP" = false ]; then
+    log "ℹ️ Checking Plex activity via Tautulli..."
+    
+    for (( i=1; i<=$MAX_RETRIES; i++ )); do
+        # Fetch the stream count
+        STREAMS=$(curl -s "$TAUTULLI_URL/api/v2?apikey=$TAUTULLI_API_KEY&cmd=get_activity" | grep -oP '"stream_count":\s*"\K[0-9]+')
+        STREAMS=${STREAMS:-0} # Default to 0 if null
+
+        if [ "$STREAMS" -eq 0 ]; then
+            log "✅ No active streams detected. Proceeding..."
+            break
+        else
+            if [ $i -eq $MAX_RETRIES ]; then
+                log "⚠️ Max retries reached. Users are still watching, but proceeding with backup anyway."
+                # Alternatively, use 'exit 0' here if you'd rather skip the backup entirely
+            else
+                log "⏳ $STREAMS stream(s) active. Waiting 15m (Attempt $i/$MAX_RETRIES)..."
+                sleep $WAIT_TIME
+            fi
+        fi
+    done
+fi
+
 # 5. Stop Containers & Wait
 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Stopping all containers..."
 
