@@ -617,7 +617,8 @@ seerr_sync_issue() {
     [[ -z "$media_id" || "$media_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
 
     # 3. Deduplication & Anti-Spam Check
-    local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=100&filter=open")
+    #local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=100&filter=open")
+    local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=10&filter=all")
     
     # Extract Issue ID, Main Message, and Last Comment Message
     local issue_info=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
