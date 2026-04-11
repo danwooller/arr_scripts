@@ -147,7 +147,28 @@ if [ "$SKIP_BACKUP" = true ]; then
     log "⏩ Skipping rsync backup as requested."
 else
     [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Syncing /opt to $BACKUP_DEST..."
-    sudo rsync -avh /opt/ "$BACKUP_DEST" --delete --quiet
+    
+    # -r: recursive
+    # -l: copy symlinks as symlinks
+    # -t: preserve modification times (crucial for rsync efficiency)
+    # -h: human readable
+    # --delete: remove deleted files
+    # --no-p -no-o -no-g: skip permissions/owner/group (SMB unfriendly)
+    
+    sudo rsync -rlth /opt/ "$BACKUP_DEST" \
+        --delete \
+        --no-perms \
+        --no-owner \
+        --no-group \
+        --timeout=180 \
+        --quiet
+        
+    RSYNC_EXIT=$?
+    if [ $RSYNC_EXIT -ne 0 ]; then
+        log "❌ Rsync failed with exit code $RSYNC_EXIT"
+    else
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Rsync completed successfully."
+    fi
 fi
 
 # 7. Restart
