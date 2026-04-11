@@ -26,7 +26,7 @@ fi
 
 # --- Execution Loop ---
 for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
-    
+
     # 1. Check if the directory actually exists/is mounted
     if [ ! -d "$CURRENT_DIR" ]; then
         log "❌ SKIP: $CURRENT_DIR is not available."
@@ -44,7 +44,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     # --- NEW: Find video files within the directory ---
     # This finds mkv, mp4, avi, etc., and loops through them
     find "$CURRENT_DIR" -type f \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" \) | while read -r file; do
-        
+
         file_name=$(basename "$file")
 
         # 1. Integrity Check
@@ -54,7 +54,7 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         # 2. Determine Media Type (Look at the full path for 'TV')
         media_type="movie"
         [[ "$file" =~ [Tt][Vv] ]] && media_type="tv"
-        
+
         # 3. Logic for Media Title (Handling Seasons/Specials)
         # We start with the parent folder of the file
         media_name=$(basename "$(dirname "$file")")
@@ -69,7 +69,6 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
         if [ $exit_status -ne 0 ]; then
             log "❌ CORRUPT: $file_name ($error_msg)"
             issue_msg="Corruption detected in $file_name. Error: $error_msg"
-            
             seerr_sync_issue "$media_name" "$media_type" "$issue_msg"
             mv --backup=numbered "$file" "$DIR_MEDIA_HOLD/"
         else
