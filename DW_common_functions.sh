@@ -523,8 +523,10 @@ seerr_resolve_issue() {
 
     # 2. Get ID from Sonarr/Radarr using the explicit media_type
     if [[ "$media_type" == "tv" ]]; then
+        local clean_search=$(echo "$folder_path" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
         lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-            jq -r --arg path "$folder_path" '.[] | select(.path | endswith($path)) | .tvdbId')
+            jq -r --arg clean "$clean_search" '.[] | 
+            select(.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)) | .tvdbId' | head -n 1)
     else
         # Default to movie if not explicitly tv
         media_type="movie" 
