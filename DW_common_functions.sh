@@ -528,11 +528,15 @@ seerr_resolve_issue() {
         local show_folder=""
         [[ "$(basename "$folder_path")" == *"Season"* ]] && show_folder=$(dirname "$folder_path") || show_folder="$folder_path"
         
+#        lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+#            jq -r --arg path "${show_folder%/}" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
         lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-            jq -r --arg path "${show_folder%/}" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
+            jq -r --arg path "$folder_path" '.[] | select(.path | endswith($path)) | .tvdbId')
     else
+#        lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
+#            jq -r --arg path "$folder_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tmdbId')
         lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-            jq -r --arg path "$folder_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tmdbId')
+            jq -r --arg path "$folder_path" '.[] | select(.path | endswith($path)) | .tmdbId')
     fi
 
     # Exit if mapping fails
