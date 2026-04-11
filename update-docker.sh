@@ -154,14 +154,13 @@ else
     # -h: human readable
     # --delete: remove deleted files
     # --no-p -no-o -no-g: skip permissions/owner/group (SMB unfriendly)
-    
-    sudo rsync -rlth /opt/docker "$BACKUP_DEST" \
-        --delete \
-        --no-perms \
-        --no-owner \
-        --no-group \
-        --timeout=180 \
-        --quiet
+    sudo rsync -rlth /opt/docker-compose.yaml /opt/docker "$BACKUP_DEST/" \
+    --delete \
+    --no-perms \
+    --no-owner \
+    --no-group \
+    --timeout=180 \
+    --quiet
         
     RSYNC_EXIT=$?
     if [ $RSYNC_EXIT -ne 0 ]; then
