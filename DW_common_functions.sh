@@ -528,18 +528,19 @@ seerr_resolve_issue() {
             jq -r --arg clean "$clean_search" '.[] | 
             select(.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)) | .tvdbId' | head -n 1)
     else
-        # Default to movie if not explicitly tv
+        # Default to movie
         media_type="movie" 
         
-        # 1. Create a "super-clean" version of the search string (alphanumeric only, lowercase)
-        local clean_search=$(echo "$folder_path" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+        # 1. Aggressively clean the search string (Shell side)
+        local clean_search=$(echo "$folder_path" | sed 's/ & / and /g' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
-        # 2. Match by comparing the cleaned search string against the cleaned Radarr path
+        # 2. Match using internal JQ properties (using .path and .title directly)
         lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
             jq -r --arg clean "$clean_search" '.[] | 
+            # Define internal helpers to clean the JSON data for comparison
             select(
-                (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)) or
-                (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase == $clean)
+                ((.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) | endswith($clean)) or
+                ((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean)
             ) | .tmdbId' | head -n 1)
     fi
 
