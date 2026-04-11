@@ -509,12 +509,11 @@ radarr_targeted_scan() {
 
 seerr_resolve_issue() {
     local folder_path="${1%/}" 
+    local media_type="$2"      # Use the passed argument ("movie" or "tv")
     local base_url="${SEERR_API_BASE%/}"
     local seerr_user="${SEERR_EMAIL}"
     local seerr_pass="${SEERR_PASSWORD}"
     local cookie_file="/tmp/seerr_res_cookie.txt"
-    
-    local media_type="movie"
     local lookup_id=""
 
     # 1. Authenticate
@@ -522,25 +521,23 @@ seerr_resolve_issue() {
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
 
-    # 2. Get ID from Sonarr/Radarr
-    if [[ "$folder_path" == *"/TV/"* ]]; then
-        media_type="tv"
-        local show_folder=""
-        [[ "$(basename "$folder_path")" == *"Season"* ]] && show_folder=$(dirname "$folder_path") || show_folder="$folder_path"
-        
-#        lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-#            jq -r --arg path "${show_folder%/}" '.[] | select(.path == $path or .path == ($path + "/")) | .tvdbId')
+    # 2. Get ID from Sonarr/Radarr using the explicit media_type
+    if [[ "$media_type" == "tv" ]]; then
         lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
             jq -r --arg path "$folder_path" '.[] | select(.path | endswith($path)) | .tvdbId')
     else
-#        lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-#            jq -r --arg path "$folder_path" '.[] | select(.path == $path or .path == ($path + "/")) | .tmdbId')
+        # Default to movie if not explicitly tv
+        media_type="movie" 
         lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
             jq -r --arg path "$folder_path" '.[] | select(.path | endswith($path)) | .tmdbId')
     fi
 
     # Exit if mapping fails
-    [[ -z "$lookup_id" || "$lookup_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
+    if [[ -z "$lookup_id" || "$lookup_id" == "null" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Seerr Resolve: No ID found for $folder_path in $media_type manager."
+        rm -f "$cookie_file"
+        return 1
+    fi
 
     # 3. Fetch issues
     local response_file="/tmp/seerr_open_issues.json"
