@@ -528,8 +528,17 @@ seerr_resolve_issue() {
     else
         # Default to movie if not explicitly tv
         media_type="movie" 
+        
+        # 1. Create a "super-clean" version of the search string (alphanumeric only, lowercase)
+        local clean_search=$(echo "$folder_path" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+
+        # 2. Match by comparing the cleaned search string against the cleaned Radarr path
         lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-            jq -r --arg path "$folder_path" '.[] | select(.path | endswith($path)) | .tmdbId')
+            jq -r --arg clean "$clean_search" '.[] | 
+            select(
+                (.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)) or
+                (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase == $clean)
+            ) | .tmdbId' | head -n 1)
     fi
 
     # Exit if mapping fails
