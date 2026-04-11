@@ -528,20 +528,30 @@ seerr_resolve_issue() {
             jq -r --arg clean "$clean_search" '.[] | 
             select(.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)) | .tvdbId' | head -n 1)
     else
-        # Default to movie
+        # --- Movie Logic (Check Standard then 4K) ---
         media_type="movie" 
-        
-        # 1. Aggressively clean the search string (Shell side)
         local clean_search=$(echo "$folder_path" | sed 's/ & / and /g' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
-        # 2. Match using internal JQ properties (using .path and .title directly)
-        lookup_id=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie" | \
-            jq -r --arg clean "$clean_search" '.[] | 
-            # Define internal helpers to clean the JSON data for comparison
-            select(
-                ((.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) | endswith($clean)) or
-                ((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean)
-            ) | .tmdbId' | head -n 1)
+        # 1. Helper to fetch ID (To avoid repeating code)
+        get_radarr_id() {
+            local url="$1"
+            local key="$2"
+            curl -s -H "X-Api-Key: $key" "$url/movie" | \
+                jq -r --arg clean "$clean_search" '.[] | 
+                select(
+                    ((.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) | endswith($clean)) or
+                    ((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean)
+                ) | .tmdbId' | head -n 1
+        }
+
+        # 2. Try Standard Radarr
+        lookup_id=$(get_radarr_id "$RADARR_API_BASE" "$RADARR_API_KEY")
+
+        # 3. If not found, try 4K Radarr
+        if [[ -z "$lookup_id" || "$lookup_id" == "null" ]]; then
+            [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Not in Standard Radarr, checking 4K..."
+            lookup_id=$(get_radarr_id "$RADARR4K_API_BASE" "$RADARR4K_API_KEY")
+        fi
     fi
 
     # Exit if mapping fails
