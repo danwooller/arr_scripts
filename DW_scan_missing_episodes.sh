@@ -95,10 +95,10 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
         else
             [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No gaps found for $series_name. Resolving Seerr issues..."
-            # Resolve each season folder found within the series
-            find "$CURRENT_SERIES_PATH" -maxdepth 1 -type d -name "Season*" | while read -r season_folder; do
-                 seerr_resolve_issue "$season_folder"
-            done
+            
+            # Send the Series path and explicitly state "tv"
+            # We use the CURRENT_SERIES_PATH so Sonarr can actually find the match
+            seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
         fi
 
         [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed scan for $series_name"
