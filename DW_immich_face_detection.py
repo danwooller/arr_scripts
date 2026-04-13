@@ -109,11 +109,25 @@ def run_legacy_sync():
             # Small break to let the database breathe
             time.sleep(0.1)
 
-        total_time = time.time() - start_time
+#        total_time = time.time() - start_time
+#        print(f"\n✅ FULL SYNC FINISHED!")
+#        print(f"⏱️ Total Time: {total_time/60:.1f} minutes")
+#        print(f"👤 Names Assigned: {success_count}")
+#        print(f"⏭️ Already Named:  {already_named}")
+
+        total_minutes = total_time / 60
+        
+        # Keep your human-readable prints
         print(f"\n✅ FULL SYNC FINISHED!")
-        print(f"⏱️ Total Time: {total_time/60:.1f} minutes")
+        print(f"⏱️ Total Time: {total_minutes:.1f} minutes")
         print(f"👤 Names Assigned: {success_count}")
         print(f"⏭️ Already Named:  {already_named}")
+
+        # Add a specific format for the wrapper to "grab"
+        # We use a unique prefix like 'RESULT:' to filter these lines
+        print(f"RESULT:TIME={total_minutes:.1f}")
+        print(f"RESULT:SUCCESS={success_count}")
+        print(f"RESULT:ALREADY={already_named}")
 
     except Exception as e:
         print(f"❌ Error: {e}")
