@@ -14,9 +14,9 @@ HEADERS = {
 }
 
 STOP_WORDS = [
-    " accept ", " accepts ", " attend ", "attends ", " arrive ", "arrives ",
+    " accept ", " accepts ", " attend ", " attends ", " arrive ", " arrives ",
     " backstage ", " during a ", " during the ", "a general view",
-    "members of ", "with the ", " ("
+    "members of ", " with the ", " ("
 ]
 
 def clean_name(text):
