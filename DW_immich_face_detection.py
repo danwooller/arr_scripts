@@ -73,26 +73,37 @@ def run_legacy_sync():
                 people = asset.get('people', [])
 
                 if raw_info and len(people) == 1:
-                    if "," not in raw_info and " and " not in raw_info.lower():
-                        final_name = clean_name(raw_info)
-                        if not final_name: continue
+                    # 1. Extract the name first using your STOP_WORDS logic
+                    extracted_name = clean_name(raw_info)
+                    
+                    # 2. Safety Check: If the extracted name is still too long or contains 
+                    # multiple people, skip it. (e.g. "John Smith, Jane Doe")
+                    if not extracted_name:
+                        continue
 
+                    # We check for commas/and ONLY in the extracted portion
+                    is_multiple_people = "," in extracted_name or " and " in extracted_name.lower()
+                    
+                    # Also check if the name is suspiciously long (e.g., > 50 chars)
+                    is_too_long = len(extracted_name) > 50
+
+                    if not is_multiple_people and not is_too_long:
                         person = people[0]
                         if not person.get('name'):
-                            # Update the person
                             person_id = person.get('id')
                             update_res = requests.put(
                                 f"{BASE_URL}/people/{person_id}", 
                                 headers=HEADERS, 
-                                json={"name": final_name}
+                                json={"name": extracted_name}
                             )
                             if update_res.status_code == 200:
-                                print(f"✨ [{processed_count}] Named: '{final_name}'")
+                                print(f"✨ [{processed_count}] Named: '{extracted_name}'")
                                 success_count += 1
                         else:
                             already_named += 1
-                else:
-                    skipped_logic += 1
+                    else:
+                        # This triggers if the name itself looks like a sentence or a list
+                        skipped_logic += 1
             
             page += 1
             # Small break to let the database breathe
