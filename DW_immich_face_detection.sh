@@ -22,7 +22,7 @@ if [ $EXIT_CODE -ne 0 ]; then
 fi
 
 # Extract variables with a fallback to 0
-SYNC_TIME=$(echo "$OUTPUT" | grep "RESULT:TIME=" | cut -d'=' -f2)
+SYNC_TIME=$(echo "$OUTPUT" | grep "^RESULT:TIME=" | cut -d'=' -f2)
 SYNC_TIME=${SYNC_TIME:-0}
 
 SYNC_SUCCESS=$(echo "$OUTPUT" | grep "RESULT:SUCCESS=" | cut -d'=' -f2)
