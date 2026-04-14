@@ -109,7 +109,7 @@ def run_legacy_sync():
             # Small break to let the database breathe
             time.sleep(0.1)
 
-#        total_time = time.time() - start_time
+        total_time = time.time() - start_time
 #        print(f"\n✅ FULL SYNC FINISHED!")
 #        print(f"⏱️ Total Time: {total_time/60:.1f} minutes")
 #        print(f"👤 Names Assigned: {success_count}")
