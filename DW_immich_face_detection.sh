@@ -17,10 +17,15 @@ OUTPUT=$(python3 /usr/local/bin/DW_immich_face_detection.py)
 # Print the full output so you can still see the logs in the console
 echo "$OUTPUT"
 
-# Extract the variables using grep
+# Extract variables with a fallback to 0
 SYNC_TIME=$(echo "$OUTPUT" | grep "RESULT:TIME=" | cut -d'=' -f2)
+SYNC_TIME=${SYNC_TIME:-0}
+
 SYNC_SUCCESS=$(echo "$OUTPUT" | grep "RESULT:SUCCESS=" | cut -d'=' -f2)
+SYNC_SUCCESS=${SYNC_SUCCESS:-0}
+
 SYNC_ALREADY=$(echo "$OUTPUT" | grep "RESULT:ALREADY=" | cut -d'=' -f2)
+SYNC_ALREADY=${SYNC_ALREADY:-0}
 
 # Now you can use them with your common_functions.sh
 log "Sync complete in $SYNC_TIME minutes."
