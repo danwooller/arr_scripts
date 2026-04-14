@@ -11,11 +11,15 @@ fi
 
 log_start
 
-# Run the script and capture all output to a temporary file
 OUTPUT=$(python3 /usr/local/bin/DW_immich_face_detection.py)
+EXIT_CODE=$?
 
-# Print the full output so you can still see the logs in the console
 echo "$OUTPUT"
+
+if [ $EXIT_CODE -ne 0 ]; then
+    log "❌ Sync failed with exit code $EXIT_CODE"
+    exit $EXIT_CODE
+fi
 
 # Extract variables with a fallback to 0
 SYNC_TIME=$(echo "$OUTPUT" | grep "RESULT:TIME=" | cut -d'=' -f2)
