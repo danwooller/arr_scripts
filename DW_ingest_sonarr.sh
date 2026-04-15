@@ -36,7 +36,7 @@ while true; do
             if find "$DIR_MEDIA_COMPLETED_TV" -maxdepth 1 -name "*.mkv" -print -quit | grep -q .; then
                 touch "$LOCK_FILE"
                 
-                log "📂 Files detected in $DIR_MEDIA_COMPLETED_TV. Starting ingest..."
+                [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Files detected in $DIR_MEDIA_COMPLETED_TV. Starting ingest..."
                 
                 # Trigger the Force Import function from common_functions
                 sonarr_ingest "$DIR_MEDIA_COMPLETED_TV"
