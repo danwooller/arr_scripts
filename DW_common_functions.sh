@@ -690,7 +690,7 @@ sonarr_ingest() {
         local command_id=$(echo "$response" | jq -r '.id')
         [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Ingest queued: $command_id"
     else
-        log "⚠️ Nothing found in $ingest_path."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Nothing found in $ingest_path."
     fi
 }
 
