@@ -9,8 +9,6 @@ else
     exit 1
 fi
 
-check_dependencies "nfs-common"
-
 # --- CONFIGURATION ---
 SSD_DEVICE="/dev/sda"
 SSD_MOUNT="/mnt/ssd_recovery"
