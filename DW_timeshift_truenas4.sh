@@ -10,7 +10,7 @@ else
 fi
 
 # --- CONFIGURATION ---
-NAS_PATH="/mnt/backups/$(HOST)" # Use ha_backups for ubuntu9
+NAS_PATH="/mnt/backups/$HOST"
 MOUNT_POINT="/mnt/truenas4_backup"
 SSD_SNAPSHOTS="/run/timeshift/backup/timeshift/snapshots/"
 
