@@ -10,7 +10,7 @@ else
 fi
 
 # --- CONFIGURATION ---
-NAS_PATH="/mnt/backups/$HOST"
+NAS_PATH="/mnt/backup/$HOST"
 MOUNT_POINT="/mnt/truenas4_backup"
 SSD_SNAPSHOTS="/run/timeshift/backup/timeshift/snapshots/"
 
