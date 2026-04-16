@@ -32,11 +32,11 @@ if mountpoint -q $MOUNT_POINT && mountpoint -q $SSD_MOUNT; then
     
     sudo rsync -aH --delete "$SSD_SNAPSHOTS" "$MOUNT_POINT/"
     
-    echo "Sync Complete. Cleaning up..."
+    log "Sync Complete. Cleaning up..."
     sudo umount $MOUNT_POINT
     sudo umount $SSD_MOUNT
 else
-    echo "Error: One or more drives failed to mount."
+    log "Error: One or more drives failed to mount."
     # Try to unmount whatever DID work to stay clean
     sudo umount $MOUNT_POINT || true
     sudo umount $SSD_MOUNT || true
