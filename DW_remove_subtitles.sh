@@ -29,7 +29,7 @@ mkdir -p "$DEST_DIR"
 POLL_INTERVAL=30
 MIN_FILE_AGE=5 
 
-log_info "Starting monitor on $SOURCE_DIR"
+log "$SOURCE_DIR"
 
 while true; do
     find "$SOURCE_DIR" -maxdepth 1 -iname "*.mkv" -mmin +"$MIN_FILE_AGE" | while read -r FILE; do
@@ -67,7 +67,7 @@ while true; do
 
         # Trigger Plex update ONLY if $2 was set AND we actually changed something
         if [ "$MODIFIED" = true ] && [ -n "$CUSTOM_SOURCE" ]; then
-            log_info "Triggering Plex update for $PLEX_NAME (Section $PLEX_SRC)..."
+            log "Triggering Plex update for $PLEX_NAME (Section $PLEX_SRC)..."
             plex_library_update "$PLEX_SRC" "$PLEX_NAME"
         fi
     done
