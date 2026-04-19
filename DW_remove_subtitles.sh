@@ -31,10 +31,9 @@ MIN_FILE_AGE=0
 log "Scanning: $SOURCE_DIR"
 
 while true; do
-    # Flag to track if any changes happened in this specific loop cycle
     NEEDS_UPDATE=false
 
-    # find -print0 handles spaces in filenames
+    # find -print0 handles spaces; process substitution < <() keeps variables in scope
     while IFS= read -r -d '' FILE; do
         FILENAME=$(basename "$FILE")
         FILE_DIR=$(dirname "$FILE")
@@ -71,12 +70,18 @@ while true; do
         fi
     done < <(find "$SOURCE_DIR" -type f -iname "*.mkv" -mmin +"$MIN_FILE_AGE" -print0)
 
-    # Trigger Plex update ONCE at the end of the scan if changes were made in manual mode
+    # Trigger Plex update if changes were made
     if [ "$NEEDS_UPDATE" = true ]; then
         log "Finished batch. Triggering Plex update for $PLEX_NAME..."
         plex_library_update "$PLEX_SRC" "$PLEX_NAME"
     fi
 
-    log "Cycle complete. Sleeping for $POLL_INTERVAL seconds..."
-    sleep "$POLL_INTERVAL"
+    # EXIT vs SLEEP logic
+    if [ -n "$CUSTOM_SOURCE" ]; then
+        log "Manual run complete for $SOURCE_DIR. Exiting."
+        exit 0
+    else
+        log "Cycle complete. Sleeping for $POLL_INTERVAL seconds..."
+        sleep "$POLL_INTERVAL"
+    fi
 done
