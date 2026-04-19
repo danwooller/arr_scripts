@@ -41,7 +41,7 @@ while true; do
         REMOVABLE_IDS=$(mkvmerge --identify "$FILE" --identification-format json | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == false) | .id' | tr '\n' ',' | sed 's/,$//')
 
         if [ -n "$REMOVABLE_IDS" ]; then
-            log_info "Match found ($REMOVABLE_IDS). Remuxing $FILENAME..."
+            log "Match found ($REMOVABLE_IDS). Remuxing $FILENAME..."
             
             if mkvmerge -o "$TEMP_FILE" --subtitles "!$REMOVABLE_IDS" "$FILE"; then
                 TARGET_FINAL="${CUSTOM_SOURCE:+$SOURCE_DIR/}$FILENAME"
@@ -50,18 +50,18 @@ while true; do
                 mv "$TEMP_FILE" "$TARGET_FINAL"
                 [ "$FILE" != "$TARGET_FINAL" ] && rm "$FILE"
                 
-                log_info "Action complete: $FILENAME -> $TARGET_FINAL"
+                log "Action complete: $FILENAME -> $TARGET_FINAL"
                 MODIFIED=true
             else
-                log_error "Remux failed for $FILENAME"
+                log "Remux failed for $FILENAME"
                 rm -f "$TEMP_FILE"
             fi
         else
             if [ -z "$CUSTOM_SOURCE" ]; then
-                log_info "No changes for $FILENAME, moving to ingest folder."
+                log "No changes for $FILENAME, moving to ingest folder."
                 mv "$FILE" "$DEST_DIR/$FILENAME"
             else
-                log_info "No changes for $FILENAME. Leaving in place."
+                log "No changes for $FILENAME. Leaving in place."
             fi
         fi
 
