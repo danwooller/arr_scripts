@@ -12,7 +12,7 @@ else
 fi
 
 # --- Configuration ---
-SOURCE_DIR="$DIR_MEDIA_TORRENT/${HOST}/subtitles/extract/movies"
+SOURCE_DIR="${1:-$DIR_MEDIA_TORRENT/$HOST/subtitles/extract/movies}"
 
 mkdir -p "$SOURCE_DIR"
 
