@@ -25,16 +25,14 @@ esac
 mkdir -p "$SOURCE_DIR"
 mkdir -p "$DEST_DIR"
 
-# For a manual run, you might want to set this to 0
 POLL_INTERVAL=30
-MIN_FILE_AGE=0 # Set to 0 to catch everything immediately during testing
+MIN_FILE_AGE=0 
 
 log "Scanning: $SOURCE_DIR"
 
 while true; do
-    # Removed -maxdepth 1 so it finds files in Season folders
-    # Using -type f to ensure we only grab files
-    find "$SOURCE_DIR" -type f -iname "*.mkv" -mmin +"$MIN_FILE_AGE" | while read -r FILE; do
+    # find -print0 handles spaces in filenames much better
+    find "$SOURCE_DIR" -type f -iname "*.mkv" -mmin +"$MIN_FILE_AGE" -print0 | while IFS= read -r -d '' FILE; do
         FILENAME=$(basename "$FILE")
         FILE_DIR=$(dirname "$FILE")
         TEMP_FILE="$FILE_DIR/processing_$FILENAME"
@@ -48,16 +46,18 @@ while true; do
         if [ -n "$REMOVABLE_IDS" ]; then
             log "Match found ($REMOVABLE_IDS). Remuxing..."
             
-            if mkvmerge -o "$TEMP_FILE" --subtitles "!$REMOVABLE_IDS" "$FILE"; then
-                # In place update:
+            # Fixed the execution string to handle spaces and explicit track exclusion
+            if mkvmerge -o "$TEMP_FILE" --subtitle-tracks "!$REMOVABLE_IDS" "$FILE"; then
                 if [ -n "$CUSTOM_SOURCE" ]; then
+                    # Replace original file with the new one
                     mv "$TEMP_FILE" "$FILE"
                 else
+                    # Move to ingest folder and clean up source
                     mv "$TEMP_FILE" "$DEST_DIR/$FILENAME"
                     rm "$FILE"
                 fi
                 
-                log "Action complete for $FILENAME"
+                log "Action complete: $FILENAME"
                 MODIFIED=true
             else
                 log "Remux failed for $FILENAME"
@@ -68,8 +68,7 @@ while true; do
                 log "No changes, moving to ingest: $FILENAME"
                 mv "$FILE" "$DEST_DIR/$FILENAME"
             else
-                # This is likely what you see (or don't see) now
-                log "No non-forced English subs in $FILENAME. Skipping."
+                log "No changes for $FILENAME. Skipping."
             fi
         fi
 
@@ -79,7 +78,6 @@ while true; do
         fi
     done
 
-    # If running a one-off manual clean, you might want to 'exit 0' here instead of sleep
     log "Cycle complete. Sleeping for $POLL_INTERVAL seconds..."
     sleep "$POLL_INTERVAL"
 done
