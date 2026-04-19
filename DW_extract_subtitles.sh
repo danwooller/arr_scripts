@@ -47,27 +47,27 @@ while true; do
             SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
         fi
 
-        log "Checking for forced subs: $FILENAME"
+        [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Checking for forced subs: $FILENAME"
 
         # Identify English AND Forced subtitles
         SUB_TRACK_ID=$(mkvmerge -J "$SOURCE_FILE" 2>/dev/null | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
 
         if [ -n "$SUB_TRACK_ID" ]; then
-            log "English Forced found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
+            [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ English Forced found (ID: $SUB_TRACK_ID). Extracting to $SUB_FILE..."
             
             if mkvextract tracks "$SOURCE_FILE" "$SUB_TRACK_ID:$SUB_FILE"; then
-                log "Extraction successful."
+                [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Extraction successful."
                 [ -n "$CUSTOM_SOURCE" ] && NEEDS_UPDATE=true
             else
-                log "Extraction failed for $FILENAME"
+                [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "⚠️ Extraction failed for $FILENAME"
             fi
         else
-            log "No English forced subtitles found."
+            [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No English forced subtitles found."
         fi
 
         # Ingest Logic: If NO custom source was provided, move the video file to completed
         if [ -z "$CUSTOM_SOURCE" ]; then
-            log "Moving video to ingest folder: $DEST_DIR"
+            [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Moving video to ingest folder: $DEST_DIR"
             mv "$SOURCE_FILE" "$DEST_DIR/"
         fi
 
@@ -75,7 +75,7 @@ while true; do
 
     # Trigger Plex scan only if we added subs to a library folder ($2)
     if [ "$NEEDS_UPDATE" = true ]; then
-        log "Finished batch. Triggering Plex update for $PLEX_NAME..."
+        log "✅ Finished batch. Triggering Plex update for $PLEX_NAME..."
         plex_library_update "$PLEX_SRC" "$PLEX_NAME"
     fi
 
@@ -84,7 +84,7 @@ while true; do
         log "Manual extraction complete. Exiting."
         exit 0
     else
-        log "Cycle complete. Sleeping for $POLL_INTERVAL seconds..."
+        [[ "$LOG_LEVEL" == "debug" ]] && log "Cycle complete. Sleeping for $POLL_INTERVAL seconds..."
         sleep "$POLL_INTERVAL"
     fi
 done
