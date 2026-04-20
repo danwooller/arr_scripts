@@ -839,44 +839,77 @@ sonarr_weekly_shows() {
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
     local media_name="$1"
+
+    # Ensure absolute path and check existence
     [[ "$media_name" != /* ]] && media_name="/$media_name"
-    [ ! -f "$media_name" ] && return 1
+    if [ ! -f "$media_name" ]; then return 1; fi
 
-    # Get data using separate, clean probes
-    local codec=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$media_name")
-    local channels=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
-
-    # If it's already AC3, don't touch it
-    [[ "$codec" == "ac3" ]] && return 0
-
-    log "⚠️ Converting $codec ($channels ch) to AC3..."
-
-    local temp_file="${media_name}.processing.tmp"
+    # 1. Check for custom "SONOS_FIXED" tag to avoid double-processing
+    local IS_FIXED
+    IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name" | tr -d '\r\n')
     
-    # Use -- to prevent issues with filenames starting with hyphens
-    mv -- "$media_name" "$temp_file"
-
-    # The "Safe" Command
-    # 1. We use -map_metadata 0 to preserve global tags
-    # 2. We use -ac 2 explicitly for stereo to stabilize the filter
-    if [ "$channels" -gt 2 ]; then
-        ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v:0 -map 0:a:0 -map 0:s? \
-        -c:v copy -c:s copy -c:a ac3 -b:a 640k -ac 6 \
-        -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
-        -metadata SONOS_FIXED="true" \
-        "$media_name"
-    else
-        log "🔊 Normalizing Stereo AC3..."
-        
-        # We wrap the command in a single variable-safe block
-        # and use -ignore_unknown to skip those pesky EZTV attachments
-        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -map 0:s? -ignore_unknown -c:v copy -c:s copy -c:a ac3 -b:a 256k -ac 2 -af "loudnorm=I=-16:TP=-1.5:LRA=11" -metadata SONOS_FIXED="true" "$media_name"
+    if [[ "$IS_FIXED" == "true" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized: $(basename "$media_name")"
+        return 0
     fi
 
+    # 2. Extract Audio Metadata
+    # Using separate probes to ensure clean variable assignment
+    local CODEC
+    local CHANNELS
+    CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$media_name" | tr -d '\r\n')
+    CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name" | tr -d '\r\n')
+
+    # If no audio codec is found, exit
+    if [ -z "$CODEC" ]; then
+        log "🚫 No audio stream found in: $(basename "$media_name")"
+        return 1
+    fi
+
+    # 3. Skip if already standard AC3 Stereo/Mono (unless it's a surround file we want to downmix)
+    if [[ "$CODEC" == "ac3" && "$CHANNELS" -le 2 ]]; then
+        log "⏭️ Already standard AC3: $(basename "$media_name")"
+        return 0
+    fi
+
+    log "⚠️ Normalizing $CHANNELS ch $CODEC audio for: $(basename "$media_name")"
+
+    local temp_file="${media_name}.processing.tmp"
+    mv -- "$media_name" "$temp_file"
+
+    # 4. FFMPEG Processing
+    if [ "$CHANNELS" -gt 2 ]; then
+        log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Preserving Subtitles..."
+        
+        ffmpeg -v error -nostdin -y -i "$temp_file" \
+        -map 0:v:0 -map 0:a:0 -map 0:s? \
+        -ignore_unknown \
+        -c:v copy \
+        -c:s copy \
+        -c:a ac3 -b:a 640k -ac 6 \
+        -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -metadata SONOS_FIXED="true" \
+        -max_muxing_queue_size 4096 \
+        "$media_name"
+    else
+        log "🔊 Normalizing Stereo/Mono AC3 + Preserving Subtitles..."
+        
+        ffmpeg -v error -nostdin -y -i "$temp_file" \
+        -map 0:v:0 -map 0:a:0 -map 0:s? \
+        -ignore_unknown \
+        -c:v copy \
+        -c:s copy \
+        -c:a ac3 -b:a 256k -ac 2 \
+        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -metadata SONOS_FIXED="true" \
+        -max_muxing_queue_size 4096 \
+        "$media_name"
+    fi
+
+    # 5. Validation and Cleanup
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
         rm -- "$temp_file"
-        log "✨ Success!"
+        log "✨ Success: $(basename "$media_name")"
     else
         log "❌ FFmpeg failed. Restoring original."
         mv -- "$temp_file" "$media_name"
