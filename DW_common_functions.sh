@@ -867,12 +867,14 @@ sonos_audio_fix() {
         -metadata SONOS_FIXED="true" \
         "$media_name"
     else
-        ffmpeg -v error -nostdin -y -i "$temp_file" \
+        log "🔊 Normalizing Stereo AC3..."
+        # We removed -v error to see the real problem
+        ffmpeg -y -i "$temp_file" \
         -map 0:v:0 -map 0:a:0 -map 0:s? \
         -c:v copy -c:s copy -c:a ac3 -b:a 256k -ac 2 \
         -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
         -metadata SONOS_FIXED="true" \
-        "$media_name"
+        "$media_name" 2> /tmp/ffmpeg_debug.log
     fi
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
