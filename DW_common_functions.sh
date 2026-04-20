@@ -839,24 +839,25 @@ sonarr_weekly_shows() {
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
     local media_name="$1"
+
+    # Ensure absolute path and check existence
     [[ "$media_name" != /* ]] && media_name="/$media_name"
     if [ ! -f "$media_name" ]; then return 1; fi
 
-    # 1. Check for custom tag
+    # 1. Check if already processed
     IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name")
     if [[ "$IS_FIXED" == "true" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized: $(basename "$media_name")"
         return 0
     fi
 
-    # 2. Get Audio Info
-    AUDIO_INFO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of csv=p=0 "$media_name")
-    CODEC=$(echo "$AUDIO_INFO" | cut -d',' -f1)
-    CHANNELS=$(echo "$AUDIO_INFO" | cut -d',' -f2)
+    # 2. Get Info (More robustly)
+    # Using 'a:0' ensures we only look at the primary audio track
+    CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$media_name")
+    CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
 
-    # If it's already AC3 and 2 channels, skip it
-    if [[ "$CODEC" == "ac3" && "$CHANNELS" -le 2 ]]; then
-        log "⏭️ Already standard AC3: $(basename "$media_name")"
+    # If it's already standard AC3, just tag it and skip re-encoding
+    if [[ "$CODEC" == "ac3" ]]; then
+        log "⏭️ Already AC3: $(basename "$media_name")"
         return 0
     fi
 
@@ -865,39 +866,26 @@ sonos_audio_fix() {
     temp_file="${media_name}.processing.tmp"
     mv "$media_name" "$temp_file"
 
-    if [[ "$CHANNELS" -gt 2 ]]; then
+    # 3. Conversion
+    if [ "$CHANNELS" -gt 2 ]; then
         log "🔊 Downmixing to 5.1 AC3..."
         ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v -map 0:a -map 0:s? \
-        -c:v copy -c:s copy \
-        -c:a ac3 -b:a 640k -ac 6 \
+        -map 0:v:0 -map 0:a:0 -map 0:s? \
+        -c:v copy -c:s copy -c:a ac3 -b:a 640k -ac 6 \
         -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
         -metadata SONOS_FIXED="true" \
-        -max_muxing_queue_size 1024 \
         "$media_name"
     else
-        log "🔊 Converting Stereo E-AC3 to standard AC3..."
-        
-        # Use absolute paths and ensure quotes are everywhere
+        log "🔊 Normalizing Stereo AC3..."
         ffmpeg -v error -nostdin -y -i "$temp_file" \
         -map 0:v:0 -map 0:a:0 -map 0:s? \
         -c:v copy -c:s copy -c:a ac3 -b:a 256k \
         -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
         -metadata SONOS_FIXED="true" \
-        -max_muxing_queue_size 4096 \
         "$media_name"
-    
-        FFMPEG_EXIT_CODE=$?
-    
-        if [ $FFMPEG_EXIT_CODE -eq 0 ] && [ -s "$media_name" ]; then
-            rm "$temp_file"
-            log "✨ Success: $(basename "$media_name")"
-        else
-            log "❌ FFmpeg failed with exit code $FFMPEG_EXIT_CODE. Restoring original."
-            # Only move back if the temp file actually exists to avoid deleting the source
-            [ -f "$temp_file" ] && mv "$temp_file" "$media_name"
     fi
 
+    # 4. Verification
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
         rm "$temp_file"
         log "✨ Success: $(basename "$media_name")"
