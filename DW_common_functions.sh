@@ -839,36 +839,27 @@ sonarr_weekly_shows() {
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
     local media_name="$1"
-
-    # Ensure absolute path and check existence
     [[ "$media_name" != /* ]] && media_name="/$media_name"
-    if [ ! -f "$media_name" ]; then return 1; fi
+    [ ! -f "$media_name" ] && return 1
 
-    # 1. Check if already processed
-    IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name")
-    if [[ "$IS_FIXED" == "true" ]]; then
-        return 0
-    fi
+    # Get data using separate, clean probes
+    local codec=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$media_name")
+    local channels=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
 
-    # 2. Get Info (More robustly)
-    # Using 'a:0' ensures we only look at the primary audio track
-    CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$media_name")
-    CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name")
+    # If it's already AC3, don't touch it
+    [[ "$codec" == "ac3" ]] && return 0
 
-    # If it's already standard AC3, just tag it and skip re-encoding
-    if [[ "$CODEC" == "ac3" ]]; then
-        log "⏭️ Already AC3: $(basename "$media_name")"
-        return 0
-    fi
+    log "⚠️ Converting $codec ($channels ch) to AC3..."
 
-    log "⚠️ Converting $CODEC ($CHANNELS ch) to AC3 for: $(basename "$media_name")"
+    local temp_file="${media_name}.processing.tmp"
+    
+    # Use -- to prevent issues with filenames starting with hyphens
+    mv -- "$media_name" "$temp_file"
 
-    temp_file="${media_name}.processing.tmp"
-    mv "$media_name" "$temp_file"
-
-    # 3. Conversion
-    if [ "$CHANNELS" -gt 2 ]; then
-        log "🔊 Downmixing to 5.1 AC3..."
+    # The "Safe" Command
+    # 1. We use -map_metadata 0 to preserve global tags
+    # 2. We use -ac 2 explicitly for stereo to stabilize the filter
+    if [ "$channels" -gt 2 ]; then
         ffmpeg -v error -nostdin -y -i "$temp_file" \
         -map 0:v:0 -map 0:a:0 -map 0:s? \
         -c:v copy -c:s copy -c:a ac3 -b:a 640k -ac 6 \
@@ -876,22 +867,20 @@ sonos_audio_fix() {
         -metadata SONOS_FIXED="true" \
         "$media_name"
     else
-        log "🔊 Normalizing Stereo AC3..."
         ffmpeg -v error -nostdin -y -i "$temp_file" \
         -map 0:v:0 -map 0:a:0 -map 0:s? \
-        -c:v copy -c:s copy -c:a ac3 -b:a 256k \
+        -c:v copy -c:s copy -c:a ac3 -b:a 256k -ac 2 \
         -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
         -metadata SONOS_FIXED="true" \
         "$media_name"
     fi
 
-    # 4. Verification
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
-        rm "$temp_file"
-        log "✨ Success: $(basename "$media_name")"
+        rm -- "$temp_file"
+        log "✨ Success!"
     else
         log "❌ FFmpeg failed. Restoring original."
-        mv "$temp_file" "$media_name"
+        mv -- "$temp_file" "$media_name"
     fi
 }
 
