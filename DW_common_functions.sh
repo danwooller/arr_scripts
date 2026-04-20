@@ -839,6 +839,65 @@ sonarr_weekly_shows() {
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
     local media_name="$1"
+    [[ "$media_name" != /* ]] && media_name="/$media_name"
+    if [ ! -f "$media_name" ]; then return 1; fi
+
+    # 1. Check for custom tag
+    IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name")
+    if [[ "$IS_FIXED" == "true" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized: $(basename "$media_name")"
+        return 0
+    fi
+
+    # 2. Get Audio Info
+    AUDIO_INFO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels -of csv=p=0 "$media_name")
+    CODEC=$(echo "$AUDIO_INFO" | cut -d',' -f1)
+    CHANNELS=$(echo "$AUDIO_INFO" | cut -d',' -f2)
+
+    # If it's already AC3 and 2 channels, skip it
+    if [[ "$CODEC" == "ac3" && "$CHANNELS" -le 2 ]]; then
+        log "⏭️ Already standard AC3: $(basename "$media_name")"
+        return 0
+    fi
+
+    log "⚠️ Converting $CODEC ($CHANNELS ch) to AC3 for: $(basename "$media_name")"
+
+    temp_file="${media_name}.processing.tmp"
+    mv "$media_name" "$temp_file"
+
+    if [[ "$CHANNELS" -gt 2 ]]; then
+        log "🔊 Downmixing to 5.1 AC3..."
+        ffmpeg -v error -nostdin -y -i "$temp_file" \
+        -map 0:v -map 0:a -map 0:s? \
+        -c:v copy -c:s copy \
+        -c:a ac3 -b:a 640k -ac 6 \
+        -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -metadata SONOS_FIXED="true" \
+        -max_muxing_queue_size 1024 \
+        "$media_name"
+    else
+        log "🔊 Converting Stereo E-AC3 to standard AC3..."
+        ffmpeg -v error -nostdin -y -i "$temp_file" \
+        -map 0:v -map 0:a -map 0:s? \
+        -c:v copy -c:s copy \
+        -c:a ac3 -b:a 224k \
+        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -metadata SONOS_FIXED="true" \
+        -max_muxing_queue_size 1024 \
+        "$media_name"
+    fi
+
+    if [ $? -eq 0 ] && [ -s "$media_name" ]; then
+        rm "$temp_file"
+        log "✨ Success: $(basename "$media_name")"
+    else
+        log "❌ FFmpeg failed. Restoring original."
+        mv "$temp_file" "$media_name"
+    fi
+}
+
+xxxxxxxxxxsonos_audio_fix() {
+    local media_name="$1"
 
     [[ "$media_name" != /* ]] && media_name="/$media_name"
     if [ ! -f "$media_name" ]; then return 1; fi
