@@ -898,9 +898,9 @@ sonos_audio_fix() {
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
         rm "$temp_file"
-        log "✨ Success: $(basename "$media_name")"
+        log "✨ $(basename "$media_name")"
     else
-        log "❌ FAIL: Restore original for $(basename "$media_name")"
+        log "❌ Restore original for $(basename "$media_name")"
         mv "$temp_file" "$media_name"
     fi
 }
