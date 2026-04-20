@@ -877,13 +877,14 @@ sonos_audio_fix() {
         "$media_name"
     else
         log "🔊 Converting Stereo E-AC3 to standard AC3..."
+        # Simplified command: No loudnorm, increased buffer
         ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v -map 0:a -map 0:s? \
-        -c:v copy -c:s copy \
-        -c:a ac3 -b:a 224k \
-        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
+        -map 0:v -map 0:a:0 -map 0:s? \
+        -c:v copy \
+        -c:s copy \
+        -c:a ac3 -b:a 256k \
         -metadata SONOS_FIXED="true" \
-        -max_muxing_queue_size 1024 \
+        -max_muxing_queue_size 4096 \
         "$media_name"
     fi
 
