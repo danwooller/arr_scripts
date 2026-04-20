@@ -877,15 +877,25 @@ sonos_audio_fix() {
         "$media_name"
     else
         log "🔊 Converting Stereo E-AC3 to standard AC3..."
-        # Simplified command: No loudnorm, increased buffer
+        
+        # Use absolute paths and ensure quotes are everywhere
         ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v -map 0:a:0 -map 0:s? \
-        -c:v copy \
-        -c:s copy \
-        -c:a ac3 -b:a 256k \
+        -map 0:v:0 -map 0:a:0 -map 0:s? \
+        -c:v copy -c:s copy -c:a ac3 -b:a 256k \
+        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
         -metadata SONOS_FIXED="true" \
         -max_muxing_queue_size 4096 \
         "$media_name"
+    
+        FFMPEG_EXIT_CODE=$?
+    
+        if [ $FFMPEG_EXIT_CODE -eq 0 ] && [ -s "$media_name" ]; then
+            rm "$temp_file"
+            log "✨ Success: $(basename "$media_name")"
+        else
+            log "❌ FFmpeg failed with exit code $FFMPEG_EXIT_CODE. Restoring original."
+            # Only move back if the temp file actually exists to avoid deleting the source
+            [ -f "$temp_file" ] && mv "$temp_file" "$media_name"
     fi
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
