@@ -804,7 +804,9 @@ sonarr_weekly_shows() {
 
                     # 3. Mkvmerge Processing
                     local TARGET_FILE="${SAFE_NAME%.*}.mkv"
-                    
+
+                    # Call sonos audio fix logic
+                    sonos_audio_fix "$file"
                     # Call subtitle logic (Sets TRACK_OPTS and NEEDS_PROPEDIT)
                     subtitle_opts "$file"
 
