@@ -868,17 +868,10 @@ sonos_audio_fix() {
         "$media_name"
     else
         log "🔊 Normalizing Stereo AC3..."
-        # We use -- to signal the end of options before the filename
-        # And ensure all variables are strictly double-quoted
-        ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v:0 -map 0:a:0 -map 0:s? \
-        -c:v copy \
-        -c:s copy \
-        -c:a ac3 -b:a 256k -ac 2 \
-        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
-        -metadata SONOS_FIXED="true" \
-        -max_muxing_queue_size 1024 \
-        "$media_name"
+        
+        # We wrap the command in a single variable-safe block
+        # and use -ignore_unknown to skip those pesky EZTV attachments
+        ffmpeg -v error -nostdin -y -i "$temp_file" -map 0:v:0 -map 0:a:0 -map 0:s? -ignore_unknown -c:v copy -c:s copy -c:a ac3 -b:a 256k -ac 2 -af "loudnorm=I=-16:TP=-1.5:LRA=11" -metadata SONOS_FIXED="true" "$media_name"
     fi
 
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
