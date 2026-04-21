@@ -23,16 +23,16 @@ RESTART_COMMAND="$DOCKER_BIN restart plex"
 
 while true; do
     if [ ! -d "$CERT_PATH" ]; then
-        log "ERROR: Directory $CERT_PATH not found. Retrying in 1 hour..."
+        log "❌ Directory $CERT_PATH not found. Retrying in 1 hour..."
         sleep 3600
         continue
     fi
 
     # Check if cert is expired OR if the P12 file is missing
     if openssl x509 -checkend 0 -noout -in "$CERT_PATH/fullchain.pem" > /dev/null 2>&1 && [ -f "$OUTPUT_FILE" ]; then
-        log "Certificate is valid and P12 exists. Sleeping..."
+        log "✅ Certificate is valid and P12 exists. Sleeping..."
     else
-        log "Action Required: Certificate expired/missing or P12 missing. Generating $OUTPUT_FILE..."
+        log "ℹ️ Action Required: Certificate expired/missing or P12 missing. Generating $OUTPUT_FILE..."
 
         # Generate PKCS12
         openssl pkcs12 -export \
@@ -43,19 +43,19 @@ while true; do
             -passout "pass:$P12_PASSWORD"
 
         if [ $? -eq 0 ]; then
-            log "SUCCESS: New P12 generated."
+            log "✅ New P12 generated."
             chmod 600 "$OUTPUT_FILE"
             
-            log "Executing: $RESTART_COMMAND"
+            log "ℹ️ Executing: $RESTART_COMMAND"
             $RESTART_COMMAND >> "$LOG_FILE" 2>&1
             
             if [ $? -eq 0 ]; then
-                log "Plex restarted successfully."
+                log "ℹ️ Plex restarted successfully."
             else
-                log "ERROR: Failed to restart Plex. Check if $DOCKER_BIN is correct."
+                log "❌ Failed to restart Plex. Check if $DOCKER_BIN is correct."
             fi
         else
-            log "ERROR: Failed to generate P12 file."
+            log "❌ Failed to generate P12 file."
         fi
     fi
 
