@@ -421,6 +421,7 @@ plex_busy() {
 # --- END PLEX SECTION ---
 # --- RADARR SECTION ---
 radarr_ingest() {
+    # DW_ingest_radarr.sh
     local host_path="${1:-$DIR_MEDIA_COMPLETED_MOVIES}"
     local clean_path=$(printf "%s" "$host_path" | tr -d '\r' | sed 's|/*$||' | xargs)
     local encoded_path=$(printf "%s" "$clean_path" | jq -sRr @uri)
@@ -660,6 +661,7 @@ seerr_sync_issue() {
 # --- END SEERR SECTION ---
 # --- SONARR SECTION ---
 sonarr_ingest() {
+    # DW_ingest_sonarr.sh
     local ingest_path="${1:-$DIR_MEDIA_COMPLETED}"
     
     # 1. Probe the folder to see what Sonarr recognises
