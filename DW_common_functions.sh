@@ -830,6 +830,8 @@ sonarr_weekly_shows() {
             done
         fi
     done
+
+    plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
     
     # Reset glob settings to default
     shopt -u nocaseglob
