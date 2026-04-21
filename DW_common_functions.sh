@@ -403,6 +403,7 @@ plex_active_streams() {
 }
 
 plex_busy() {
+    # plex_library_update()
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
 
