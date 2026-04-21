@@ -31,11 +31,9 @@ log_start "$SOURCE_DIR"
 while true; do
     rm -f $CONVERT_DIR/* $WORKING_DIR/*
     sonarr_weekly_shows
-    
     find "$SOURCE_DIR" -type f -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" \) \
         -print0 | while IFS= read -r -d $'\0' SOURCE_FILE; do
-        
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
         EXTENSION="${FILENAME##*.}"
@@ -44,13 +42,10 @@ while true; do
         TEMP_OUTPUT="$WORKING_DIR/${BASE_NAME}_temp.mkv"
         FINAL_OUTPUT="$WORKING_DIR/$BASE_NAME.mkv"
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
-
         # --- Subtitle Logic ---
         TRACK_JSON=$(mkvmerge -J "$FILE_TO_PROCESS")
-        
         # 1. Try Forced English
         SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
-
         if [[ -n "$SUB_TRACK_ID" && "$SUB_TRACK_ID" != "null" ]]; then
             SUB_NAME="Forced"
         else
