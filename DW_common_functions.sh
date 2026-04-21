@@ -377,6 +377,7 @@ plex_library_update() {
 }
 
 plex_active_streams() {
+    # plex_library_update()
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
     
