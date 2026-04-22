@@ -95,12 +95,10 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
         else
             [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No gaps found for $series_name. Resolving Seerr issues..."
-            
             # Send the Series path and explicitly state "tv"
             # We use the CURRENT_SERIES_PATH so Sonarr can actually find the match
             seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
         fi
-
         [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed scan for $series_name"
     done
 done
