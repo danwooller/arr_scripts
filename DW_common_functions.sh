@@ -699,7 +699,7 @@ sonarr_ingest() {
     # 2. Filter for files that have a valid Series ID and no rejections
     # We build the exact JSON structure Sonarr requires for a Command
     local files_json=$(echo "$probe_data" | jq -c '
-        [ .[] | select(.series != null and (.rejections | length == 0)) | {
+        [ .[] | select(.series != null and (.rejections | map(select(.reason != "Sample")) | length == 0)) | {
             path: .path,
             seriesId: .series.id,
             episodeIds: [.episodes[].id],
