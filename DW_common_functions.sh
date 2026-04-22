@@ -688,6 +688,58 @@ seerr_sync_issue() {
 # --- END SEERR SECTION ---
 # --- SONARR SECTION ---
 sonarr_ingest() {
+    local ingest_path="${1:-$DIR_MEDIA_COMPLETED}"
+    
+    # 1. Probe the folder
+    local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+        "$SONARR_API_BASE/manualimport?folder=$ingest_path")
+
+    # 2. Extract Valid Files (Filtering out everything BUT "Sample" rejections)
+    local files_json=$(echo "$probe_data" | jq -c '
+        [ .[] | select(.series != null and (.rejections | map(select(.reason != "Sample")) | length == 0)) | {
+            path: .path,
+            seriesId: .series.id,
+            episodeIds: [.episodes[].id],
+            quality: .quality,
+            languages: .languages,
+            importMode: "move"
+        } ]')
+
+    # 3. Identify Failed Files (Files that have a series but still have "Hard" rejections)
+    # We use -r to get the raw string for the loop
+    local failed_files=$(echo "$probe_data" | jq -r '
+        .[] | select(.series == null or (.rejections | map(select(.reason != "Sample")) | length > 0)) 
+        | "\(.path)|\(.series.title // "Unknown Show")"')
+
+    # 4. Handle Successes
+    if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
+        local response=$(curl -s -X POST "$SONARR_API_BASE/command" \
+            -H "X-Api-Key: $SONARR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
+        log "✅ Ingest queued for valid files."
+    fi
+
+    # 5. Handle Failures (Hold & Report)
+    if [[ -n "$failed_files" ]]; then
+        while IFS='|' read -r file_path show_name; do
+            if [[ -f "$file_path" ]]; then
+                log "⚠️ Ingest failed for: $file_path. Moving to hold..."
+                
+                # Move the file to the hold directory
+                mv "$file_path" "$DIR_MEDIA_HOLD/"
+                
+                # Raise the issue on Overseerr/Petio (Seerr)
+                # $1 = Show Name, $2 = "tv"
+                seerr_sync_issue "$show_name" "tv"
+                
+                log "🚨 Issue raised for $show_name in Seerr."
+            fi
+        done <<< "$failed_files"
+    fi
+}
+
+xxxxsonarr_ingest() {
     # DW_ingest_sonarr.sh
     local ingest_path="${1:-$DIR_MEDIA_COMPLETED}"
     
