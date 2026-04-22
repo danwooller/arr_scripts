@@ -128,7 +128,7 @@ while true; do
             else
                 mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
             fi
-            log "✅ Completed $FILENAME"
+            log "✨ Completed $FILENAME"
             sonos_audio_fix "$FINAL_OUTPUT"  
             mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"
             mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$(date +%H%M).$EXTENSION"
