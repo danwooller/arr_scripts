@@ -749,7 +749,7 @@ sonarr_targeted_rename() {
         ) | .id // empty')
 
     if [ -n "$series_id" ] && [ "$series_id" != "null" ]; then
-        log "✅ Linked '$show_name' to Sonarr ID: $series_id"
+        log "✨ Linked '$show_name' to Sonarr ID: $series_id"
         
         # Rescan to find the malformed files
         curl -s -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
@@ -878,15 +878,14 @@ sonos_audio_fix() {
         return 0
     fi
 
-    log "⚠️ Normalizing $CHANNELS ch $CODEC audio for: $(basename "$media_name")"
+    log "⚠️ Normalising $CHANNELS ch $CODEC audio for: $(basename "$media_name")"
 
     local temp_file="${media_name}.processing.tmp"
     mv -- "$media_name" "$temp_file"
 
     # 4. FFMPEG Processing
     if [ "$CHANNELS" -gt 2 ]; then
-        log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Preserving Subtitles..."
-        
+        [[ $LOG_LEVEL == "debug" ]] && log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Preserving Subtitles..."
         ffmpeg -v error -nostdin -y -i "$temp_file" \
         -map 0:v:0 -map 0:a:0 -map 0:s? \
         -ignore_unknown \
@@ -898,8 +897,7 @@ sonos_audio_fix() {
         -max_muxing_queue_size 4096 \
         "$media_name"
     else
-        log "🔊 Normalizing Stereo/Mono AC3 + Preserving Subtitles..."
-        
+        [[ $LOG_LEVEL == "debug" ]] && log "🔊 Normalising Stereo/Mono AC3 + Preserving Subtitles..."
         ffmpeg -v error -nostdin -y -i "$temp_file" \
         -map 0:v:0 -map 0:a:0 -map 0:s? \
         -ignore_unknown \
@@ -915,7 +913,7 @@ sonos_audio_fix() {
     # 5. Validation and Cleanup
     if [ $? -eq 0 ] && [ -s "$media_name" ]; then
         rm -- "$temp_file"
-        log "✨ Success: $(basename "$media_name")"
+        [[ $LOG_LEVEL == "debug" ]] && log "✨ $(basename "$media_name")"
     else
         log "❌ FFmpeg failed. Restoring original."
         mv -- "$temp_file" "$media_name"
@@ -952,7 +950,7 @@ xxxxxxxxxxsonos_audio_fix() {
         return 0
     fi
 
-    log "⚠️ Normalizing $CHANNELS ch audio for: $(basename "$media_name")"
+    [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Normalising $CHANNELS ch audio for: $(basename "$media_name")"
 
     temp_file="${media_name}.processing.tmp"
     mv "$media_name" "$temp_file"
@@ -971,7 +969,7 @@ xxxxxxxxxxsonos_audio_fix() {
         -metadata:s:a:0 codec_name="ac3" \
         "$media_name"
     else
-        log "🔊 Normalizing Stereo/Mono AC3 + Preserving Subtitles..."
+        log "🔊 Normalising Stereo/Mono AC3 + Preserving Subtitles..."
         
         ffmpeg -v error -nostdin -y -i "$temp_file" \
         -map 0:v -map 0:a -map 0:s? \
@@ -1096,7 +1094,7 @@ vpn_restart_containers() {
         #log "🔄 Restarting Container: $container_id"
         # Perform the restart and check for success
         if docker restart "$container_id" >/dev/null 2>&1; then
-            log "✅ Successfully restarted $container_id"
+            log "✨ Successfully restarted $container_id"
         else
             log "❌ Failed to restart $container_id. Check if container exists."
         fi
