@@ -619,32 +619,37 @@ seerr_sync_issue() {
 
     [[ -z "$media_id" || "$media_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
 
-    # 3. Deduplication & Anti-Spam Check
-    #local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=100&filter=open")
+    # 3. Deduplication & Re-opening Logic
+    # We fetch ALL issues to see if we need to re-open a closed one
     local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=10&filter=all")
     
-    # Extract Issue ID, Main Message, and Last Comment Message
+    # Extract Issue ID, Status, Main Message, and Last Comment Message
     local issue_info=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
         .results[] | select(.media.id == ($mid|tonumber)) | 
-        "\(.id)|\(.message)|\(.comments[-1].message // "none")"' | head -n 1)
-
+        "\(.id)|\(.status)|\(.message)|\(.comments[-1].message // "none")"' | head -n 1)
     local issue_id=$(echo "$issue_info" | cut -d'|' -f1)
-    local main_desc=$(echo "$issue_info" | cut -d'|' -f2)
-    local last_comment=$(echo "$issue_info" | cut -d'|' -f3-)
-
+    local status=$(echo "$issue_info" | cut -d'|' -f2)
+    local main_desc=$(echo "$issue_info" | cut -d'|' -f3)
+    local last_comment=$(echo "$issue_info" | cut -d'|' -f4-)
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        # Check if message is already present in either the main desc or the last comment
+        # --- Logic A: If it is CLOSED (Status is usually 2 or 3), Re-open it ---
+        if [[ "$status" != "1" ]]; then
+            log "🔄 Seerr: Re-opening closed issue #$issue_id for $media_name"
+            # Update status to 1 (Open)
+            curl -s -b "$cookie_file" -X POST "$SEERR_API_BASE/issue/$issue_id/1" \
+                -H "Content-Type: application/json" > /dev/null
+        fi
+        # --- Logic B: Handle Messaging/Deduplication ---
         if [[ "$message" == "$main_desc" || "$message" == "$last_comment" ]]; then
-            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id already up to date. Skipping email."
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id is now open and content matches. Skipping comment."
             rm -f "$cookie_file"
             return 0
         fi
-
-        # If we got here, the message is NEW or CHANGED
+        # Add new comment if the message has changed
         curl -s -b "$cookie_file" -X POST "$SEERR_API_BASE/issue/$issue_id/comment" \
             -H "Content-Type: application/json" -d "{\"message\": \"$message\"}"
         rm -f "$cookie_file"
-        return 0 
+        return 0
     fi
 
     # 4. Create New Issue (If none exists)
