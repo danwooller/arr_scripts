@@ -639,9 +639,9 @@ seerr_sync_issue() {
         if [[ "$status" != "1" ]]; then
             log "🔄 Seerr: Attempting to re-open closed issue #$issue_id..."
             
-            # Capture the HTTP status code and the error message
+            # Change "1" to "open" in the URL
             local response=$(curl -s -b "$cookie_file" -w "\n%{http_code}" \
-                -X POST "$base_url/issue/$issue_id/1" \
+                -X POST "$base_url/issue/$issue_id/open" \
                 -H "Accept: application/json")
             
             local http_code=$(echo "$response" | tail -n1)
@@ -649,10 +649,9 @@ seerr_sync_issue() {
 
             if [[ "$http_code" == "200" ]]; then
                 log "✅ Seerr: Successfully re-opened issue #$issue_id."
-                status="1" # Update local variable for the next check
+                status="1" # Update local variable so the next check works
             else
                 log "❌ Seerr: Failed to re-open #$issue_id. Status: $http_code. Response: $body"
-                # If we failed to re-open, we should probably stop here or try a different approach
                 rm -f "$cookie_file"
                 return 1
             fi
