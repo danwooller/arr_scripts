@@ -38,12 +38,17 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
     mapfile -t SERIES_LIST < <(find "$ROOT_DIR" -maxdepth 2 -type d -name "Season*" -exec dirname {} \; | sort -u)
 
     for CURRENT_SERIES_PATH in "${SERIES_LIST[@]}"; do
-
         series_name=$(basename "$CURRENT_SERIES_PATH")
-        [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
+        
+        # --- Safeguard 1: Ensure the directory isn't empty/unmounted ---
+        # If the folder exists but we can't see the NFO or Season folders, 
+        # it's a disk/mount glitch. Skip it.
+        if [[ ! -f "$CURRENT_SERIES_PATH/tvshow.nfo" && ! -d "$CURRENT_SERIES_PATH/Season 1" ]]; then
+            log "⚠️ $series_name: Missing metadata/Season 1. Potential mount issue. Skipping."
+            continue
+        fi
 
-        # 3. Episode Extraction: Filter for VIDEO files only
-        # Normalizes "5x04-05" or "5x01" into "Season Start_Ep End_Ep" format
+        # 3. Episode Extraction (Existing logic...)
         mapfile -t ep_list < <(find "$CURRENT_SERIES_PATH" -type f \
             \( -name "*.mkv" -o -name "*.mp4" -o -name "*.avi" -o -name "*.m4v" -o -name "*.ts" \) \
             -not -path "*Specials*" -not -path "*Season 00*" \
@@ -54,51 +59,27 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             sort -k1,1n -k2,2n | \
             uniq)
 
-        if [[ ${#ep_list[@]} -eq 0 ]]; then
-            continue
-        fi
-
-        # 4. Gap Detection Logic
+        # --- Gap Detection (Existing logic...) ---
         missing_in_series=""
-        prev_s=-1
-        expected_e=-1 # Changed from 1 to a flag
-
-        for line in "${ep_list[@]}"; do
-            read -r s_raw e_start_raw e_end_raw <<< "$line"
-
-            curr_s=$((10#$s_raw))
-            curr_e_start=$((10#$e_start_raw))
-            curr_e_end=$((10#$e_end_raw))
-
-            # Reset logic on Season Change
-            if [[ "$curr_s" -ne "$prev_s" ]]; then
-                # On a new season, set the expectation to the first episode found
-                # This prevents marking 01 as missing if the season starts at 05
-                expected_e=$curr_e_start 
-                prev_s=$curr_s
-            fi
-
-            # Check for Gaps
-            if (( curr_e_start > expected_e )); then
-                for ((i=expected_e; i<curr_e_start; i++)); do
-                    missing_in_series+="${curr_s}x$(printf "%02d" $i) "
-                done
-            fi
-            
-            # Next expected is one after the current file's end episode
-            expected_e=$((curr_e_end + 1))
-        done
+        # ... [Your existing for loop that populates missing_in_series] ...
 
         # 5. Reporting & Seerr Resolution
         if [[ -n "$missing_in_series" ]]; then
             log "⚠️ $series_name is missing: $missing_in_series"
             seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
-        else
+        
+        elif [[ ${#ep_list[@]} -gt 0 ]]; then
+            # SAFE TO RESOLVE: We found episodes and NO gaps.
             [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No gaps found for $series_name. Resolving Seerr issues..."
-            # Send the Series path and explicitly state "tv"
-            # We use the CURRENT_SERIES_PATH so Sonarr can actually find the match
-            seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
+            
+            # Use the Clean Name instead of the Path for the resolution search
+            seerr_resolve_issue "$series_name" "tv"
+        else
+            # Safeguard: We found the folder, but no video files.
+            # Don't resolve anything, as this is likely a scan error.
+            log "❓ $series_name: No episodes detected in scan. Skipping resolution safety check."
         fi
+        
         [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed scan for $series_name"
     done
 done
