@@ -637,10 +637,25 @@ seerr_sync_issue() {
         
         # --- Logic A: RE-OPEN IF CLOSED ---
         if [[ "$status" != "1" ]]; then
-            log "🔄 Seerr: Re-opening closed issue #$issue_id for $media_name"
-            # IMPORTANT: Re-opening via cookie auth. 
-            # POST /api/v1/issue/{id}/1 is the standard toggle.
-            curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/1" -H "Accept: application/json" > /dev/null
+            log "🔄 Seerr: Attempting to re-open closed issue #$issue_id..."
+            
+            # Capture the HTTP status code and the error message
+            local response=$(curl -s -b "$cookie_file" -w "\n%{http_code}" \
+                -X POST "$base_url/issue/$issue_id/1" \
+                -H "Accept: application/json")
+            
+            local http_code=$(echo "$response" | tail -n1)
+            local body=$(echo "$response" | head -n -1)
+
+            if [[ "$http_code" == "200" ]]; then
+                log "✅ Seerr: Successfully re-opened issue #$issue_id."
+                status="1" # Update local variable for the next check
+            else
+                log "❌ Seerr: Failed to re-open #$issue_id. Status: $http_code. Response: $body"
+                # If we failed to re-open, we should probably stop here or try a different approach
+                rm -f "$cookie_file"
+                return 1
+            fi
         fi
 
         # --- Logic B: DEDUPLICATE ---
