@@ -632,12 +632,14 @@ seerr_sync_issue() {
     local main_desc=$(echo "$issue_info" | cut -d'|' -f3)
     local last_comment=$(echo "$issue_info" | cut -d'|' -f4-)
     if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        # --- Logic A: If it is CLOSED (Status is usually 2 or 3), Re-open it ---
+        # --- Logic A: If it is CLOSED, Re-open it ---
         if [[ "$status" != "1" ]]; then
             log "🔄 Seerr: Re-opening closed issue #$issue_id for $media_name"
-            # Update status to 1 (Open)
-            curl -s -b "$cookie_file" -X POST "$SEERR_API_BASE/issue/$issue_id/1" \
-                -H "Content-Type: application/json" > /dev/null
+            
+            # Use PUT to update the status to OPEN (1)
+            curl -s -b "$cookie_file" -X PUT "$SEERR_API_BASE/issue/$issue_id" \
+                -H "Content-Type: application/json" \
+                -d '{"status": 1}' > /dev/null
         fi
         # --- Logic B: Handle Messaging/Deduplication ---
         if [[ "$message" == "$main_desc" || "$message" == "$last_comment" ]]; then
