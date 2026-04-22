@@ -30,7 +30,7 @@ log_start() {
     local target_path="$1"
     # If no path is provided, don't show the "in: ..." part
     if [[ -n "$target_path" ]]; then
-        log "🚀 Starting in: $target_path"
+        log "🚀 $target_path"
     else
         log "🚀 Starting"
     fi
