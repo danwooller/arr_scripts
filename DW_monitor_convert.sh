@@ -115,21 +115,26 @@ while true; do
         # --- Remux ---
         if [[ -f "$TEMP_OUTPUT" ]]; then
             if [ "$HAS_SUBTITLES" = true ] && [[ -f "$SUB_FILE" ]]; then
-                log "ℹ️ Remuxing forced subtitles into $FILENAME"
-                # We use a temporary log to catch mkvmerge errors without stopping the script
-                mkvmerge -o "$FINAL_OUTPUT" --no-subtitles "$TEMP_OUTPUT" \
-                    --language 0:eng --track-name 0:"$SUB_NAME" \
-                    --forced-display 0:"$FORCED_FLAG" --default-track 0:"$FORCED_FLAG" \
-                    "$SUB_FILE" > /tmp/mkvmerge_last_run.log 2>&1
+                log "ℹ️ Remuxing subtitles: $FILENAME"
                 
-                # Check if mkvmerge actually created the file
+                # Structure: [Global Options] [Input 1] [Local Options for Input 2] [Input 2]
+                mkvmerge -o "$FINAL_OUTPUT" \
+                    "$TEMP_OUTPUT" \
+                    --language 0:eng \
+                    --track-name 0:"$SUB_NAME" \
+                    --forced-display 0:"$FORCED_FLAG" \
+                    --default-track 0:"$FORCED_FLAG" \
+                    "$SUB_FILE" > /tmp/mkvmerge_debug.log 2>&1
+        
                 if [[ ! -f "$FINAL_OUTPUT" ]]; then
-                    log "❌ mkvmerge failed (forced subs). Check /tmp/mkvmerge_last_run.log"
-                    log "⚠️ Moving original source to HOLD for manual review."
+                    log "❌ mkvmerge failed! Check /tmp/mkvmerge_debug.log"
+                    log "⚠️ Sending source to HOLD: $BASE_NAME"
                     mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
                     seerr_sync_issue "$BASE_NAME" "tv"
+                    
+                    # Clean up the failed transcode so we don't waste space
                     rm -f "$TEMP_OUTPUT" "$FILE_TO_PROCESS"
-                    continue # Move to next file in the loop
+                    continue 
                 fi
             else
                 mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
