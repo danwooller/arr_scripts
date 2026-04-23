@@ -690,11 +690,13 @@ seerr_sync_issue() {
     local tmdb_id="$4"
 
     # 1. Get the internal Seerr Media ID
-    local media_id=$(curl -s -X GET "$SEERR_URL/api/v1/tmdb/$tmdb_id?language=en" \
-        -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.mediaInfo.id // empty')
+    local media_data=$(curl -s -X GET "$SEERR_URL/api/v1/tmdb/$tmdb_id?language=en" -H "X-Api-Key: $SEERR_API_KEY")
+    local media_id=$(echo "$media_data" | jq -r '.mediaInfo.id // empty')
 
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        log "⚠️ Could not sync issue for $series_name: Show not found in Seerr library."
+        log "⚠️ $series_name (TMDB: $tmdb_id) is not in Seerr's local library."
+        log "🔄 Triggering Seerr library scan..."
+        curl -s -X POST "$SEERR_URL/api/v1/settings/jobs/plex-sync/run" -H "X-Api-Key: $SEERR_API_KEY" > /dev/null
         return
     fi
 
