@@ -114,7 +114,7 @@ log_end() {
 flatten_source_dir() {
     local folder="$1"
     if [[ -d "$folder" ]]; then
-        log "📂 Flattening directory: $(basename "$folder")"
+        [[ "$LOG_LEVEL" == "debug" ]] && log "📂 Flattening directory: $(basename "$folder")"
         # Move all files (including junk) to the top level of this specific folder
         find "$folder" -mindepth 2 -type f -exec mv -t "$folder" {} +
         # Delete now-empty subdirectories
