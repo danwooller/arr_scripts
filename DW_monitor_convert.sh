@@ -29,8 +29,7 @@ check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge" "ffprobe"
 log_start "$SOURCE_DIR"
 
 while true; do
-    #rm -f $CONVERT_DIR/* $WORKING_DIR/*
-    log "rm -f $CONVERT_DIR/* $WORKING_DIR/*"
+    rm -f $CONVERT_DIR/* $WORKING_DIR/*
     sonarr_weekly_shows
     find "$SOURCE_DIR" -type f -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" \) \
