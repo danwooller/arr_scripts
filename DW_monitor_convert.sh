@@ -116,8 +116,8 @@ while true; do
         if [[ -f "$TEMP_OUTPUT" ]]; then
             if [ "$HAS_SUBTITLES" = true ] && [[ -f "$SUB_FILE" ]]; then
                 log "ℹ️ Remuxing subtitles: $FILENAME"
-                
-                # Structure: [Global Options] [Input 1] [Local Options for Input 2] [Input 2]
+                [[ -z "$FORCED_FLAG" ]] && FORCED_FLAG="no"
+                [[ -z "$SUB_NAME" ]] && SUB_NAME="Subtitles"
                 mkvmerge -o "$FINAL_OUTPUT" \
                     "$TEMP_OUTPUT" \
                     --language 0:eng \
@@ -125,13 +125,11 @@ while true; do
                     --forced-display 0:"$FORCED_FLAG" \
                     --default-track 0:"$FORCED_FLAG" \
                     "$SUB_FILE" > /tmp/mkvmerge_debug.log 2>&1
-        
                 if [[ ! -f "$FINAL_OUTPUT" ]]; then
                     log "❌ mkvmerge failed! Check /tmp/mkvmerge_debug.log"
                     log "⚠️ Sending source to HOLD: $BASE_NAME"
                     mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
                     seerr_sync_issue "$BASE_NAME" "tv"
-                    
                     # Clean up the failed transcode so we don't waste space
                     rm -f "$TEMP_OUTPUT" "$FILE_TO_PROCESS"
                     continue 
