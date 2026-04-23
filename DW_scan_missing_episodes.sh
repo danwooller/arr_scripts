@@ -104,7 +104,6 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             if [[ "$curr_e_start" -gt "$expected_e" ]]; then
                 for ((i=expected_e; i<curr_e_start; i++)); do
                     missing_in_series+="${curr_s}x$(printf "%02d" $i) "
-                    log "DEBUG: Final Check for $series_name -> Missing: '$missing_in_series' | Count: ${#ep_list[@]}"
                 done
             fi
             
@@ -129,19 +128,13 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             fi
 
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
-            # Check if there is an OPEN issue in Seerr before we resolve it
+            # We found files and NO gaps. Trust the resolve function to check for work.
             if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
-                # Fetching issues - adding '?' to handle empty results gracefully
-                open_issue_id=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
-                    -H "X-Api-Key: $SEERR_API_KEY" | \
-                    jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id' 2>/dev/null)
-
-                if [[ -n "$open_issue_id" && "$open_issue_id" != "null" ]]; then
-                    log "✨ Gaps fixed for $series_name. Notifying user and resolving Seerr issue..."
-                    seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
-#                    seerr_resolve_issue "$series_name" "tv"
-                    seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
-                fi
+                [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name is healthy. Checking Seerr for issues to resolve..."
+                
+                # These functions handle their own internal "Is there an open issue?" checks
+                seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
+                seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
             fi
         else
             log "❓ No episodes detected for $series_name. Skipping resolution to be safe."
