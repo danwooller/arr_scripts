@@ -113,36 +113,29 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         done
 
         # 4. Reporting & Seerr Sync
-        # Priority: Check Manual Map, then fallback to the automated Sonarr map
         tmdb_id="${MANUAL_MAPS[$series_name]:-${SONARR_TMDB_MAP[$CURRENT_SERIES_PATH]}}"
+        
+        [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name TMDB ID is [$tmdb_id]"
 
         if [[ -n "$missing_in_series" ]]; then
             log "⚠️ $series_name is missing: $missing_in_series"
             
-            if [[ -n "$tmdb_id" ]]; then
+            if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
                 seerr_issue_notify "$series_name" "$tmdb_id" "Missing episodes: $missing_in_series" "tv"
                 seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "$tmdb_id"
             else
-                log "❌ Could not sync $series_name: No TMDB ID found in Manual Maps or Sonarr."
+                log "❌ Could not notify: No TMDB ID found for $series_name"
             fi
 
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
-            # We only look for an open issue if we actually have a TMDB ID to check against
-            if [[ -n "$tmdb_id" ]]; then
-                # Fetch issues and store in a variable first to check for success
-                issue_json=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" -H "X-Api-Key: $SEERR_API_KEY")
-                
-                if [[ -n "$issue_json" && "$issue_json" != "null" ]]; then
-                    open_issue_id=$(echo "$issue_json" | jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id')
-                else
-                    open_issue_id=""
-                fi
-                # Check if there is an OPEN issue in Seerr before we resolve it
+            # Check if there is an OPEN issue in Seerr before we resolve it
+            if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
+                # Fetching issues - adding '?' to handle empty results gracefully
                 open_issue_id=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
                     -H "X-Api-Key: $SEERR_API_KEY" | \
-                    jq -r --arg id "$tmdb_id" '.results[] | select(.media.tmdbId == ($id|tonumber)) | .id')
+                    jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id' 2>/dev/null)
 
-                if [[ -n "$open_issue_id" ]]; then
+                if [[ -n "$open_issue_id" && "$open_issue_id" != "null" ]]; then
                     log "✨ Gaps fixed for $series_name. Notifying user and resolving Seerr issue..."
                     seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
                     seerr_resolve_issue "$series_name" "tv"
