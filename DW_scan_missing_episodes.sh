@@ -15,16 +15,18 @@ if sudo ssh -o ConnectTimeout=10 "$BASE_HOST6" "zpool status" | grep -q "scrub i
 fi
 
 # --- 1. Pre-fetch Sonarr Data (Optimization) ---
-# We do this ONCE at the start to save time and API hits.
 declare -A SERIES_TYPE_MAP
-log "Fetching series metadata from Sonarr..."
+declare -A SONARR_TMDB_MAP  # New map for IDs
+log "Fetching library metadata from Sonarr..."
 
-while IFS="|" read -r path type; do
+while IFS="|" read -r path type tmdb; do
     if [[ -n "$path" ]]; then
         SERIES_TYPE_MAP["$path"]="$type"
+        # Only map if TMDB ID exists and isn't 0
+        [[ "$tmdb" != "0" && -n "$tmdb" ]] && SONARR_TMDB_MAP["$path"]="$tmdb"
     fi
 done < <(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-         jq -r '.[] | "\(.path)|\(.seriesType)"')
+         jq -r '.[] | "\(.path)|\(.seriesType)|\(.tmdbId)"')
 
 # --- Logic: Manual vs Scheduled ---
 if [ -n "$1" ]; then
@@ -111,13 +113,33 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         done
 
         # 4. Reporting & Seerr Sync
+        # Priority: Check Manual Map, then fallback to the automated Sonarr map
+        tmdb_id="${MANUAL_MAPS[$series_name]:-${SONARR_TMDB_MAP[$CURRENT_SERIES_PATH]}}"
+
         if [[ -n "$missing_in_series" ]]; then
             log "⚠️ $series_name is missing: $missing_in_series"
-            seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
-        
+            
+            if [[ -n "$tmdb_id" ]]; then
+                seerr_issue_notify "$series_name" "$tmdb_id" "Missing episodes: $missing_in_series" "tv"
+                seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "$tmdb_id"
+            else
+                log "❌ Could not sync $series_name: No TMDB ID found in Manual Maps or Sonarr."
+            fi
+
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
-            [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No gaps found for $series_name. Resolving Seerr issues..."
-            seerr_resolve_issue "$series_name" "tv"
+            # We only look for an open issue if we actually have a TMDB ID to check against
+            if [[ -n "$tmdb_id" ]]; then
+                # Check if there is an OPEN issue in Seerr before we resolve it
+                local open_issue_id=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
+                    -H "X-Api-Key: $SEERR_API_KEY" | \
+                    jq -r --arg id "$tmdb_id" '.results[] | select(.media.tmdbId == ($id|tonumber)) | .id')
+
+                if [[ -n "$open_issue_id" ]]; then
+                    log "✨ Gaps fixed for $series_name. Notifying user and resolving Seerr issue..."
+                    seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
+                    seerr_resolve_issue "$series_name" "tv"
+                fi
+            fi
         else
             log "❓ No episodes detected for $series_name. Skipping resolution to be safe."
         fi
