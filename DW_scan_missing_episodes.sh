@@ -58,7 +58,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         # 3. Gap Detection Logic
         missing_in_series=""
         prev_s=-1
-        expected_e=1 # CRITICAL: Reset to 1 to catch missing episodes at start of season
+        expected_e=-1 
 
         for line in "${ep_list[@]}"; do
             read -r s_raw e_start_raw e_end_raw <<< "$line"
@@ -67,20 +67,18 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             curr_e_start=$((10#$e_start_raw))
             curr_e_end=$((10#$e_end_raw))
 
-            # Season Change Reset
+            # --- Season Change or First Run ---
             if [[ "$curr_s" -ne "$prev_s" ]]; then
-                # If new season starts > 01, mark the leading episodes as missing
-                if (( curr_e_start > 1 )); then
-                    for ((i=1; i<curr_e_start; i++)); do
-                        missing_in_series+="${curr_s}x$(printf "%02d" $i) "
-                    done
-                fi
+                # Logic: If it's a new season, we don't assume it starts at 01.
+                # We set the 'expected_e' to whatever the first found episode is.
+                # This ignores missing leading episodes for weekly/rolling shows.
                 prev_s=$curr_s
                 expected_e=$((curr_e_end + 1))
                 continue
             fi
 
-            # Check for Gaps within the season
+            # --- Check for Gaps within the season ---
+            # Now we only flag gaps that occur BETWEEN existing files.
             if (( curr_e_start > expected_e )); then
                 for ((i=expected_e; i<curr_e_start; i++)); do
                     missing_in_series+="${curr_s}x$(printf "%02d" $i) "
