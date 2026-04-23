@@ -11,41 +11,6 @@ HOST=$(hostname -s)
 #}
     #local target_log="$LOG_FILE"
 
-log() {
-    # 1. Look for a LOG_FILE variable set in the script or environment.
-    # 2. If it's NOT set, automatically create a log based on the Server's Name.
-    #    (e.g., /mnt/media/torrent/debian12.log or /mnt/media/torrent/fedora.log)
-    local server_name=$(hostname)
-    local default_log="/mnt/media/torrent/${server_name}.log"
-    local target_log="${LOG_FILE:-$default_log}"
-    
-    local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
-    local script_name="${0##*/}"
-    
-    # Write to screen and the server-specific log file
-    echo "[$timestamp] ($script_name) $1" | stdbuf -oL tee -a "$target_log"
-}
-
-log_start() {
-    local target_path="$1"
-    # If no path is provided, don't show the "in: ..." part
-    if [[ -n "$target_path" ]]; then
-        log "🚀 $target_path"
-    else
-        log "🚀 Starting"
-    fi
-}
-
-log_end() {
-    local target_path="$1"
-    # If no path is provided, don't show the "in: ..." part
-    if [[ -n "$target_path" ]]; then
-       log "🏁 Complete in: $target_path"
-    else
-        log "🏁 Complete"
-    fi
-}
-
 # Universal Graceful Exit
 #trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
 cleanup() {
@@ -108,6 +73,52 @@ check_dependencies() {
                 # Terminates the entire script with an error code to prevent it from crashing later during execution.
             fi
         done
+    fi
+}
+
+log() {
+    # 1. Look for a LOG_FILE variable set in the script or environment.
+    # 2. If it's NOT set, automatically create a log based on the Server's Name.
+    #    (e.g., /mnt/media/torrent/debian12.log or /mnt/media/torrent/fedora.log)
+    local server_name=$(hostname)
+    local default_log="/mnt/media/torrent/${server_name}.log"
+    local target_log="${LOG_FILE:-$default_log}"
+    
+    local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
+    local script_name="${0##*/}"
+    
+    # Write to screen and the server-specific log file
+    echo "[$timestamp] ($script_name) $1" | stdbuf -oL tee -a "$target_log"
+}
+
+log_start() {
+    local target_path="$1"
+    # If no path is provided, don't show the "in: ..." part
+    if [[ -n "$target_path" ]]; then
+        log "🚀 $target_path"
+    else
+        log "🚀 Starting"
+    fi
+}
+
+log_end() {
+    local target_path="$1"
+    # If no path is provided, don't show the "in: ..." part
+    if [[ -n "$target_path" ]]; then
+       log "🏁 Complete in: $target_path"
+    else
+        log "🏁 Complete"
+    fi
+}
+
+flatten_source_dir() {
+    local folder="$1"
+    if [[ -d "$folder" ]]; then
+        log "📂 Flattening directory: $(basename "$folder")"
+        # Move all files (including junk) to the top level of this specific folder
+        find "$folder" -mindepth 2 -type f -exec mv -t "$folder" {} +
+        # Delete now-empty subdirectories
+        find "$folder" -mindepth 1 -type d -empty -delete
     fi
 }
 
