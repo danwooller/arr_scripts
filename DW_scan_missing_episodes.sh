@@ -82,6 +82,11 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             curr_e_start=$((10#$e_start_raw))
             curr_e_end=$((10#$e_end_raw))
 
+            # --- NEW SAFETY CHECK: Skip Season 0 (Specials) ---
+            if [[ "$curr_s" -eq 0 ]]; then
+                continue
+            fi
+
             # Season Change Reset
             if [[ "$curr_s" -ne "$prev_s" ]]; then
                 # Only flag missing 01-XX if it's NOT a daily/weekly rolling show
