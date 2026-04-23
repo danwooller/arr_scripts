@@ -122,10 +122,9 @@ while true; do
                     "$TEMP_OUTPUT" \
                     --language 0:eng \
                     --track-name 0:"$SUB_NAME" \
-                    --forced-display 0:"$FORCED_FLAG" \
-                    --default-track 0:"$FORCED_FLAG" \
+                    --default-track-flag 0:"$FORCED_FLAG" \
+                    --forced-display-flag 0:"$FORCED_FLAG" \
                     "$SUB_FILE" 2>&1)
-                
                 if [[ ! -f "$FINAL_OUTPUT" ]]; then
                     log "❌ mkvmerge FAILED! Error details:"
                     log ">> $MKV_ERROR" # This sends the mkvmerge error to your main log
