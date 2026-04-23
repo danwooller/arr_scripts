@@ -79,11 +79,11 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
 
         for line in "${ep_list[@]}"; do
             read -r s_raw e_start_raw e_end_raw <<< "$line"
-
+            [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: Processing Line: S:$s_raw E_START:$e_start_raw E_END:$e_end_raw"
             curr_s=$((10#$s_raw))
             curr_e_start=$((10#$e_start_raw))
             curr_e_end=$((10#$e_end_raw))
-
+            [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: Math Check -> curr_e_start: $curr_e_start vs expected_e: $expected_e"
             # Skip Season 0
             [[ "$curr_s" -eq 0 ]] && continue
 
