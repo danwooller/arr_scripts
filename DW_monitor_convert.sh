@@ -29,7 +29,8 @@ check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge" "ffprobe"
 log_start "$SOURCE_DIR"
 
 while true; do
-    rm -f $CONVERT_DIR/* $WORKING_DIR/*
+    #rm -f $CONVERT_DIR/* $WORKING_DIR/*
+    log "rm -f $CONVERT_DIR/* $WORKING_DIR/*"
     sonarr_weekly_shows
     find "$SOURCE_DIR" -type f -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" \) \
@@ -116,8 +117,9 @@ while true; do
         if [[ -f "$TEMP_OUTPUT" ]]; then
             if [ "$HAS_SUBTITLES" = true ] && [[ -f "$SUB_FILE" ]]; then
                 log "ℹ️ Remuxing subtitles: $FILENAME"
-                [[ -z "$FORCED_FLAG" ]] && FORCED_FLAG="no"
-                [[ -z "$SUB_NAME" ]] && SUB_NAME="Subtitles"
+                
+                # Use the exact flags from the successful manual test
+                # We use quotes around variables to handle spaces in names
                 MKV_ERROR=$(mkvmerge -o "$FINAL_OUTPUT" \
                     "$TEMP_OUTPUT" \
                     --language 0:eng \
@@ -125,14 +127,17 @@ while true; do
                     --default-track-flag 0:"$FORCED_FLAG" \
                     --forced-display-flag 0:"$FORCED_FLAG" \
                     "$SUB_FILE" 2>&1)
+                
                 if [[ ! -f "$FINAL_OUTPUT" ]]; then
                     log "❌ mkvmerge FAILED! Error details:"
-                    log ">> $MKV_ERROR" # This sends the mkvmerge error to your main log
+                    log ">> $MKV_ERROR"
                     
-                    log "⚠️ Sending source to HOLD: $BASE_NAME"
-                    mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
+                    if [[ -d "$DIR_MEDIA_HOLD" ]]; then
+                        mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
+                        log "✅ Source secured in HOLD."
+                    fi
                     seerr_sync_issue "$BASE_NAME" "tv"
-                    rm -f "$TEMP_OUTPUT" "$FILE_TO_PROCESS"
+                    rm -f "$TEMP_OUTPUT"
                     continue 
                 fi
             else
