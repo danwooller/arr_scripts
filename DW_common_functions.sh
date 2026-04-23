@@ -689,8 +689,7 @@ seerr_sync_issue() {
     local description="$3"
     local tmdb_id="$4"
 
-    # 1. Get the internal Seerr Media ID for this TMDB ID
-    # This is required to link the issue correctly
+    # 1. Get the internal Seerr Media ID
     local media_id=$(curl -s -X GET "$SEERR_URL/api/v1/tmdb/$tmdb_id?language=en" \
         -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.mediaInfo.id // empty')
 
@@ -699,30 +698,27 @@ seerr_sync_issue() {
         return
     fi
 
-    # 2. Check if an issue already exists to avoid duplicates
+    # 2. Check for existing issue
     local existing=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
         -H "X-Api-Key: $SEERR_API_KEY" | jq -r --arg mid "$media_id" '.results[]? | select(.media.id == ($mid|tonumber)) | .id')
 
     if [[ -n "$existing" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Issue already exists in Seerr for $series_name (ID: $existing). Updating description..."
-        # Optional: Update the existing issue description if you want
+        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Issue already exists for $series_name."
         return
     fi
 
-    # 3. Create the Issue using the mediaId
-    local payload=$(cat <<EOF
-    {
-      "issueType": 1,
-      "message": "$description",
-      "mediaId": $media_id
-    }
-    EOF
-    )
-
+    # 3. Create the Issue
+    # Ensure the EOF below has NO leading spaces/tabs
     curl -s -X POST "$SEERR_URL/api/v1/issue" \
         -H "X-Api-Key: $SEERR_API_KEY" \
         -H "Content-Type: application/json" \
-        -d "$payload" > /dev/null
+        -d @- <<EOF
+{
+  "issueType": 1,
+  "message": "$description",
+  "mediaId": $media_id
+}
+EOF
 
     log "🚀 Seerr Issue created for $series_name (Media ID: $media_id)"
 }
