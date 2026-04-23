@@ -104,6 +104,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             if [[ "$curr_e_start" -gt "$expected_e" ]]; then
                 for ((i=expected_e; i<curr_e_start; i++)); do
                     missing_in_series+="${curr_s}x$(printf "%02d" $i) "
+                    log "DEBUG: Final Check for $series_name -> Missing: '$missing_in_series' | Count: ${#ep_list[@]}"
                 done
             fi
             
