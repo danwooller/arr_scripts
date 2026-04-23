@@ -521,6 +521,44 @@ radarr_targeted_scan() {
 # --- END RADARR SECTION ---
 # --- SEERR SECTION ---
 
+seerr_issue_notify() {
+    local series_name="$1" # Friendly name for the email
+    local tmdb_id="$2"     # TMDB ID (Required for lookup)
+    local message="$3"     # The specific problem (e.g., "Missing 1x05")
+    local media_type="$4"  # Must be "tv" or "movie"
+
+    # 1. Look up the requester in Seerr based on media type
+    # Seerr API routes: /api/v1/movie/{id} or /api/v1/tv/{id}
+    local endpoint="tv"
+    [[ "$media_type" == "movie" ]] && endpoint="movie"
+
+    local user_info=$(curl -s -X GET "$SEERR_URL/api/v1/$endpoint/$tmdb_id" \
+        -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.mediaInfo.requests[0].requestedBy | "\(.id)|\(.email)"')
+
+    local req_id=$(echo "$user_info" | cut -d'|' -f1)
+    local req_email=$(echo "$user_info" | cut -d'|' -f2)
+
+    # 2. Safety Check: If no requester found, just log and exit
+    if [[ -z "$req_id" || "$req_id" == "null" ]]; then
+        log "ℹ️ No requester found in Seerr for $series_name. Skipping email."
+        return
+    fi
+
+    # 3. Check Seerr Opt-in Status (Respect the checkboxes you saw in the UI)
+    local email_enabled=$(curl -s -X GET "$SEERR_URL/api/v1/user/$req_id/settings/notifications" \
+        -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.emailEnabled')
+
+    if [[ "$email_enabled" == "true" ]]; then
+        log "📧 Requester ($req_email) is opted-in. Sending alert for $series_name..."
+        
+        local mail_content="Hi,\n\nThere is an issue with your request for **$series_name**.\n\nDetails: $message\n\nThis has been logged in Seerr for investigation."
+        
+        echo -e "$mail_content" | mail -s "Issue with your $media_type request: $series_name" "$req_email"
+    else
+        log "ℹ️ Requester ($req_email) has notifications disabled in Seerr. Skipping email."
+    fi
+}
+
 seerr_resolve_issue() {
     local folder_path="${1%/}" 
     local media_type="$2"      # Use the passed argument ("movie" or "tv")
