@@ -14,6 +14,18 @@ if sudo ssh -o ConnectTimeout=10 "$BASE_HOST6" "zpool status" | grep -q "scrub i
     exit 0
 fi
 
+# --- 1. Pre-fetch Sonarr Data (Optimization) ---
+# We do this ONCE at the start to save time and API hits.
+declare -A SERIES_TYPE_MAP
+log "Fetching series metadata from Sonarr..."
+
+while IFS="|" read -r path type; do
+    if [[ -n "$path" ]]; then
+        SERIES_TYPE_MAP["$path"]="$type"
+    fi
+done < <(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
+         jq -r '.[] | "\(.path)|\(.seriesType)"')
+
 # --- Logic: Manual vs Scheduled ---
 if [ -n "$1" ]; then
     log "Manual scan requested for: $1"
@@ -38,6 +50,9 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         series_name=$(basename "$CURRENT_SERIES_PATH")
         [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
 
+        # Lookup Sonarr type (default to standard if not found)
+        this_series_type="${SERIES_TYPE_MAP[$CURRENT_SERIES_PATH]:-standard}"
+
         # 1. Safeguard: Check for metadata to ensure mount is healthy
         if [[ ! -f "$CURRENT_SERIES_PATH/tvshow.nfo" && ! -d "$CURRENT_SERIES_PATH/Season 1" ]]; then
             log "⚠️ $series_name: Missing metadata/Season 1. Potential mount issue. Skipping."
@@ -58,7 +73,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         # 3. Gap Detection Logic
         missing_in_series=""
         prev_s=-1
-        expected_e=-1 
+        expected_e=-1
 
         for line in "${ep_list[@]}"; do
             read -r s_raw e_start_raw e_end_raw <<< "$line"
@@ -67,18 +82,20 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             curr_e_start=$((10#$e_start_raw))
             curr_e_end=$((10#$e_end_raw))
 
-            # --- Season Change or First Run ---
+            # Season Change Reset
             if [[ "$curr_s" -ne "$prev_s" ]]; then
-                # Logic: If it's a new season, we don't assume it starts at 01.
-                # We set the 'expected_e' to whatever the first found episode is.
-                # This ignores missing leading episodes for weekly/rolling shows.
+                # Only flag missing 01-XX if it's NOT a daily/weekly rolling show
+                if [[ "$this_series_type" != "daily" && "$curr_e_start" -gt 1 ]]; then
+                    for ((i=1; i<curr_e_start; i++)); do
+                        missing_in_series+="${curr_s}x$(printf "%02d" $i) "
+                    done
+                fi
                 prev_s=$curr_s
                 expected_e=$((curr_e_end + 1))
                 continue
             fi
 
-            # --- Check for Gaps within the season ---
-            # Now we only flag gaps that occur BETWEEN existing files.
+            # Check for Gaps within the season (Always happens regardless of type)
             if (( curr_e_start > expected_e )); then
                 for ((i=expected_e; i<curr_e_start; i++)); do
                     missing_in_series+="${curr_s}x$(printf "%02d" $i) "
@@ -91,11 +108,9 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         # 4. Reporting & Seerr Sync
         if [[ -n "$missing_in_series" ]]; then
             log "⚠️ $series_name is missing: $missing_in_series"
-            # Use the Seerr Function we fixed earlier
             seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
         
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
-            # ONLY resolve if we actually found episodes and found ZERO gaps.
             [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No gaps found for $series_name. Resolving Seerr issues..."
             seerr_resolve_issue "$series_name" "tv"
         else
