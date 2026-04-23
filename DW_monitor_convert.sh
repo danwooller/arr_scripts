@@ -118,19 +118,21 @@ while true; do
                 log "ℹ️ Remuxing subtitles: $FILENAME"
                 [[ -z "$FORCED_FLAG" ]] && FORCED_FLAG="no"
                 [[ -z "$SUB_NAME" ]] && SUB_NAME="Subtitles"
-                mkvmerge -o "$FINAL_OUTPUT" \
+                MKV_ERROR=$(mkvmerge -o "$FINAL_OUTPUT" \
                     "$TEMP_OUTPUT" \
                     --language 0:eng \
                     --track-name 0:"$SUB_NAME" \
                     --forced-display 0:"$FORCED_FLAG" \
                     --default-track 0:"$FORCED_FLAG" \
-                    "$SUB_FILE" > /tmp/mkvmerge_debug.log 2>&1
+                    "$SUB_FILE" 2>&1)
+                
                 if [[ ! -f "$FINAL_OUTPUT" ]]; then
-                    log "❌ mkvmerge failed! Check /tmp/mkvmerge_debug.log"
+                    log "❌ mkvmerge FAILED! Error details:"
+                    log ">> $MKV_ERROR" # This sends the mkvmerge error to your main log
+                    
                     log "⚠️ Sending source to HOLD: $BASE_NAME"
                     mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
                     seerr_sync_issue "$BASE_NAME" "tv"
-                    # Clean up the failed transcode so we don't waste space
                     rm -f "$TEMP_OUTPUT" "$FILE_TO_PROCESS"
                     continue 
                 fi
