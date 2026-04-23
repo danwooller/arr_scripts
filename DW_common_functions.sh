@@ -689,40 +689,41 @@ seerr_sync_issue() {
     local description="$3"
     local tmdb_id="$4"
 
-    # 1. Get the internal Seerr Media ID
-    local media_data=$(curl -s -X GET "$SEERR_URL/api/v1/tmdb/$tmdb_id?language=en" -H "X-Api-Key: $SEERR_API_KEY")
-    local media_id=$(echo "$media_data" | jq -r '.mediaInfo.id // empty')
+    # 1. Check if an issue already exists for this TMDB ID
+    # We use the '?' and '2>/dev/null' to prevent the "iterate over null" error
+    local existing=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
+        -H "X-Api-Key: $SEERR_API_KEY" | \
+        jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id' 2>/dev/null)
 
-    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        log "⚠️ $series_name (TMDB: $tmdb_id) is not in Seerr's local library."
-        log "🔄 Triggering Seerr library scan..."
-        curl -s -X POST "$SEERR_URL/api/v1/settings/jobs/plex-sync/run" -H "X-Api-Key: $SEERR_API_KEY" > /dev/null
+    if [[ -n "$existing" && "$existing" != "null" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Issue already exists for $series_name (ID: $existing)."
         return
     fi
 
-    # 2. Check for existing issue
-    local existing=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
-        -H "X-Api-Key: $SEERR_API_KEY" | jq -r --arg mid "$media_id" '.results[]? | select(.media.id == ($mid|tonumber)) | .id')
+    # 2. Get the internal Media ID (Seerr needs this for the POST)
+    # We'll try a broader lookup that doesn't care about "Available" status
+    local media_id=$(curl -s -X GET "$SEERR_URL/api/v1/tmdb/$tmdb_id?language=en" \
+        -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.mediaInfo.id // empty')
 
-    if [[ -n "$existing" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Issue already exists for $series_name."
-        return
+    # If we STILL can't find a media_id, we'll try one last-ditch search by title
+    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        media_id=$(curl -s -G "$SEERR_URL/api/v1/search" \
+            -H "X-Api-Key: $SEERR_API_KEY" \
+            --data-urlencode "query=$series_name" | \
+            jq -r --arg id "$tmdb_id" '.results[]? | select(.tmdbId == ($id|tonumber)) | .mediaInfo.id // empty' | head -n 1)
     fi
 
     # 3. Create the Issue
-    # Ensure the EOF below has NO leading spaces/tabs
-    curl -s -X POST "$SEERR_URL/api/v1/issue" \
-        -H "X-Api-Key: $SEERR_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d @- <<EOF
-{
-  "issueType": 1,
-  "message": "$description",
-  "mediaId": $media_id
-}
-EOF
-
-    log "🚀 Seerr Issue created for $series_name (Media ID: $media_id)"
+    if [[ -n "$media_id" && "$media_id" != "null" ]]; then
+        curl -s -X POST "$SEERR_URL/api/v1/issue" \
+            -H "X-Api-Key: $SEERR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"issueType\": 1, \"message\": \"$description\", \"mediaId\": $media_id}" > /dev/null
+        
+        log "🚀 Seerr Issue created for $series_name"
+    else
+        log "⚠️ Could not find Seerr Media ID for $series_name. Is it synced?"
+    fi
 }
 
 # --- END SEERR SECTION ---
