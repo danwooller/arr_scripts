@@ -29,6 +29,7 @@ check_dependencies "HandBrakeCLI" "jq" "mkvpropedit" "mkvmerge" "ffprobe"
 log_start "$SOURCE_DIR"
 
 while true; do
+    flatten_source_dir "$SOURCE_DIR"
     rm -f $CONVERT_DIR/* $WORKING_DIR/*
     sonarr_weekly_shows
     find "$SOURCE_DIR" -type f -mmin +$MIN_FILE_AGE \
