@@ -112,43 +112,54 @@ while true; do
 
         HandBrakeCLI --preset "$PRESET" -q 24.0 -i "$FILE_TO_PROCESS" -o "$TEMP_OUTPUT" $AUDIO_PARAMS --subtitle none --optimize < /dev/null
 
-        # --- Remux & Ingest ---
+        # --- Remux ---
         if [[ -f "$TEMP_OUTPUT" ]]; then
-            if [ "$HAS_SUBTITLES" = true ]; then
-                # Remux with subtitles
+            if [ "$HAS_SUBTITLES" = true ] && [[ -f "$SUB_FILE" ]]; then
+                log "ℹ️ Remuxing forced subtitles into $FILENAME"
+                # We use a temporary log to catch mkvmerge errors without stopping the script
                 mkvmerge -o "$FINAL_OUTPUT" --no-subtitles "$TEMP_OUTPUT" \
                     --language 0:eng --track-name 0:"$SUB_NAME" \
                     --forced-display 0:"$FORCED_FLAG" --default-track 0:"$FORCED_FLAG" \
-                    "$SUB_FILE"
+                    "$SUB_FILE" > /tmp/mkvmerge_last_run.log 2>&1
+                
+                # Check if mkvmerge actually created the file
+                if [[ ! -f "$FINAL_OUTPUT" ]]; then
+                    log "❌ mkvmerge failed (forced subs). Check /tmp/mkvmerge_last_run.log"
+                    log "⚠️ Moving original source to HOLD for manual review."
+                    mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
+                    seerr_sync_issue "$BASE_NAME" "tv"
+                    rm -f "$TEMP_OUTPUT" "$FILE_TO_PROCESS"
+                    continue # Move to next file in the loop
+                fi
             else
                 mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
             fi
 
-            # Perform Sonos Fix
+            # Audio Normalization
             sonos_audio_fix "$FINAL_OUTPUT"
 
-            # Check if the destination exists, if not, send to HOLD
+            # --- The Critical Ingest Move ---
             if [[ -d "$DIR_MEDIA_COMPLETED_TV" ]]; then
                 if mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"; then
-                    log "✨ Successfully moved to Ingest: $FILENAME"
-                    # Only move source to finished if ingest move worked
+                    log "✨ Successfully moved: $FILENAME"
+                    # Only now do we clear the source and the torrent
                     mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$(date +%H%M).$EXTENSION"
                     manage_remote_torrent "delete" "$BASE_NAME"
+                    rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT" "$SUB_FILE"
                 else
-                    log "❌ Move FAILED. Sending to HOLD."
-                    mv "$FINAL_OUTPUT" "$DIR_MEDIA_HOLD/"
+                    log "❌ Move to Ingest FAILED. Sending source to HOLD."
+                    mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
                     seerr_sync_issue "$BASE_NAME" "tv"
+                    # Clean up working files but keep the source safe in HOLD
+                    rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT" "$FINAL_OUTPUT"
                 fi
             else
-                log "⚠️ Destination $DIR_MEDIA_COMPLETED_TV missing! Sending to HOLD."
-                mv "$FINAL_OUTPUT" "$DIR_MEDIA_HOLD/"
+                log "🚨 DIR_MEDIA_COMPLETED_TV ($DIR_MEDIA_COMPLETED_TV) NOT FOUND."
+                mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
                 seerr_sync_issue "$BASE_NAME" "tv"
+                rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT" "$FINAL_OUTPUT"
             fi
         fi
-        
-        # FINAL CLEANUP: Only delete the TEMP and CONVERTED copies
-        # The SOURCE_FILE is already moved/handled above
-        rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT" "$FINAL_OUTPUT"
     done
     sleep "$POLL_INTERVAL"
 done
