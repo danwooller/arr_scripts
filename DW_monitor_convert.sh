@@ -112,29 +112,43 @@ while true; do
 
         HandBrakeCLI --preset "$PRESET" -q 24.0 -i "$FILE_TO_PROCESS" -o "$TEMP_OUTPUT" $AUDIO_PARAMS --subtitle none --optimize < /dev/null
 
-        # --- Remux ---
+        # --- Remux & Ingest ---
         if [[ -f "$TEMP_OUTPUT" ]]; then
             if [ "$HAS_SUBTITLES" = true ]; then
-                    # Determine if the forced flag should be set in the MKV header
-                    FORCED_FLAG="no"
-                    [[ "$SUB_NAME" == "Forced" ]] && FORCED_FLAG="yes"
-                    mkvmerge -o "$FINAL_OUTPUT" \
-                        --no-subtitles "$TEMP_OUTPUT" \
-                        --language 0:eng \
-                        --track-name 0:"$SUB_NAME" \
-                        --forced-display 0:"$FORCED_FLAG" \
-                        --default-track 0:"$FORCED_FLAG" \
-                        "$SUB_FILE"
+                # Remux with subtitles
+                mkvmerge -o "$FINAL_OUTPUT" --no-subtitles "$TEMP_OUTPUT" \
+                    --language 0:eng --track-name 0:"$SUB_NAME" \
+                    --forced-display 0:"$FORCED_FLAG" --default-track 0:"$FORCED_FLAG" \
+                    "$SUB_FILE"
             else
                 mv "$TEMP_OUTPUT" "$FINAL_OUTPUT"
             fi
-            log "✨ Completed $FILENAME"
-            sonos_audio_fix "$FINAL_OUTPUT"  
-            mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"
-            mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$(date +%H%M).$EXTENSION"
-            manage_remote_torrent "delete" "$BASE_NAME"
+
+            # Perform Sonos Fix
+            sonos_audio_fix "$FINAL_OUTPUT"
+
+            # Check if the destination exists, if not, send to HOLD
+            if [[ -d "$DIR_MEDIA_COMPLETED_TV" ]]; then
+                if mv "$FINAL_OUTPUT" "$DIR_MEDIA_COMPLETED_TV/"; then
+                    log "✨ Successfully moved to Ingest: $FILENAME"
+                    # Only move source to finished if ingest move worked
+                    mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$(date +%H%M).$EXTENSION"
+                    manage_remote_torrent "delete" "$BASE_NAME"
+                else
+                    log "❌ Move FAILED. Sending to HOLD."
+                    mv "$FINAL_OUTPUT" "$DIR_MEDIA_HOLD/"
+                    seerr_sync_issue "$BASE_NAME" "tv"
+                fi
+            else
+                log "⚠️ Destination $DIR_MEDIA_COMPLETED_TV missing! Sending to HOLD."
+                mv "$FINAL_OUTPUT" "$DIR_MEDIA_HOLD/"
+                seerr_sync_issue "$BASE_NAME" "tv"
+            fi
         fi
-        rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT"
+        
+        # FINAL CLEANUP: Only delete the TEMP and CONVERTED copies
+        # The SOURCE_FILE is already moved/handled above
+        rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT" "$FINAL_OUTPUT"
     done
     sleep "$POLL_INTERVAL"
 done
