@@ -149,6 +149,7 @@ while true; do
     print_section "$LOCAL_CONVERT_FOLDER"
     print_section "$REMOTE_CONVERT_FOLDER"
     print_section "$REMOTE_FORCED_FOLDER"
+    print_section "$REMOTE_CONVERT_FOLDER"
 
     print_hr "└" "─" "┘"
 
