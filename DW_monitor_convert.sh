@@ -123,7 +123,7 @@ while true; do
                 MKV_ERROR=$(mkvmerge -o "$FINAL_OUTPUT" \
                     "$TEMP_OUTPUT" \
                     --language 0:eng \
-                    --track-name 0:"${SUB_NAME:-Forced}" \
+                    --track-name 0:"${SUB_NAME:-English}" \
                     --default-track-flag 0:"${FORCED_FLAG:-no}" \
                     --forced-display-flag 0:"${FORCED_FLAG:-no}" \
                     "$SUB_FILE" 2>&1)        
