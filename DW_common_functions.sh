@@ -690,13 +690,14 @@ seerr_sync_issue() {
     local tmdb_id="$4"
 
     # 1. Check if an issue already exists for this TMDB ID
-    # We use the '?' and '2>/dev/null' to prevent the "iterate over null" error
-    local existing=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
+    local media_id=$(curl -s -X GET "$SEERR_URL/api/v1/media?take=999&filter=all" \
         -H "X-Api-Key: $SEERR_API_KEY" | \
-        jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id' 2>/dev/null)
+        jq -r --arg id "$tmdb_id" '.results[]? | select(.tmdbId == ($id|tonumber)) | .id' | head -n 1)
 
-    if [[ -n "$existing" && "$existing" != "null" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Issue already exists for $series_name (ID: $existing)."
+    # 2. Check if we found it
+    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
+        log "⚠️ Seerr still hasn't registered a Media ID for $series_name (TMDB: $tmdb_id)."
+        log "ℹ️ Status in UI is likely 'Processing'. Issue creation will resume once synced."
         return
     fi
 
