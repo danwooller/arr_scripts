@@ -21,7 +21,9 @@ fi
 LOCAL_DONE_FOLDER="$HOME_DIR/$(hostname)_done"
 LOCAL_CONVERT_FOLDER="$HOME_DIR/convert"
 REMOTE_CONVERT_FOLDER="$DIR_MEDIA_TORRENT/$(hostname)/$(hostname)_convert"
+REMOTE_EXTRACT_FOLDER="$DIR_MEDIA_TORRENT/$(hostname)/subtitles/extract"
 REMOTE_FORCED_FOLDER="$DIR_MEDIA_TORRENT/$(hostname)/subtitles/forced"
+REMOTE_REMOVE_FOLDER="$DIR_MEDIA_TORRENT/$(hostname)/subtitles/remove"
 
 REFRESH_INTERVAL=10
 MAX_FILES=4
@@ -148,8 +150,9 @@ while true; do
     print_section "$LOCAL_DONE_FOLDER"
     print_section "$LOCAL_CONVERT_FOLDER"
     print_section "$REMOTE_CONVERT_FOLDER"
+    print_section "$REMOTE_EXTRACT_FOLDER"
     print_section "$REMOTE_FORCED_FOLDER"
-    print_section "$REMOTE_CONVERT_FOLDER"
+    print_section "$REMOTE_REMOVE_FOLDER"
 
     print_hr "└" "─" "┘"
 
