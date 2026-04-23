@@ -91,11 +91,14 @@ while true; do
             fi
 
             log "✅ Remux successful."
-            sync
+#            sync
+            sleep 2
 
             if mv "$TEMP_FILE" "$DIR_MEDIA_FINISHED/$ORIGINAL_FILENAME"; then
                 manage_remote_torrent "delete" "$FILE_NAME_BASE"
                 radarr_ingest "$DIR_MEDIA_COMPLETED_MOVIES"
+            else
+                log "❌ Failed to move original file!"
             fi
         else
             log "❌ Merge failed for $ORIGINAL_FILENAME"
