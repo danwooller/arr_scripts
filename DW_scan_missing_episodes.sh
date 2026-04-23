@@ -84,14 +84,12 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             curr_e_start=$((10#$e_start_raw))
             curr_e_end=$((10#$e_end_raw))
 
-            # --- NEW SAFETY CHECK: Skip Season 0 (Specials) ---
-            if [[ "$curr_s" -eq 0 ]]; then
-                continue
-            fi
+            # Skip Season 0
+            [[ "$curr_s" -eq 0 ]] && continue
 
-            # Season Change Reset
+            # Season Change
             if [[ "$curr_s" -ne "$prev_s" ]]; then
-                # Only flag missing 01-XX if it's NOT a daily/weekly rolling show
+                # If NOT daily, check for missing episodes 1 thru (start-1)
                 if [[ "$this_series_type" != "daily" && "$curr_e_start" -gt 1 ]]; then
                     for ((i=1; i<curr_e_start; i++)); do
                         missing_in_series+="${curr_s}x$(printf "%02d" $i) "
@@ -102,13 +100,14 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
                 continue
             fi
 
-            # Check for Gaps within the season (Always happens regardless of type)
-            if (( curr_e_start > expected_e )); then
+            # INTERNAL GAP CHECK (This is where 31x48 should be caught)
+            if [[ "$curr_e_start" -gt "$expected_e" ]]; then
                 for ((i=expected_e; i<curr_e_start; i++)); do
                     missing_in_series+="${curr_s}x$(printf "%02d" $i) "
                 done
             fi
             
+            # Update expected for next iteration
             expected_e=$((curr_e_end + 1))
         done
 
