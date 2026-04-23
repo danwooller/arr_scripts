@@ -121,7 +121,8 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             
             if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
                 seerr_issue_notify "$series_name" "$tmdb_id" "Missing episodes: $missing_in_series" "tv"
-                seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "$tmdb_id"
+                #seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "$tmdb_id"
+                seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
             else
                 log "❌ Could not notify: No TMDB ID found for $series_name"
             fi
