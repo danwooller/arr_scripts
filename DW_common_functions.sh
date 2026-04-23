@@ -684,97 +684,47 @@ seerr_resolve_issue() {
 }
 
 seerr_sync_issue() {
-    local media_name="$1"
+    local series_name="$1"
     local media_type="$2"
-    local message=$(echo "$3" | xargs)
-    local media_id="$4"
+    local description="$3"
+    local tmdb_id="$4"
 
-    # Use your defined Variables
-    local base_url="${SEERR_URL%/}/api/v1"
-    local seerr_user="${SEERR_EMAIL}"
-    local seerr_pass="${SEERR_PASSWORD}"
-    local cookie_file="/tmp/seerr_sync_cookie.txt"
+    # 1. Get the internal Seerr Media ID for this TMDB ID
+    # This is required to link the issue correctly
+    local media_id=$(curl -s -X GET "$SEERR_URL/api/v1/tmdb/$tmdb_id?language=en" \
+        -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.mediaInfo.id // empty')
 
-    # --- 1. Service Account Auth ---
-    # We MUST use -c to save the cookie
-    curl -s -c "$cookie_file" -X POST "$base_url/auth/local" \
-         -H "Content-Type: application/json" \
-         -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
-
-    # --- 2. Get Seerr Media ID ---
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
-        local encoded_query=$(echo "$search_term" | jq -Rr @uri)
-        # We MUST use -b to send the cookie back
-        local search_results=$(curl -s -b "$cookie_file" -X GET "$base_url/search?query=$encoded_query")
-        media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
+        log "⚠️ Could not sync issue for $series_name: Show not found in Seerr library."
+        return
     fi
 
-    [[ -z "$media_id" || "$media_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
+    # 2. Check if an issue already exists to avoid duplicates
+    local existing=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
+        -H "X-Api-Key: $SEERR_API_KEY" | jq -r --arg mid "$media_id" '.results[]? | select(.media.id == ($mid|tonumber)) | .id')
 
-    # --- 3. Deduplication & Re-opening ---
-    local existing_issues=$(curl -s -b "$cookie_file" -X GET "$base_url/issue?take=10&filter=all")
-    
-    # Extract data including status
-    local issue_info=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
-        .results[] | select(.media.id == ($mid|tonumber)) | 
-        "\(.id)|\(.status)|\(.message)|\(.comments[-1].message // "none")"' | head -n 1)
-
-    local issue_id=$(echo "$issue_info" | cut -d'|' -f1)
-    local status=$(echo "$issue_info" | cut -d'|' -f2)
-    local main_desc=$(echo "$issue_info" | cut -d'|' -f3)
-    local last_comment=$(echo "$issue_info" | cut -d'|' -f4-)
-
-    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-        
-        # --- Logic A: RE-OPEN IF CLOSED ---
-        if [[ "$status" != "1" ]]; then
-            log "🔄 Seerr: Attempting to re-open closed issue #$issue_id..."
-            
-            # Change "1" to "open" in the URL
-            local response=$(curl -s -b "$cookie_file" -w "\n%{http_code}" \
-                -X POST "$base_url/issue/$issue_id/open" \
-                -H "Accept: application/json")
-            
-            local http_code=$(echo "$response" | tail -n1)
-            local body=$(echo "$response" | head -n -1)
-
-            if [[ "$http_code" == "200" ]]; then
-                log "✅ Seerr: Successfully re-opened issue #$issue_id."
-                status="1" # Update local variable so the next check works
-            else
-                log "❌ Seerr: Failed to re-open #$issue_id. Status: $http_code. Response: $body"
-                rm -f "$cookie_file"
-                return 1
-            fi
-        fi
-
-        # --- Logic B: DEDUPLICATE ---
-        # Only skip if the message is identical to the main desc OR the very last comment
-        if [[ "$message" == "$main_desc" || "$message" == "$last_comment" ]]; then
-            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id is open/re-opened and matches. Skipping comment."
-            rm -f "$cookie_file"
-            return 0
-        fi
-
-        # --- Logic C: NEW COMMENT ---
-        curl -s -b "$cookie_file" -X POST "$base_url/issue/$issue_id/comment" \
-            -H "Content-Type: application/json" \
-            -d "{\"message\": \"$message\"}"
-        
-        rm -f "$cookie_file"
-        return 0 
+    if [[ -n "$existing" ]]; then
+        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Issue already exists in Seerr for $series_name (ID: $existing). Updating description..."
+        # Optional: Update the existing issue description if you want
+        return
     fi
 
-    # --- 4. Create New Issue ---
-    local json_payload=$(jq -n --arg mt "1" --arg msg "$message" --arg id "$media_id" \
-        '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
-    
-    curl -s -b "$cookie_file" -X POST "$base_url/issue" \
-        -H "Content-Type: application/json" -d "$json_payload" > /dev/null
-    
-    log "🚀 Seerr Issue created for $media_name."
-    rm -f "$cookie_file"
+    # 3. Create the Issue using the mediaId
+    local payload=$(cat <<EOF
+    {
+      "issueType": 1,
+      "message": "$description",
+      "mediaId": $media_id
+    }
+    EOF
+    )
+
+    curl -s -X POST "$SEERR_URL/api/v1/issue" \
+        -H "X-Api-Key: $SEERR_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d "$payload" > /dev/null
+
+    log "🚀 Seerr Issue created for $series_name (Media ID: $media_id)"
 }
 
 # --- END SEERR SECTION ---
