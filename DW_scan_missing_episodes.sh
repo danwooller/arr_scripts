@@ -129,8 +129,16 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
             # We only look for an open issue if we actually have a TMDB ID to check against
             if [[ -n "$tmdb_id" ]]; then
+                # Fetch issues and store in a variable first to check for success
+                issue_json=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" -H "X-Api-Key: $SEERR_API_KEY")
+                
+                if [[ -n "$issue_json" && "$issue_json" != "null" ]]; then
+                    open_issue_id=$(echo "$issue_json" | jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id')
+                else
+                    open_issue_id=""
+                fi
                 # Check if there is an OPEN issue in Seerr before we resolve it
-                local open_issue_id=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
+                open_issue_id=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
                     -H "X-Api-Key: $SEERR_API_KEY" | \
                     jq -r --arg id "$tmdb_id" '.results[] | select(.media.tmdbId == ($id|tonumber)) | .id')
 
