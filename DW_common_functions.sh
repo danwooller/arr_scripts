@@ -569,7 +569,7 @@ seerr_issue_notify() {
     fi
 }
 
-seerr_resolve_notifier() {
+seerr_resolve_notify() {
     local series_name="$1"
     local tmdb_id="$2"
     local media_type="$3"
