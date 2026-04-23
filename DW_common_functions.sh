@@ -528,9 +528,9 @@ seerr_issue_notify() {
     local media_type="$4"
 
     # We query Seerr for issues and see if any match our TMDB ID and are still "OPEN" (status 1)
-    local existing_issue=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1&limit=100" \
+    local existing_issue=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
         -H "X-Api-Key: $SEERR_API_KEY" | \
-        jq -r --arg id "$tmdb_id" '.results[] | select(.media.tmdbId == ($id|tonumber)) | .id')
+        jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id' 2>/dev/null)
 
     if [[ -n "$existing_issue" ]]; then
         log "ℹ️ Issue already exists in Seerr (ID: $existing_issue). Skipping duplicate email."
