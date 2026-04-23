@@ -138,7 +138,8 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
                 if [[ -n "$open_issue_id" && "$open_issue_id" != "null" ]]; then
                     log "✨ Gaps fixed for $series_name. Notifying user and resolving Seerr issue..."
                     seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
-                    seerr_resolve_issue "$series_name" "tv"
+#                    seerr_resolve_issue "$series_name" "tv"
+                    seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
                 fi
             fi
         else
