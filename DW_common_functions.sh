@@ -684,47 +684,70 @@ seerr_resolve_issue() {
 }
 
 seerr_sync_issue() {
-    local series_name="$1"
-    local media_type="$2"
-    local description="$3"
-    local tmdb_id="$4"
+    local media_name="$1"
+    local media_type="$2"   # "tv" or "movie"
+    local message=$(echo "$3" | xargs) # Trim whitespace to ensure clean comparison
+    local media_id="$4"
 
-    # 1. Check if an issue already exists for this TMDB ID
-    local media_id=$(curl -s -X GET "$SEERR_URL/api/v1/media?take=999&filter=all" \
-        -H "X-Api-Key: $SEERR_API_KEY" | \
-        jq -r --arg id "$tmdb_id" '.results[]? | select(.tmdbId == ($id|tonumber)) | .id' | head -n 1)
+    # --- Service Account Auth (Triggers Email) ---
+    local seerr_user="${SEERR_EMAIL}"
+    local seerr_pass="${SEERR_PASSWORD}"
+    local cookie_file="/tmp/seerr_sync_cookie.txt"
 
-    # 2. Check if we found it
+    curl -s -c "$cookie_file" -X POST "${SEERR_API_BASE%/}/auth/local" \
+         -H "Content-Type: application/json" \
+         -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
+
+    # 1. Arr Search Logic (Existing Sonarr/Radarr search blocks go here)
+    # ... [Keep your existing Arr search code] ...
+
+    # 2. Get Seerr Media ID
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        log "⚠️ Seerr still hasn't registered a Media ID for $series_name (TMDB: $tmdb_id)."
-        log "ℹ️ Status in UI is likely 'Processing'. Issue creation will resume once synced."
-        return
+        local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
+        local encoded_query=$(echo "$search_term" | jq -Rr @uri)
+        local search_results=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/search?query=$encoded_query")
+        media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
     fi
 
-    # 2. Get the internal Media ID (Seerr needs this for the POST)
-    # We'll try a broader lookup that doesn't care about "Available" status
-    local media_id=$(curl -s -X GET "$SEERR_URL/api/v1/tmdb/$tmdb_id?language=en" \
-        -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.mediaInfo.id // empty')
+    [[ -z "$media_id" || "$media_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
 
-    # If we STILL can't find a media_id, we'll try one last-ditch search by title
-    if [[ -z "$media_id" || "$media_id" == "null" ]]; then
-        media_id=$(curl -s -G "$SEERR_URL/api/v1/search" \
-            -H "X-Api-Key: $SEERR_API_KEY" \
-            --data-urlencode "query=$series_name" | \
-            jq -r --arg id "$tmdb_id" '.results[]? | select(.tmdbId == ($id|tonumber)) | .mediaInfo.id // empty' | head -n 1)
+    # 3. Deduplication & Anti-Spam Check
+    #local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=100&filter=open")
+    local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=10&filter=all")
+    
+    # Extract Issue ID, Main Message, and Last Comment Message
+    local issue_info=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
+        .results[] | select(.media.id == ($mid|tonumber)) | 
+        "\(.id)|\(.message)|\(.comments[-1].message // "none")"' | head -n 1)
+
+    local issue_id=$(echo "$issue_info" | cut -d'|' -f1)
+    local main_desc=$(echo "$issue_info" | cut -d'|' -f2)
+    local last_comment=$(echo "$issue_info" | cut -d'|' -f3-)
+
+    if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
+        # Check if message is already present in either the main desc or the last comment
+        if [[ "$message" == "$main_desc" || "$message" == "$last_comment" ]]; then
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Seerr: Issue #$issue_id already up to date. Skipping email."
+            rm -f "$cookie_file"
+            return 0
+        fi
+
+        # If we got here, the message is NEW or CHANGED
+        curl -s -b "$cookie_file" -X POST "$SEERR_API_BASE/issue/$issue_id/comment" \
+            -H "Content-Type: application/json" -d "{\"message\": \"$message\"}"
+        rm -f "$cookie_file"
+        return 0 
     fi
 
-    # 3. Create the Issue
-    if [[ -n "$media_id" && "$media_id" != "null" ]]; then
-        curl -s -X POST "$SEERR_URL/api/v1/issue" \
-            -H "X-Api-Key: $SEERR_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"issueType\": 1, \"message\": \"$description\", \"mediaId\": $media_id}" > /dev/null
-        
-        log "🚀 Seerr Issue created for $series_name"
-    else
-        log "⚠️ Could not find Seerr Media ID for $series_name. Is it synced?"
-    fi
+    # 4. Create New Issue (If none exists)
+    local json_payload=$(jq -n --arg mt "1" --arg msg "$message" --arg id "$media_id" \
+        '{issueType: ($mt|tonumber), message: $msg, mediaId: ($id|tonumber)}')
+    
+    curl -s -b "$cookie_file" -X POST "$SEERR_API_BASE/issue" \
+        -H "Content-Type: application/json" -d "$json_payload" > /dev/null
+    
+    log "🚀 Seerr Issue created for $media_name."
+    rm -f "$cookie_file"
 }
 
 # --- END SEERR SECTION ---
