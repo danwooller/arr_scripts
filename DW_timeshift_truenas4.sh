@@ -19,7 +19,6 @@ trap 'sudo umount -l $MOUNT_POINT $SSD_MOUNT 2>/dev/null' EXIT
 
 # 1. Prepare local SSD mount
 sudo mkdir -p $SSD_MOUNT
-echo "Mounting local SSD..."
 sudo mount $SSD_DEVICE $SSD_MOUNT
 
 # 2. PRE-FLIGHT CHECK: Is the NAS even awake?
