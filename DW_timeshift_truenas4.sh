@@ -15,6 +15,7 @@ SSD_MOUNT="/mnt/ssd_recovery"
 NAS_PATH="/mnt/backup/$HOST"
 MOUNT_POINT="/mnt/truenas4_backup"
 SSD_SNAPSHOTS="$SSD_MOUNT/timeshift/snapshots/"
+trap 'sudo umount -l $MOUNT_POINT $SSD_MOUNT 2>/dev/null' EXIT
 
 # 1. Prepare local SSD mount
 sudo mkdir -p $SSD_MOUNT
