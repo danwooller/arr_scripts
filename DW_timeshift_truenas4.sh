@@ -27,18 +27,21 @@ echo "Mounting TrueNAS..."
 sudo mount -t nfs $BASE_HOST4:$NAS_PATH $MOUNT_POINT
 
 # 3. Check both mounts before Sync
-if mountpoint -q $MOUNT_POINT && mountpoint -q $SSD_MOUNT; then
-    echo "Both drives ready. Starting Sync..."
+if mountpoint -q "$MOUNT_POINT" && mountpoint -q "$SSD_MOUNT"; then
+    log "Both drives ready. Starting Sync..."
     
-    sudo rsync -aH --delete "$SSD_SNAPSHOTS" "$MOUNT_POINT/"
+    # --timeout=180: If no data moves for 3 mins (NAS went to sleep), rsync kills itself
+    # --partial: Keeps what it got so far to save time tomorrow
+    sudo rsync -aH --delete --timeout=180 "$SSD_SNAPSHOTS" "$MOUNT_POINT/"
     
     log "Sync Complete. Cleaning up..."
-    sudo umount $MOUNT_POINT
-    sudo umount $SSD_MOUNT
+    # -l (Lazy) is key here. If the drive is already "gone" (asleep), 
+    # a standard umount will hang, but a lazy one detaches the ghost mount.
+    sudo umount -l "$MOUNT_POINT"
+    sudo umount -l "$SSD_MOUNT"
 else
     log "Error: One or more drives failed to mount."
-    # Try to unmount whatever DID work to stay clean
-    sudo umount $MOUNT_POINT || true
-    sudo umount $SSD_MOUNT || true
+    sudo umount -l "$MOUNT_POINT" || true
+    sudo umount -l "$SSD_MOUNT" || true
     exit 1
 fi
