@@ -27,6 +27,11 @@ echo "Mounting TrueNAS..."
 sudo mount -t nfs $BASE_HOST4:$NAS_PATH $MOUNT_POINT
 
 # 3. Check both mounts before Sync
+if ! ping -c 1 -W 2 "$BASE_HOST4" > /dev/null; then
+    log "ℹ️ $BASE_HOST4 is not responding, skipping backup."
+    exit 0
+fi
+
 if mountpoint -q "$MOUNT_POINT" && mountpoint -q "$SSD_MOUNT"; then
     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Drives ready, starting sync..."
     
