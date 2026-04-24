@@ -949,20 +949,17 @@ sonarr_weekly_shows() {
                             continue
                         fi
                     fi
-
                     # 3. Mkvmerge Processing
                     local TARGET_FILE="${SAFE_NAME%.*}.mkv"
-
                     # Call sonos audio fix logic
                     sonos_audio_fix "$file"
                     # Call subtitle logic (Sets TRACK_OPTS and NEEDS_PROPEDIT)
                     subtitle_opts "$file"
-
                     if mkvmerge -q -o "$DIR_MEDIA_COMPLETED_TV/$TARGET_FILE" $TRACK_OPTS "$file"; then
                         # 4. Success: Cleanup Remote and Local
                         local CLEAN_BASE="${FILENAME%.*}" 
                         manage_remote_torrent "delete" "$CLEAN_BASE"
-                        
+                        plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
                         rm -f -- "$file"
                         log "✅ Merge successful: $TARGET_FILE"
                     else
@@ -978,9 +975,6 @@ sonarr_weekly_shows() {
             done
         fi
     done
-
-    plex_library_update "$PLEX_TV_SRC" "$PLEX_TV_NAME"
-    
     # Reset glob settings to default
     shopt -u nocaseglob
     shopt -u nullglob
