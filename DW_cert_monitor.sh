@@ -12,7 +12,7 @@ fi
 # Configuration
 HOST=$(hostname -s)
 DOMAIN="wooller.com"
-CERT_PATH="/etc/letsencrypt/live/$DOMAIN"
+CERT_PATH="/opt/docker/swag/config/etc/letsencrypt/live/$DOMAIN"
 OUTPUT_FILE="$CERT_PATH/certificate.p12"
 P12_PASSWORD="VoorboorseT7676"
 CHECK_INTERVAL=86400 # 24 hours
