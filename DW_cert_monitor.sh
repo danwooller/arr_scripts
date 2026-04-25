@@ -18,7 +18,7 @@ P12_PASSWORD="VoorboorseT7676"
 CHECK_INTERVAL=86400 # 24 hours
 
 # Path to Docker binary and restart command
-DOCKER_BIN="/opt/docker"
+DOCKER_BIN="/usr/bin/docker"
 RESTART_COMMAND="$DOCKER_BIN restart plex"
 
 while true; do
