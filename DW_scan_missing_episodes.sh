@@ -47,41 +47,27 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         continue
     fi
 
-#    CURRENT_PATH="${ROOT_DIR%/}"
-#    FOLDER_NAME=$(basename "$CURRENT_PATH")
-
-#    for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
-        # Match if the folder name is the exclusion OR 
-        # if the path ends with /ExclusionName
-#        if [[ "$FOLDER_NAME" == "$EXCLUSION" || "$CURRENT_PATH" == */"$EXCLUSION" ]]; then
-#            log "ℹ️ Match found for exclusion '$EXCLUSION'. Skipping $ROOT_DIR..."
-#            continue 2
-#        fi
-#    done
-
-    CLEAN_PATH="${ROOT_DIR%/}"
-    FOLDER_NAME="${CLEAN_PATH##*/}"
-
-    # 2. Immediate Exclusion Check
-    MATCH_FOUND=0
-    for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
-        if [[ "$FOLDER_NAME" == "$EXCLUSION" ]]; then
-            MATCH_FOUND=1
-            break
-        fi
-    done
-
-    # 3. If matched, log and jump to the next item immediately
-    if [[ $MATCH_FOUND -eq 1 ]]; then
-        log "ℹ️ Skipping $FOLDER_NAME (Exclusion List)"
-        continue
-    fi
-
     # Discovery: Find Series folders (folders containing 'Season' subdirectories)
     mapfile -t SERIES_LIST < <(find "$ROOT_DIR" -maxdepth 2 -type d -name "Season*" -exec dirname {} \; | sort -u)
 
     for CURRENT_SERIES_PATH in "${SERIES_LIST[@]}"; do
         series_name=$(basename "$CURRENT_SERIES_PATH")
+
+        # --- Exclusion Check (Now inside the Series Loop) ---
+        MATCH_FOUND=0
+        for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
+            if [[ "$series_name" == "$EXCLUSION" ]]; then
+                MATCH_FOUND=1
+                break
+            fi
+        done
+
+        if [[ $MATCH_FOUND -eq 1 ]]; then
+            log "ℹ️ Skipping $series_name (Exclusion List)"
+            continue
+        fi
+        # --- End Exclusion Check ---
+
         [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing $series_name"
 
         # Lookup Sonarr type (default to standard if not found)
@@ -130,7 +116,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
                 continue
             fi
 
-            # INTERNAL GAP CHECK (This is where 31x48 should be caught)
+            # INTERNAL GAP CHECK
             if [[ "$curr_e_start" -gt "$expected_e" ]]; then
                 for ((i=expected_e; i<curr_e_start; i++)); do
                     missing_in_series+="${curr_s}x$(printf "%02d" $i) "
@@ -144,25 +130,18 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         # 4. Reporting & Seerr Sync
         tmdb_id="${MANUAL_MAPS[$series_name]:-${SONARR_TMDB_MAP[$CURRENT_SERIES_PATH]}}"
         
-        #[[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name TMDB ID is [$tmdb_id]"
-
         if [[ -n "$missing_in_series" ]]; then
             log "⚠️ $series_name is missing: $missing_in_series"
             
             if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
                 seerr_issue_notify "$series_name" "$tmdb_id" "Missing episodes: $missing_in_series" "tv"
-                #seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "$tmdb_id"
                 seerr_sync_issue "$series_name" "tv" "Missing Episode(s): $missing_in_series" "${MANUAL_MAPS[$series_name]}"
             else
                 log "❌ Could not notify: No TMDB ID found for $series_name"
             fi
 
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
-            # We found files and NO gaps. Trust the resolve function to check for work.
             if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
-                #[[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name is healthy. Checking Seerr for issues to resolve..."
-                
-                # These functions handle their own internal "Is there an open issue?" checks
                 seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
                 seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
             fi
