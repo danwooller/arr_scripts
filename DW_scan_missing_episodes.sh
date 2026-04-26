@@ -45,8 +45,8 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         continue
     fi
 
-    if [ -d "$MANUAL_MAPS_EXCLUSIONS" ]; then
-        log "ℹ️ $MANUAL_MAPS_EXCLUSIONS is excluded from scan."
+    if [[ " $MANUAL_MAPS_EXCLUSIONS " =~ " $ROOT_DIR " ]]; then
+        log "ℹ️ $ROOT_DIR is excluded from scan."
         continue
     fi
 
