@@ -141,13 +141,12 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             fi
 
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
-            if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then  
-                # Check if there is actually an open issue in Seerr before trying to resolve
-                if seerr_issue_exists "$tmdb_id"; then
+            if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
+                # We call the resolve function first. 
+                # If it finds and closes an issue, it returns 0 (success).
+                if seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"; then
+                    # Only notify the user if an issue was actually found and closed
                     seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
-                    seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"
-                else
-                    [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name is healthy and no Seerr issue found. Doing nothing."
                 fi
             fi
         else
