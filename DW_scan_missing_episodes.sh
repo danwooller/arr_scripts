@@ -45,10 +45,15 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         continue
     fi
 
+    CURRENT_PATH="${ROOT_DIR%/}"
+    FOLDER_NAME=$(basename "$CURRENT_PATH")
+
     for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
-        if [[ "${ROOT_DIR%/}" == "${EXCLUSION%/}" ]]; then
-            log "ℹ️ Skipping excluded directory: $ROOT_DIR"
-            continue 2  # This skips the REST of the inner loop AND the current outer loop iteration
+        # Match if the folder name is the exclusion OR 
+        # if the path ends with /ExclusionName
+        if [[ "$FOLDER_NAME" == "$EXCLUSION" || "$CURRENT_PATH" == */"$EXCLUSION" ]]; then
+            log "ℹ️ Match found for exclusion '$EXCLUSION'. Skipping $ROOT_DIR..."
+            continue 2
         fi
     done
 
