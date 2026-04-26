@@ -44,7 +44,8 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         log "❌ SKIP: Root $ROOT_DIR is unavailable."
         continue
     fi
-
+log " $MANUAL_MAPS_EXCLUSIONS "
+log " $ROOT_DIR "
     if [[ " $MANUAL_MAPS_EXCLUSIONS " =~ " $ROOT_DIR " ]]; then
         log "ℹ️ $ROOT_DIR is excluded from scan."
         continue
