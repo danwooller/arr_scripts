@@ -80,7 +80,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
 
     for CURRENT_SERIES_PATH in "${SERIES_LIST[@]}"; do
         series_name=$(basename "$CURRENT_SERIES_PATH")
-        [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing Series: $series_name"
+        [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Processing $series_name"
 
         # Lookup Sonarr type (default to standard if not found)
         this_series_type="${SERIES_TYPE_MAP[$CURRENT_SERIES_PATH]:-standard}"
@@ -168,7 +168,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
             log "❓ No episodes detected for $series_name. Skipping resolution to be safe."
         fi
         
-        [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed scan for $series_name"
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed $series_name"
     done
 done
 
