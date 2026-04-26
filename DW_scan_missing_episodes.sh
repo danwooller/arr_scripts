@@ -124,7 +124,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         # 4. Reporting & Seerr Sync
         tmdb_id="${MANUAL_MAPS[$series_name]:-${SONARR_TMDB_MAP[$CURRENT_SERIES_PATH]}}"
         
-        [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name TMDB ID is [$tmdb_id]"
+        #[[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name TMDB ID is [$tmdb_id]"
 
         if [[ -n "$missing_in_series" ]]; then
             log "⚠️ $series_name is missing: $missing_in_series"
@@ -140,7 +140,7 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
             # We found files and NO gaps. Trust the resolve function to check for work.
             if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
-                [[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name is healthy. Checking Seerr for issues to resolve..."
+                #[[ $LOG_LEVEL == "debug" ]] && log "DEBUG: $series_name is healthy. Checking Seerr for issues to resolve..."
                 
                 # These functions handle their own internal "Is there an open issue?" checks
                 seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
