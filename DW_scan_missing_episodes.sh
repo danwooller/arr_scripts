@@ -142,10 +142,8 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
 
         elif [[ ${#ep_list[@]} -gt 0 ]]; then
             if [[ -n "$tmdb_id" && "$tmdb_id" != "null" ]]; then
-                # We call the resolve function first. 
-                # If it finds and closes an issue, it returns 0 (success).
-                if seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv"; then
-                    # Only notify the user if an issue was actually found and closed
+                # Pass the TMDB ID we already have to avoid the "No ID found" errors
+                if seerr_resolve_issue "$CURRENT_SERIES_PATH" "tv" "$tmdb_id"; then
                     seerr_resolve_notify "$series_name" "$tmdb_id" "tv"
                 fi
             fi
