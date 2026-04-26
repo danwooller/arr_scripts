@@ -45,17 +45,35 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         continue
     fi
 
-    CURRENT_PATH="${ROOT_DIR%/}"
-    FOLDER_NAME=$(basename "$CURRENT_PATH")
+#    CURRENT_PATH="${ROOT_DIR%/}"
+#    FOLDER_NAME=$(basename "$CURRENT_PATH")
 
-    for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
+#    for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
         # Match if the folder name is the exclusion OR 
         # if the path ends with /ExclusionName
-        if [[ "$FOLDER_NAME" == "$EXCLUSION" || "$CURRENT_PATH" == */"$EXCLUSION" ]]; then
-            log "ℹ️ Match found for exclusion '$EXCLUSION'. Skipping $ROOT_DIR..."
-            continue 2
+#        if [[ "$FOLDER_NAME" == "$EXCLUSION" || "$CURRENT_PATH" == */"$EXCLUSION" ]]; then
+#            log "ℹ️ Match found for exclusion '$EXCLUSION'. Skipping $ROOT_DIR..."
+#            continue 2
+#        fi
+#    done
+
+    CLEAN_PATH="${ROOT_DIR%/}"
+    FOLDER_NAME="${CLEAN_PATH##*/}"
+
+    # 2. Check if that folder name exists in your exclusion array
+    IS_EXCLUDED=false
+    for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
+        if [[ "$FOLDER_NAME" == "$EXCLUSION" ]]; then
+            IS_EXCLUDED=true
+            break
         fi
     done
+
+    # 3. If excluded, log it and jump to the NEXT folder in the scan
+    if [ "$IS_EXCLUDED" = true ]; then
+        log "ℹ️ $FOLDER_NAME is in MANUAL_MAPS_EXCLUSIONS. Skipping scan."
+        continue
+    fi
 
     # Discovery: Find Series folders (folders containing 'Season' subdirectories)
     mapfile -t SERIES_LIST < <(find "$ROOT_DIR" -maxdepth 2 -type d -name "Season*" -exec dirname {} \; | sort -u)
