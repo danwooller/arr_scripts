@@ -60,18 +60,18 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
     CLEAN_PATH="${ROOT_DIR%/}"
     FOLDER_NAME="${CLEAN_PATH##*/}"
 
-    # 2. Check if that folder name exists in your exclusion array
-    IS_EXCLUDED=false
+    # 2. Immediate Exclusion Check
+    MATCH_FOUND=0
     for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
         if [[ "$FOLDER_NAME" == "$EXCLUSION" ]]; then
-            IS_EXCLUDED=true
+            MATCH_FOUND=1
             break
         fi
     done
 
-    # 3. If excluded, log it and jump to the NEXT folder in the scan
-    if [ "$IS_EXCLUDED" = true ]; then
-        log "ℹ️ $FOLDER_NAME is in MANUAL_MAPS_EXCLUSIONS. Skipping scan."
+    # 3. If matched, log and jump to the next item immediately
+    if [[ $MATCH_FOUND -eq 1 ]]; then
+        log "ℹ️ Skipping $FOLDER_NAME (Exclusion List)"
         continue
     fi
 
