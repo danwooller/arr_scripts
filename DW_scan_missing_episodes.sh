@@ -45,13 +45,12 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         continue
     fi
 
-log "${ROOT_DIR%/}"
-log "${MANUAL_MAPS_EXCLUSIONS%/}"
-
-    if [[ "${ROOT_DIR%/}" == "${MANUAL_MAPS_EXCLUSIONS%/}" ]]; then
-        log "ℹ️ $ROOT_DIR is excluded from scan."
-        continue
-    fi
+    for EXCLUSION in "${MANUAL_MAPS_EXCLUSIONS[@]}"; do
+        if [[ "${ROOT_DIR%/}" == "${EXCLUSION%/}" ]]; then
+            log "ℹ️ Skipping excluded directory: $ROOT_DIR"
+            continue 2  # This skips the REST of the inner loop AND the current outer loop iteration
+        fi
+    done
 
     # Discovery: Find Series folders (folders containing 'Season' subdirectories)
     mapfile -t SERIES_LIST < <(find "$ROOT_DIR" -maxdepth 2 -type d -name "Season*" -exec dirname {} \; | sort -u)
