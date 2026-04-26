@@ -45,6 +45,11 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
         continue
     fi
 
+    if [ -d "$MANUAL_MAPS_EXCLUSIONS" ]; then
+        log "ℹ️ "$MANUAL_MAPS_EXCLUSIONS is excluded from scan."
+        continue
+    fi
+
     # Discovery: Find Series folders (folders containing 'Season' subdirectories)
     mapfile -t SERIES_LIST < <(find "$ROOT_DIR" -maxdepth 2 -type d -name "Season*" -exec dirname {} \; | sort -u)
 
