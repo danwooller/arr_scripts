@@ -19,6 +19,8 @@ declare -A SERIES_TYPE_MAP
 declare -A SONARR_TMDB_MAP  # New map for IDs
 log "Fetching library metadata from Sonarr..."
 
+shopt -s nocasematch
+
 while IFS="|" read -r path type tmdb; do
     if [[ -n "$path" ]]; then
         SERIES_TYPE_MAP["$path"]="$type"
