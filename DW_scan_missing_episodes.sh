@@ -14,6 +14,8 @@ if sudo ssh -o ConnectTimeout=10 "$BASE_HOST6" "zpool status" | grep -q "scrub i
     exit 0
 fi
 
+check_dependencies "jq" "curl" "mail" "find" "sed" "awk" "realpath" "ssh" "basename" "dirname"
+
 # --- 1. Pre-fetch Sonarr Data (Optimization) ---
 declare -A SERIES_TYPE_MAP
 declare -A SONARR_TMDB_MAP  # New map for IDs
