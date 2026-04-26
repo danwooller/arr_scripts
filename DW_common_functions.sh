@@ -604,63 +604,24 @@ seerr_resolve_notify() {
 
 seerr_resolve_issue() {
     local folder_path="${1%/}" 
-    local media_type="$2"      # Use the passed argument ("movie" or "tv")
+    local media_type="$2"
+    local lookup_id="$3"
     local base_url="${SEERR_API_BASE%/}"
-    local seerr_user="${SEERR_EMAIL}"
-    local seerr_pass="${SEERR_PASSWORD}"
     local cookie_file="/tmp/seerr_res_cookie.txt"
-    local lookup_id=""
+    local response_file="/tmp/seerr_open_issues.json"
+    local resolved_count=0
 
     # 1. Authenticate
     curl -s -c "$cookie_file" -X POST "$base_url/auth/local" \
          -H "Content-Type: application/json" \
-         -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
+         -d "{\"email\": \"$SEERR_EMAIL\", \"password\": \"$SEERR_PASSWORD\"}" > /dev/null
 
-    # 2. Get ID from Sonarr/Radarr using the explicit media_type
-    if [[ "$media_type" == "tv" ]]; then
-        local clean_search=$(echo "$folder_path" | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
-        lookup_id=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series" | \
-            jq -r --arg clean "$clean_search" '.[] | 
-            select(.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase | endswith($clean)) | .tvdbId' | head -n 1)
-    else
-        # --- Movie Logic (Check Standard then 4K) ---
-        media_type="movie" 
-        local clean_search=$(echo "$folder_path" | sed 's/ & / and /g' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
+    # 2. Get Open Issues from Seerr
+    # We only care about issues that are currently OPEN (filter=open)
+    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
-        # 1. Helper to fetch ID (To avoid repeating code)
-        get_radarr_id() {
-            local url="$1"
-            local key="$2"
-            curl -s -H "X-Api-Key: $key" "$url/movie" | \
-                jq -r --arg clean "$clean_search" '.[] | 
-                select(
-                    ((.path | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) | endswith($clean)) or
-                    ((.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $clean)
-                ) | .tmdbId' | head -n 1
-        }
-
-        # 2. Try Standard Radarr
-        lookup_id=$(get_radarr_id "$RADARR_API_BASE" "$RADARR_API_KEY")
-
-        # 3. If not found, try 4K Radarr
-        if [[ -z "$lookup_id" || "$lookup_id" == "null" ]]; then
-            [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Not in Standard Radarr, checking 4K..."
-            lookup_id=$(get_radarr_id "$RADARR4K_API_BASE" "$RADARR4K_API_KEY")
-        fi
-    fi
-
-    # Exit if mapping fails
-    if [[ -z "$lookup_id" || "$lookup_id" == "null" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Seerr Resolve: No ID found for $folder_path in $media_type manager."
-        rm -f "$cookie_file"
-        return 1
-    fi
-
-    # 3. Fetch issues
-    local response_file="/tmp/seerr_open_issues.json"
-    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=1000&filter=open"
-
-    # 4. Extract IDs
+    # 3. Identify if THIS show has an open issue
+    # We check if the TMDB ID from Sonarr matches the TMDB ID in Seerr's open issues
     local active_ids=$(jq -r --arg tid "$lookup_id" --arg type "$media_type" '
         .results[]? | 
         select(.media.mediaType == $type) |
@@ -669,18 +630,26 @@ seerr_resolve_issue() {
             (.media.tmdbId | tostring) == $tid
         ) | .id' "$response_file")
 
-    # 5. Resolve
+    # 4. Resolve only if IDs were found
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
             local resolve_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved")
             
             if [[ "$resolve_status" == "200" || "$resolve_status" == "204" ]]; then
-                log "✅ Seerr: Resolved issue #$issue_id."
+                log "✅ Seerr: Resolved issue #$issue_id for $folder_path"
+                ((resolved_count++))
             fi
         fi
     done
     
     rm -f "$cookie_file" "$response_file"
+
+    # 5. Return success ONLY if we actually closed an issue
+    if [[ $resolved_count -gt 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 seerr_sync_issue() {
