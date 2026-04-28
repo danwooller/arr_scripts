@@ -352,31 +352,26 @@ plex_library_update() {
     local max_retries=3
     local attempt=1
     local success=false
-    if [[ -z "$section_id" || -z "$library_name" ]]; then
-        log "❌ plex_library_update called with missing arguments. (ID: '$section_id', Name: '$library_name')"
-        return 1
-    fi
-    # --- Check if Plex is busy ---
 
-    if plex_busy; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Plex returned a busy signal."
-        return 0 # Exit gracefully, don't trigger the failure log
+    # --- Check if Plex is busy or streaming ---
+    # Now, if these return 0 (due to 502 or actual stream), the script stops here.
+    if plex_busy || plex_active_streams; then
+        return 0 
     fi
-    if plex_active_streams; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ User is streaming. Skipping Plex scan for $library_name to preserve playback quality."
-        return 0 # Exit gracefully, don't trigger the failure log
-    fi
+
     while [ $attempt -le $max_retries ]; do
+        # Added -k here as well
         local response=$(curl -s -k -L -g -o /dev/null -w "%{http_code}" \
             "$url/library/sections/$section_id/refresh" \
             -H "X-Plex-Token: $token" \
             -H "Accept: application/json")
+
         if [[ "$response" == "200" ]]; then
-            [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan successful for $library_name (Attempt $attempt)."
+            [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Plex scan successful for $library_name."
             success=true
             break
         else
-            [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Plex scan attempt $attempt failed for $library_name with code $response. Retrying..."
+            log "⚠️ Plex scan attempt $attempt failed with code $response. Retrying..."
             sleep 5
             ((attempt++))
         fi
@@ -391,30 +386,22 @@ plex_active_streams() {
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
     
-    # Use -w to get the HTTP status code
-    local response_data
-    local http_code
+    # Use -k to match your successful manual test
+    local response=$(curl -s -k -H "X-Plex-Token: $token" "$url/status/sessions" 2>/dev/null)
     
-    # Temporary file to store the response body
-    local tmp_file=$(mktemp)
-    
-    http_code=$(curl -s -k -o "$tmp_file" -w "%{http_code}" -H "X-Plex-Token: $token" "$url/status/sessions")
-    response_data=$(cat "$tmp_file")
-    rm -f "$tmp_file"
-
-    # 1. Check if the API call actually worked
-    if [[ "$http_code" != "200" ]]; then
-        log "⚠️ Warning: Could not reach Plex sessions API (Status: $http_code)."
-        return 1 # Treat API failure as "No streams" (or return 0 to be safe/skip)
+    # If the response is empty (connection failed), return 0 to exit gracefully
+    if [[ -z "$response" ]]; then
+        log "⚠️ Warning: Plex API connection failed. Skipping scan for safety."
+        return 0
     fi
 
-    # 2. Count video sessions
-    local count=$(echo "$response_data" | grep -c "<Video" || echo 0)
-
-    if [[ "$count" -gt 0 ]]; then
-        return 0 # Streams active
+    # Count actual video tags
+    local count=$(echo "$response" | grep -c "<Video " || echo 0)
+    
+    if [ "$count" -gt 0 ]; then
+        return 0 # User is streaming
     else
-        return 1 # No streams
+        return 1 # Proceed with scan
     fi
 }
 
