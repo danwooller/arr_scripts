@@ -386,22 +386,25 @@ plex_active_streams() {
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
     
-    # Use -k to match your successful manual test
-    local response=$(curl -s -k -H "X-Plex-Token: $token" "$url/status/sessions" 2>/dev/null)
-    
-    # If the response is empty (connection failed), return 0 to exit gracefully
-    if [[ -z "$response" ]]; then
-        log "⚠️ Warning: Plex API connection failed. Skipping scan for safety."
-        return 0
+    # Get the HTTP code and the body
+    local tmp_file=$(mktemp)
+    local http_code=$(curl -s -k -o "$tmp_file" -w "%{http_code}" -H "X-Plex-Token: $token" "$url/status/sessions")
+    local response_body=$(cat "$tmp_file")
+    rm -f "$tmp_file"
+
+    # If we get a 502, 404, or anything but a 200, EXIT GRACEFULLY
+    if [[ "$http_code" != "200" ]]; then
+        log "⚠️ Warning: Plex sessions API returned $http_code. Skipping scan to avoid false failures."
+        return 0 # This triggers the 'Early Exit' in your main function
     fi
 
-    # Count actual video tags
-    local count=$(echo "$response" | grep -c "<Video " | tail -1)
+    # Count actual video tags (using head -n 1 to avoid the integer error)
+    local count=$(echo "$response_body" | grep -c "<Video " | head -n 1)
     
-    if [ "$count" -gt 0 ]; then
+    if [[ "$count" -gt 0 ]]; then
         return 0 # User is streaming
     else
-        return 1 # Proceed with scan
+        return 1 # No streams, proceed to scan
     fi
 }
 
