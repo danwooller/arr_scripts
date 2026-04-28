@@ -990,22 +990,22 @@ sonos_audio_fix() {
     if [ "$CHANNELS" -gt 2 ]; then
         log "🔊 Downmixing to 5.1(side) AC3..."
         ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v:0 -map 0:a:0 -map 0:s? \
-        -c:v copy -c:s copy \
-        -c:a ac3 -b:a 640k -ac 6 \
-        -af "channelmap=channel_layout=5.1(side)" \
-        -metadata SONOS_FIXED="true" \
-        -max_muxing_queue_size 4096 \
-        "$media_name"
+            -map 0:v:0 -map 0:a:0 -map 0:s? \
+            -c:v copy -c:s copy \
+            -c:a ac3 -b:a 640k -ac 6 \
+            -af "channelmap=channel_layout=5.1(side)" \
+            -metadata SONOS_FIXED="true" \
+            -max_muxing_queue_size 4096 \
+            "$media_name"
     else
-        log "🔊 Converting to Stereo AC3..."
+        log "🔊 Converting to Stereo AC3 for Playbar..."
         ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v:0 -map 0:a:0 -map 0:s? \
-        -c:v copy -c:s copy \
-        -c:a ac3 -b:a 256k -ac 2 \
-        -metadata SONOS_FIXED="true" \
-        -max_muxing_queue_size 4096 \
-        "$media_name"
+            -map 0:v:0 -map 0:a:0 \
+            -c:v copy \
+            -c:a ac3 -b:a 256k -ac 2 \
+            -metadata SONOS_FIXED="true" \
+            -max_muxing_queue_size 4096 \
+            "$media_name"
     fi
 
     # 5. Cleanup
