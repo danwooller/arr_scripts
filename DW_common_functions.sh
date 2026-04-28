@@ -951,12 +951,12 @@ sonarr_weekly_shows() {
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
     local media_name="$1"
-
-    # Ensure absolute path and check if file exists
+    
+    # Force absolute path if needed
     [[ "$media_name" != /* ]] && media_name="/$media_name"
-    if [ ! -f "$media_name" ]; then return 1; fi
+    [ ! -f "$media_name" ] && return 1
 
-    # 1. Check for custom "SONOS_FIXED" tag
+    # 1. Metadata extraction (Quoted strictly)
     local IS_FIXED
     IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name" | tr -d '\r\n')
     
@@ -965,58 +965,54 @@ sonos_audio_fix() {
         return 0
     fi
 
-    # 2. Extract Audio Metadata
     local CODEC
     local CHANNELS
     CODEC=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$media_name" | tr -d '\r\n')
     CHANNELS=$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$media_name" | tr -d '\r\n')
 
-    if [ -z "$CODEC" ]; then
-        log "🚫 No audio stream found in: $(basename "$media_name")"
-        return 1
-    fi
-
-    # 3. Skip if already standard AC3 (Playbar native)
+    # 2. Skip Logic
     if [[ "$CODEC" == "ac3" && "$CHANNELS" -le 6 ]]; then
         log "⏭️ Already standard AC3: $(basename "$media_name")"
         return 0
     fi
 
-    log "⚠️ Normalising $CHANNELS ch $CODEC audio for Playbar: $(basename "$media_name")"
+    log "⚠️ Normalising $CHANNELS ch $CODEC audio: $(basename "$media_name")"
 
-    # Define temporary output path (safer than renaming source first)
+    # 3. Path setup
     local output_file="${media_name}.fixed.mkv"
-    local AUDIO_OPTS
-
-    # 4. Set dynamic options based on channel count
+    
+    # 4. Conversion Logic
+    local cmd_args
     if [ "$CHANNELS" -gt 2 ]; then
-        log "🔊 5.1/7.1 detected -> Converting to 6ch AC3 (640k)"
-        # Use -ac 6 to handle downmixing/remapping automatically
-        AUDIO_OPTS="-c:a ac3 -b:a 640k -ac 6"
+        log "🔊 5.1+ detected -> AC3 6ch 640k"
+        cmd_args=(-c:a ac3 -b:a 640k -ac 6)
     else
-        log "🔊 Stereo detected -> Converting to 2ch AC3 (256k)"
-        AUDIO_OPTS="-c:a ac3 -b:a 256k -ac 2"
+        log "🔊 Stereo detected -> AC3 2ch 256k"
+        cmd_args=(-c:a ac3 -b:a 256k -ac 2)
     fi
 
-    # 5. FFMPEG Processing
-    # Includes optional subtitle mapping (-map 0:s?) 
+    # 5. The FFmpeg Execution (Using an array for arguments to prevent space-splitting)
+    # We capture stderr to a temporary file for debugging
     ffmpeg -v error -nostdin -y -i "$media_name" \
-        -map 0:v:0 -map 0:a:0 -map 0:s? \
+        -map 0:v:0 -map 0:a:0 \
         -c:v copy \
-        -c:s copy \
-        $AUDIO_OPTS \
+        "${cmd_args[@]}" \
         -metadata SONOS_FIXED="true" \
         -max_muxing_queue_size 4096 \
-        "$output_file"
+        "$output_file" > /tmp/ffmpeg_debug.log 2>&1
 
-    # 6. Cleanup & Verification
-    if [ $? -eq 0 ] && [ -s "$output_file" ]; then
+    local exit_code=$?
+
+    # 6. Final Swap or Fail
+    if [ $exit_code -eq 0 ] && [ -s "$output_file" ]; then
         rm -f -- "$media_name"
         mv -- "$output_file" "$media_name"
         log "✨ Audio Fix complete: $(basename "$media_name")"
         return 0
     else
-        log "❌ FFmpeg failed. Preserving original file."
+        log "❌ FFmpeg failed (Exit: $exit_code). Check /tmp/ffmpeg_debug.log"
+        # Print the last line of the error log to the main log for visibility
+        log "DEBUG: $(tail -n 1 /tmp/ffmpeg_debug.log)"
         rm -f -- "$output_file"
         return 1
     fi
