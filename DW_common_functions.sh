@@ -385,27 +385,31 @@ plex_library_update() {
 plex_active_streams() {
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
-    
-    # Get the HTTP code and the body
-    local tmp_file=$(mktemp)
-    local http_code=$(curl -s -k -o "$tmp_file" -w "%{http_code}" -H "X-Plex-Token: $token" "$url/status/sessions")
-    local response_body=$(cat "$tmp_file")
-    rm -f "$tmp_file"
+    local attempt=1
+    local max_check_retries=3
 
-    # If we get a 502, 404, or anything but a 200, EXIT GRACEFULLY
-    if [[ "$http_code" != "200" ]]; then
-        log "⚠️ Warning: Plex sessions API returned $http_code. Skipping scan to avoid false failures."
-        return 0 # This triggers the 'Early Exit' in your main function
-    fi
+    while [ $attempt -le $max_check_retries ]; do
+        local tmp_file=$(mktemp)
+        local http_code=$(curl -s -k --connect-timeout 5 --max-time 10 \
+            -o "$tmp_file" -w "%{http_code}" \
+            -H "X-Plex-Token: $token" "$url/status/sessions")
+        local response_body=$(cat "$tmp_file")
+        rm -f "$tmp_file"
 
-    # Count actual video tags (using head -n 1 to avoid the integer error)
-    local count=$(echo "$response_body" | grep -c "<Video " | head -n 1)
-    
-    if [[ "$count" -gt 0 ]]; then
-        return 0 # User is streaming
-    else
-        return 1 # No streams, proceed to scan
-    fi
+        if [[ "$http_code" == "200" ]]; then
+            local count=$(echo "$response_body" | grep -c "<Video " | head -n 1)
+            [[ "$count" -gt 0 ]] && return 0 || return 1
+        fi
+
+        # If we get a 502, wait 2 seconds and try again
+        log "⚠️ Warning: Plex API returned $http_code (Attempt $attempt). Retrying check..."
+        sleep 2
+        ((attempt++))
+    done
+
+    # If we still fail after retries, skip the scan
+    log "❌ Plex API unreachable after $max_check_retries attempts. Skipping scan."
+    return 0
 }
 
 plex_busy() {
