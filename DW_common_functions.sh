@@ -367,7 +367,7 @@ plex_library_update() {
         return 0 # Exit gracefully, don't trigger the failure log
     fi
     while [ $attempt -le $max_retries ]; do
-        local response=$(curl -s -L -g -o /dev/null -w "%{http_code}" \
+        local response=$(curl -s -k -L -g -o /dev/null -w "%{http_code}" \
             "$url/library/sections/$section_id/refresh" \
             -H "X-Plex-Token: $token" \
             -H "Accept: application/json")
@@ -398,7 +398,7 @@ plex_active_streams() {
     # Temporary file to store the response body
     local tmp_file=$(mktemp)
     
-    http_code=$(curl -s -o "$tmp_file" -w "%{http_code}" -H "X-Plex-Token: $token" "$url/status/sessions")
+    http_code=$(curl -s -k -o "$tmp_file" -w "%{http_code}" -H "X-Plex-Token: $token" "$url/status/sessions")
     response_data=$(cat "$tmp_file")
     rm -f "$tmp_file"
 
