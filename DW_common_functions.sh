@@ -396,7 +396,7 @@ plex_active_streams() {
     fi
 
     # Count actual video tags
-    local count=$(echo "$response" | grep -c "<Video " || echo 0)
+    local count=$(echo "$response" | grep -c "<Video " | tail -1)
     
     if [ "$count" -gt 0 ]; then
         return 0 # User is streaming
