@@ -388,28 +388,33 @@ plex_library_update() {
 }
 
 plex_active_streams() {
-    # plex_library_update()
     local url="$PLEX_URL"
     local token="$PLEX_TOKEN"
     
-    # Fetch data and count video sessions
-    # Redirect stderr to /dev/null so curl errors don't clutter logs
-    local response
-    response=$(curl -s -H "X-Plex-Token: $token" "$url/status/sessions" 2>/dev/null)
+    # Use -w to get the HTTP status code
+    local response_data
+    local http_code
     
-    # Count occurrences of "<Video"
-    local count=$(echo "$response" | grep -c "<Video" || echo 0)
+    # Temporary file to store the response body
+    local tmp_file=$(mktemp)
     
-    # Validate: check if count is actually a number
-    if [[ "$count" =~ ^[0-9]+$ ]]; then
-        if [ "$count" -gt 0 ]; then
-            return 0 # Streams active
-        else
-            return 1 # No streams
-        fi
+    http_code=$(curl -s -o "$tmp_file" -w "%{http_code}" -H "X-Plex-Token: $token" "$url/status/sessions")
+    response_data=$(cat "$tmp_file")
+    rm -f "$tmp_file"
+
+    # 1. Check if the API call actually worked
+    if [[ "$http_code" != "200" ]]; then
+        log "⚠️ Warning: Could not reach Plex sessions API (Status: $http_code)."
+        return 1 # Treat API failure as "No streams" (or return 0 to be safe/skip)
+    fi
+
+    # 2. Count video sessions
+    local count=$(echo "$response_data" | grep -c "<Video" || echo 0)
+
+    if [[ "$count" -gt 0 ]]; then
+        return 0 # Streams active
     else
-        # Handle the case where the API call failed or returned bad data
-        return 1
+        return 1 # No streams
     fi
 }
 
