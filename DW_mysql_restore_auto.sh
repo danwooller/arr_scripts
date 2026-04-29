@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Run on ubuntu9 to sync backup db
+
 # --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
@@ -57,4 +59,23 @@ if [ ${PIPESTATUS[1]} -eq 0 ]; then
 else
     log "❌ Error: Restore failed for $TARGET_DB."
     exit 1
+fi
+
+# --- Verification Step ---
+log "🔍 Starting cross-server verification..."
+
+# --- Get Hash from Primary (via SSH) ---
+# We use the same dump flags for a bit-for-bit comparison
+HOST24_HASH=$(sudo ssh -o ConnectTimeout=5 "$BASE_HOST24" \
+  "sudo docker exec -e MYSQL_PWD='$DB_PASS' $CONTAINER_NAME mysqldump -u $DB_USER --single-transaction --set-gtid-purged=OFF --routines --triggers $TARGET_DB 2>/dev/null | md5sum" | awk '{print $1}')
+
+# --- Get Hash from Local (Secondary) ---
+HOST9_HASH=$(sudo docker exec -e MYSQL_PWD="$DB_PASS" "$CONTAINER_NAME" \
+  mysqldump -u "$DB_USER" --single-transaction --set-gtid-purged=OFF --routines --triggers "$TARGET_DB" 2>/dev/null | md5sum | awk '{print $1}')
+
+# --- Compare ---
+if [ "$HOST24_HASH" == "$HOST9_HASH" ]; then
+    log "✨ Verification Passed: Primary and Secondary hashes match ($HOST24_HASH)"
+else
+    log "❌ Verification FAILED: Primary ($HOST24_HASH) vs Secondary ($HOST9_HASH)"
 fi
