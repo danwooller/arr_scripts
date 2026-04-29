@@ -1,0 +1,8 @@
+[Unit]
+Description=Weekly MySQL Docker Backup
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/DW_mysql_backup.sh
+User=root
