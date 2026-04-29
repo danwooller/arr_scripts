@@ -35,7 +35,7 @@ fi
 # 2. Filter and list files (looking for *_${TARGET_DB}_data.sql.gz)
 # Adjust the pattern if your naming convention differs
 cd "$BACKUP_DIR" || exit
-files=(*"_${TARGET_DB}_data.sql.gz")
+files=(${TARGET_DB}_*.sql.gz")
 
 if [ ${#files[@]} -eq 0 ] || [ "${files[0]}" == "*_${TARGET_DB}_data.sql.gz" ]; then
     echo "No files found matching pattern: *_${TARGET_DB}_data.sql.gz in $BACKUP_DIR"
