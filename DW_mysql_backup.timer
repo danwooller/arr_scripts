@@ -1,0 +1,11 @@
+[Unit]
+Description=Run MySQL Backup weekly
+
+[Timer]
+# Runs every Sunday at 3:00 AM
+OnCalendar=Sun *-*-* 01:00:00
+# Ensures it runs if the server was off during the scheduled time
+Persistent=true
+
+[Install]
+WantedBy=timers.target
