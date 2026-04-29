@@ -54,7 +54,7 @@ for CONTAINER in $containers; do
           --single-transaction \
           --set-gtid-purged=OFF \
           --routines --triggers \
-          "$DB_NAME" | gzip > "$BACKUP_FILE"
+          "$DB_NAME" 2>/dev/null | gzip > "$BACKUP_FILE"
 
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         log "✅ Backup successful: $BACKUP_FILE"
