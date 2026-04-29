@@ -50,7 +50,11 @@ for CONTAINER in $containers; do
 
     # 3. Execute mysqldump and pipe to gzip
     # --single-transaction is used to avoid locking tables (good for InnoDB)
-    sudo docker exec "$CONTAINER" mysqldump -u "$DB_USER" -p"$DB_PASS" --single-transaction "$DB_NAME" | gzip > "$BACKUP_FILE"
+    sudo docker exec "$CONTAINER" mysqldump -u "$DB_USER" -p"$DB_PASS" \
+          --single-transaction \
+          --set-gtid-purged=OFF \
+          --routines --triggers \
+          "$DB_NAME" | gzip > "$BACKUP_FILE"
 
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         log "✅ Backup successful: $BACKUP_FILE"
