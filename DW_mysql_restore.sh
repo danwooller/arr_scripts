@@ -22,9 +22,7 @@ check_dependencies "gunzip"
 # Configuration & Defaults
 BACKUP_DIR="${1:-/mnt/media/backup/databases}"
 TARGET_DB="${2:-wooller}"
-CONTAINER_NAME="mysql-wooller"
-DB_USER="root"
-DB_PASS="Voorboorset@76"
+CONTAINER_NAME="mysql-$TARGET_DB"
 
 # 1. Check if directory exists
 if [ ! -d "$BACKUP_DIR" ]; then
@@ -55,7 +53,7 @@ select file in "${files[@]}"; do
 
         # 3. Unzip and Pipe directly to Docker
         # 'zcat' reads the compressed file and pipes the text directly
-        zcat "$file" | sudo docker exec -i "$CONTAINER_NAME" mysql -u "$DB_USER" -p"$DB_PASS" "$TARGET_DB"
+        zcat "$file" | sudo docker exec -i "$CONTAINER_NAME" mysql -u "$MYSQL_WOOLLER_USER" -p"$MYSQL_WOOLLER_PASS" "$TARGET_DB"
 
         if [ $? -eq 0 ]; then
             echo "-------------------------------------------"
