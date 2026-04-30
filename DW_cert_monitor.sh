@@ -44,7 +44,7 @@ while true; do
 
         if [ $? -eq 0 ]; then
             log "✅ New P12 generated."
-            chmod 600 "$OUTPUT_FILE"
+            chmod 644 "$OUTPUT_FILE"
             
             log "ℹ️ Executing: $RESTART_COMMAND"
             $RESTART_COMMAND >> "$LOG_FILE" 2>&1
