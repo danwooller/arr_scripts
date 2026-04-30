@@ -24,9 +24,11 @@ CONTAINER_NAME="mysql-$TARGET_DB"
 if [ "$HOST" == "ubuntu24" ]; then
     REMOTE_HOST="ubuntu9"
     REMOTE_LABEL="ubuntu9"
+    LOCAL_LABEL="ubuntu24"
 elif [ "$HOST" == "ubuntu9" ]; then
     REMOTE_HOST="ubuntu24"
     REMOTE_LABEL="ubuntu24"
+    LOCAL_LABEL="ubuntu9"
 else
     echo "Unknown host: $CURRENT_HOST"
     exit 1
