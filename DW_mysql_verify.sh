@@ -20,12 +20,6 @@ fi
 TARGET_DB="${1:-wooller}"
 CONTAINER_NAME="mysql-$TARGET_DB"
 
-# 1. Check if directory exists
-if [ ! -d "$BACKUP_DIR" ]; then
-    log "❌ Error: Directory $BACKUP_DIR does not exist."
-    exit 1
-fi
-
 # Determine who is remote based on where we are
 if [ "$HOST" == "ubuntu24" ]; then
     REMOTE_HOST="ubuntu9"
