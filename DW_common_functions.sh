@@ -436,8 +436,8 @@ radarr_ingest() {
     local clean_path=$(printf "%s" "$host_path" | tr -d '\r' | sed 's|/*$||' | xargs)
     local encoded_path=$(printf "%s" "$clean_path" | jq -sRr @uri)
     
-    # 1. Probe the folder
-    local probe_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+    # 1. Probe the folder (added -k for https)
+    local probe_data=$(curl -s -k -H "X-Api-Key: $RADARR_API_KEY" \
         "$RADARR_API_BASE/manualimport?folder=$encoded_path")
 
     # 2. Map the files and collect Movie IDs for the rename step
@@ -453,8 +453,9 @@ radarr_ingest() {
         # 3. Trigger Import
         local tmp_json="/tmp/radarr_import_$$.json"
         echo "{ \"name\": \"ManualImport\", \"files\": $files_json }" > "$tmp_json"
-        
-        local import_res=$(curl -s -X POST "$RADARR_API_BASE/command" \
+
+        # (added -k for https)
+        local import_res=$(curl -s -k -X POST "$RADARR_API_BASE/command" \
             -H "X-Api-Key: $RADARR_API_KEY" \
             -H "Content-Type: application/json" \
             -d @"$tmp_json")
@@ -724,11 +725,8 @@ sonarr_ingest() {
     local ingest_path="${1:-$DIR_MEDIA_COMPLETED_TV}"
     
     # 1. Probe the folder
-    # http version, keep as referance
-    #local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-    #    "$SONARR_API_BASE/manualimport?folder=$ingest_path")
-    # https version
     local encoded_path=$(jq -nr --arg p "$ingest_path" '$p|@uri')
+    # (added -k for https)
     local probe_data=$(curl -s -k -H "X-Api-Key: $SONARR_API_KEY" \
         "$SONARR_API_BASE/manualimport?folder=$encoded_path")
 
@@ -750,11 +748,8 @@ sonarr_ingest() {
         | "\(.path)|\(.series.title // "Unknown Show")"')
 
     # 4. Handle Successes
-    # http
     if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
-        # http version, keep as referance
-        #local response=$(curl -s -X POST "$SONARR_API_BASE/command" \
-        # https version
+        # (added -k for https)
         local response=$(curl -s -k -X POST "$SONARR_API_BASE/command" \
             -H "X-Api-Key: $SONARR_API_KEY" \
             -H "Content-Type: application/json" \
