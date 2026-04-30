@@ -64,36 +64,9 @@ fi
 # --- Verification Step ---
 log "🔍 Starting cross-server verification (Docker to Docker)..."
 
-# Determine who is remote based on where we are
-if [ "$HOST" == "ubuntu24" ]; then
-    REMOTE_HOST="ubuntu9"
-    REMOTE_LABEL="ubuntu9"
-elif [ "$HOST" == "ubuntu9" ]; then
-    REMOTE_HOST="ubuntu24"
-    REMOTE_LABEL="ubuntu24"
+if DW_mysql_verify.sh; then
+    log "✅ Restore verified successfully."
 else
-    echo "Unknown host: $CURRENT_HOST"
-    exit 1
-fi
-
-# Standardized dump command to ensure hash consistency
-DUMP_CMD="mysqldump -u $DB_USER --single-transaction --set-gtid-purged=OFF --routines --triggers --skip-comments --skip-extended-insert $TARGET_DB"
-
-log "🔍 Comparing Local ($LOCAL_LABEL) to Remote ($REMOTE_LABEL)..."
-
-# --- Get Hash from Remote ---
-REMOTE_HASH=$(ssh -o ConnectTimeout=5 "$REMOTE_HOST" \
-  "sudo docker exec -e MYSQL_PWD='$DB_PASS' $CONTAINER_NAME $DUMP_CMD 2>/dev/null | md5sum" | awk '{print $1}')
-
-# --- Get Hash from Local ---
-LOCAL_HASH=$(sudo docker exec -e MYSQL_PWD="$DB_PASS" "$CONTAINER_NAME" \
-  $DUMP_CMD 2>/dev/null | md5sum | awk '{print $1}')
-
-# --- Compare ---
-if [ -n "$REMOTE_HASH" ] && [ "$REMOTE_HASH" == "$LOCAL_HASH" ]; then
-    log "✨ Verification Passed: Both containers match ($LOCAL_HASH)"
-else
-    log "❌ Verification FAILED!"
-    log "   Local  ($LOCAL_LABEL): $LOCAL_HASH"
-    log "   Remote ($REMOTE_LABEL): ${REMOTE_HASH:-CONNECTION_ERROR}"
+    log "❌ Verification failed after restore! Check logs."
+    # Optional: exit 1 (if you want the restore script to stop here)
 fi
