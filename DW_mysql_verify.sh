@@ -48,10 +48,15 @@ LOCAL_HASH=$(sudo docker exec -e MYSQL_PWD="$MYSQL_WOOLLER_PASS" "$CONTAINER_NAM
   $DUMP_CMD 2>/dev/null | md5sum | awk '{print $1}')
 
 # --- Compare ---
-if [ -n "$REMOTE_HASH" ] && [ "$REMOTE_HASH" == "$LOCAL_HASH" ]; then
+# --- The Empty Hash Check ---
+EMPTY_HASH="d41d8cd98f00b204e9800998ecf8427e"
+
+if [ "$REMOTE_HASH" == "$LOCAL_HASH" ]; then
     log "✨ Verification Passed: Both containers match ($LOCAL_HASH)"
+    exit 0
 else
-    log "❌ Verification FAILED!"
-    log "   Local  ($LOCAL_LABEL): $LOCAL_HASH"
-    log "   Remote ($REMOTE_LABEL): ${REMOTE_HASH:-CONNECTION_ERROR}"
+    log "❌ Verification FAILED: Hashes do not match!"
+    log "   Local:  $LOCAL_HASH"
+    log "   Remote: $REMOTE_HASH"
+    exit 1
 fi
