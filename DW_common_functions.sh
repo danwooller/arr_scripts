@@ -207,7 +207,8 @@ notify_media_managers() {
     # Notify Sonarr
     if [ -n "$SONARR_API_KEY" ]; then
         [[ "$LOG_LEVEL" == "debug" ]] && log "📡 Notifying Sonarr to scan for new downloads..."
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+        # (added -k for https)
+        curl -s -k -H "X-Api-Key: $SONARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d '{"name": "DownloadedEpisodesScan"}' \
              "$SONARR_API_BASE/command" > /dev/null
@@ -218,8 +219,8 @@ notify_media_managers() {
     # Notify Radarr
     if [ -n "$RADARR_API_KEY" ]; then
         [[ "$LOG_LEVEL" == "debug" ]] && log "🎬 Notifying Radarr to scan for new downloads..."
-        # Note: Radarr uses the same command name as Sonarr
-        curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+        # (added -k for https)
+        curl -s -k -H "X-Api-Key: $RADARR_API_KEY" \
              -H "Content-Type: application/json" \
              -X POST -d '{"name": "RescanMovie"}' \
              "$RADARR_API_BASE/command" > /dev/null
@@ -314,14 +315,16 @@ lidarr_targeted_rename() {
 
     # --- Hardened JQ Logic ---
     # Added 'select(type == "string")' to prevent the "explode" error
-    local album_id=$(curl -s -H "X-Api-Key: $LIDARR_API_KEY" "$LIDARR_API_BASE/album" | \
+    # (added -k for https)
+    local album_id=$(curl -s -k -H "X-Api-Key: $LIDARR_API_KEY" "$LIDARR_API_BASE/album" | \
         jq -r --arg name "$folder_name" '
             .[] | select(.path != null and (.path | type == "string") and (.path | ascii_downcase | contains("/" + ($name | ascii_downcase)))) | .id
         ' | head -n 1)
 
     if [ -z "$album_id" ] || [ "$album_id" = "null" ]; then
         [[ $LOG_LEVEL == "debug" ]] && log "🔄 PATH match failed, trying TITLE match..."
-        album_id=$(curl -s -H "X-Api-Key: $LIDARR_API_KEY" "$LIDARR_API_BASE/album" | \
+        # (added -k for https)
+        album_id=$(curl -s -k -H "X-Api-Key: $LIDARR_API_KEY" "$LIDARR_API_BASE/album" | \
             jq -r --arg name "$folder_name" '
                 .[] | select(.title != null and (.title | type == "string") and ((.title | ascii_downcase == ($name | ascii_downcase)) or (.title | test("^" + $name + "( \\(\\d{4}\\))?$"; "i")))) | .id
             ' | head -n 1)
@@ -329,10 +332,12 @@ lidarr_targeted_rename() {
 
     if [ -n "$album_id" ] && [ "$album_id" != "null" ]; then  
         log "🔄 Refreshing & Renaming Album: $folder_name (ID: $album_id)"
-        curl -s -H "X-Api-Key: $LIDARR_API_KEY" -H "Content-Type: application/json" \
+        # (added -k for https)
+        curl -s -k -H "X-Api-Key: $LIDARR_API_KEY" -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanAlbum\", \"albumId\": $album_id}" "$LIDARR_API_BASE/command" > /dev/null
-        sleep 5 
-        curl -s -H "X-Api-Key: $LIDARR_API_KEY" -H "Content-Type: application/json" \
+        sleep 5
+        # (added -k for https)
+        curl -s -k -H "X-Api-Key: $LIDARR_API_KEY" -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameFiles\", \"albumIds\": [$album_id]}" "$LIDARR_API_BASE/command" > /dev/null
     else
         log "⚠️ Could not map '$folder_name' to a Lidarr Album ID."
@@ -418,7 +423,7 @@ plex_busy() {
     local token="$PLEX_TOKEN"
 
     # Query the activity endpoint
-    local activity=$(curl -s -H "X-Plex-Token: $token" "$url/status/sessions")
+    local activity=$(curl -s -k -H "X-Plex-Token: $token" "$url/status/sessions")
     
     # Check if there is an active scanner task
     # (Plex reports scanning status via the 'scan' field in metadata updates)
@@ -777,7 +782,8 @@ sonarr_ingest() {
 }
 
 sonarr_missing_episodes() {
-    local sonarr_missing=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$SONARR_API_BASE/command" \
+    # (added -k for https)
+    local sonarr_missing=$(curl -s -k -o /dev/null -w "%{http_code}" -X POST "$SONARR_API_BASE/command" \
          -H "Content-Type: application/json" \
          -H "X-Api-Key: $SONARR_API_KEY" \
          -d '{"name": "MissingEpisodeSearch"}')
@@ -792,7 +798,8 @@ sonarr_missing_episodes() {
 sonarr_search() {
     # UNUSED
     local series_name="$1"
-    local sonarr_series=$(curl -s -X GET "$SONARR_API_BASE/series" -H "X-Api-Key: $SONARR_API_KEY")
+    # (added -k for https)
+    local sonarr_series=$(curl -s -k -X GET "$SONARR_API_BASE/series" -H "X-Api-Key: $SONARR_API_KEY")
     local sonarr_data=$(echo "$sonarr_series" | jq -r --arg name "$series_name" \
         '.[] | select(.title == $name or .path == $name) | "\(.id)|\(.monitored)"' | head -n 1)
 
@@ -819,7 +826,8 @@ sonarr_targeted_rename() {
     local clean_strip=$(echo "$show_name" | sed -E 's/ \([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
 
     # Fetch and find ID
-    local sonarr_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series")
+    # (added -k for https)
+    local sonarr_data=$(curl -s -k -H "X-Api-Key: $SONARR_API_KEY" "$SONARR_API_BASE/series")
     local series_id=$(echo "$sonarr_data" | jq -r --arg full "$clean_full" --arg strip "$clean_strip" '
         .[] | select(
             (.title | gsub("[^a-zA-Z0-9]"; "") | ascii_downcase) == $full or 
@@ -830,13 +838,14 @@ sonarr_targeted_rename() {
         log "✨ Linked '$show_name' to Sonarr ID: $series_id"
         
         # Rescan to find the malformed files
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
+        # (added -k for https)
+        curl -s -k -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RescanSeries\", \"seriesId\": $series_id}" \
              "$SONARR_API_BASE/command" > /dev/null
 
         # Trigger the actual Rename logic
         log "🎬 Sonarr Rename: $show_name"
-        curl -s -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
+        curl -s -k -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" \
              -X POST -d "{\"name\": \"RenameSeries\", \"seriesIds\": [$series_id]}" \
              "$SONARR_API_BASE/command" > /dev/null
     else
