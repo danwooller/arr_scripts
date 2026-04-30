@@ -33,16 +33,16 @@ else
 fi
 
 # Standardized dump command to ensure hash consistency
-DUMP_CMD="mysqldump -u $DB_USER --single-transaction --set-gtid-purged=OFF --routines --triggers --skip-comments --skip-extended-insert --no-tablespaces $TARGET_DB"
+DUMP_CMD="mysqldump -u $MYSQL_WOOLLER_USER --single-transaction --set-gtid-purged=OFF --routines --triggers --skip-comments --skip-extended-insert --no-tablespaces $TARGET_DB"
 
 log "🔍 Comparing Local ($LOCAL_LABEL) to Remote ($REMOTE_LABEL)..."
 
 # --- Get Hash from Remote ---
 REMOTE_HASH=$(ssh -o ConnectTimeout=5 "$REMOTE_HOST" \
-  "sudo docker exec -e MYSQL_PWD='$DB_PASS' $CONTAINER_NAME $DUMP_CMD 2>/dev/null | md5sum" | awk '{print $1}')
+  "sudo docker exec -e MYSQL_PWD='$MYSQL_WOOLLER_PASS' $CONTAINER_NAME $DUMP_CMD 2>/dev/null | md5sum" | awk '{print $1}')
 
 # --- Get Hash from Local ---
-LOCAL_HASH=$(sudo docker exec -e MYSQL_PWD="$DB_PASS" "$CONTAINER_NAME" \
+LOCAL_HASH=$(sudo docker exec -e MYSQL_PWD="$MYSQL_WOOLLER_PASS" "$CONTAINER_NAME" \
   $DUMP_CMD 2>/dev/null | md5sum | awk '{print $1}')
 
 # --- Compare ---
