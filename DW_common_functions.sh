@@ -724,8 +724,13 @@ sonarr_ingest() {
     local ingest_path="${1:-$DIR_MEDIA_COMPLETED_TV}"
     
     # 1. Probe the folder
-    local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-        "$SONARR_API_BASE/manualimport?folder=$ingest_path")
+    # http version, keep as referance
+    #local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
+    #    "$SONARR_API_BASE/manualimport?folder=$ingest_path")
+    # https version
+    local encoded_path=$(jq -nr --arg p "$ingest_path" '$p|@uri')
+    local probe_data=$(curl -s -k -H "X-Api-Key: $SONARR_API_KEY" \
+        "$SONARR_API_BASE/manualimport?folder=$encoded_path")
 
     # 2. Extract Valid Files (Filtering out everything BUT "Sample" rejections)
     local files_json=$(echo "$probe_data" | jq -c '
@@ -745,8 +750,12 @@ sonarr_ingest() {
         | "\(.path)|\(.series.title // "Unknown Show")"')
 
     # 4. Handle Successes
+    # http
     if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
-        local response=$(curl -s -X POST "$SONARR_API_BASE/command" \
+        # http version, keep as referance
+        #local response=$(curl -s -X POST "$SONARR_API_BASE/command" \
+        # https version
+        local response=$(curl -s -k -X POST "$SONARR_API_BASE/command" \
             -H "X-Api-Key: $SONARR_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
