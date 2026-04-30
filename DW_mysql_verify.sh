@@ -33,7 +33,7 @@ else
 fi
 
 # Standardized dump command to ensure hash consistency
-DUMP_CMD="mysqldump -u $DB_USER --single-transaction --set-gtid-purged=OFF --routines --triggers --skip-comments --skip-extended-insert $TARGET_DB"
+DUMP_CMD="mysqldump -u $DB_USER --single-transaction --set-gtid-purged=OFF --routines --triggers --skip-comments --skip-extended-insert --no-tablespaces $TARGET_DB"
 
 log "🔍 Comparing Local ($LOCAL_LABEL) to Remote ($REMOTE_LABEL)..."
 
