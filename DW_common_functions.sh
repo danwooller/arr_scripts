@@ -721,7 +721,7 @@ seerr_sync_issue() {
 # --- END SEERR SECTION ---
 # --- SONARR SECTION ---
 sonarr_ingest() {
-    local ingest_path="${1:-$DIR_MEDIA_COMPLETED}"
+    local ingest_path="${1:-$DIR_MEDIA_COMPLETED_TV}"
     
     # 1. Probe the folder
     local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
@@ -769,44 +769,6 @@ sonarr_ingest() {
                 log "🚨 Issue raised for $show_name in Seerr."
             fi
         done <<< "$failed_files"
-    fi
-}
-
-xxxxsonarr_ingest() {
-    # DW_ingest_sonarr.sh
-    local ingest_path="${1:-$DIR_MEDIA_COMPLETED}"
-    
-    # 1. Probe the folder to see what Sonarr recognises
-    # We use the manualimport endpoint to get Sonarr's internal identification
-    local probe_data=$(curl -s -H "X-Api-Key: $SONARR_API_KEY" \
-        "$SONARR_API_BASE/manualimport?folder=$ingest_path")
-
-    # 2. Filter for files that have a valid Series ID and no rejections
-    # We build the exact JSON structure Sonarr requires for a Command
-    local files_json=$(echo "$probe_data" | jq -c '
-        [ .[] | select(.series != null and (.rejections | map(select(.reason != "Sample")) | length == 0)) | {
-            path: .path,
-            seriesId: .series.id,
-            episodeIds: [.episodes[].id],
-            quality: .quality,
-            languages: .languages,
-            importMode: "move"
-        } ]')
-
-    if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
-        local file_count=$(echo "$files_json" | jq 'length')
-        [[ "$LOG_LEVEL" == "debug" ]] && log "🚀 Found $file_count file(s). Triggering import..."
-        
-        # 3. Execute the Import Command
-        local response=$(curl -s -X POST "$SONARR_API_BASE/command" \
-            -H "X-Api-Key: $SONARR_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
-            
-        local command_id=$(echo "$response" | jq -r '.id')
-        [[ "$LOG_LEVEL" == "debug" ]] && log "✅ Ingest queued: $command_id"
-    else
-        [[ "$LOG_LEVEL" == "debug" ]] && log "⚠️ Nothing found in $ingest_path."
     fi
 }
 
