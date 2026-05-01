@@ -18,6 +18,13 @@ check_dependencies "ffprobe" "jq" "ffmpeg"
 
 # Loop through all MP3s in the source
 find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; do
+    # --- RESET VARIABLES ---
+    SHOW_NAME=""
+    SERIES_NUM="0"
+    FINAL_TITLE=""
+    FINAL_ARTIST=""
+    # -----------------------
+
     echo "------------------------------------------------"
     echo "Processing: $(basename "$FILE")"
 
@@ -31,19 +38,20 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     DATE=$(echo "$METADATA" | jq -r '.format.tags.date // empty')
 
     # 2. Determine Show Name and Series
-    # Extract Show Name (everything before the colon or "Series")
-    SHOW_NAME=$(echo "$RAW_ALBUM" | sed -E 's/:? Series.*//I' | sed 's/:$//')
-    
-    # Extract Series Number
-    SERIES_NUM=$(echo "$RAW_ALBUM" | grep -oP 'Series \K\d+')
-    [ -z "$SERIES_NUM" ] && SERIES_NUM="0" # Fallback if no series found
+    if [ -n "$RAW_ALBUM" ]; then
+        SHOW_NAME=$(echo "$RAW_ALBUM" | sed -E 's/:? Series.*//I' | sed 's/:$//')
+        SERIES_NUM=$(echo "$RAW_ALBUM" | grep -oP 'Series \K\d+')
+    fi
 
-    # 3. Specific Handling for "The Unbelievable Truth" (Guests as Title)
+    # Fallback if Album tag is missing or Series not found
+    [ -z "$SHOW_NAME" ] && SHOW_NAME="Unknown Show"
+    [ -z "$SERIES_NUM" ] && SERIES_NUM="0"
+
+    # 3. Specific Handling for "The Unbelievable Truth"
     if [[ "$SHOW_NAME" == "The Unbelievable Truth" ]]; then
-        FINAL_TITLE=$(echo "$RAW_COMMENT" | sed 's/ play The Unbelievable Truth.*//g' | sed 's/\.$//')
+        FINAL_TITLE=$(echo "$RAW_COMMENT" | sed 's/ play The Unbelievable Truth.*//I' | sed 's/\.$//')
         FINAL_ARTIST="David Mitchell"
     else
-        # For other shows, keep the title as is
         FINAL_TITLE="$RAW_TITLE"
         FINAL_ARTIST=$(echo "$METADATA" | jq -r '.format.tags.artist // "BBC Radio"')
     fi
@@ -53,16 +61,16 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     TARGET_FOLDER="$DIR_MEDIA_RADIO/$SHOW_NAME/Season $SERIES_NUM"
     NEW_FILENAME="$TRACK_PAD $FINAL_TITLE.mp3"
     
-    # Sanitize filename (remove characters that might break Linux/Windows)
+    # Sanitize filename
     NEW_FILENAME=$(echo "$NEW_FILENAME" | tr -d '*?|<>')
     FINAL_PATH="$TARGET_FOLDER/$NEW_FILENAME"
 
     echo "    Show: $SHOW_NAME (Series $SERIES_NUM)"
     echo "    Dest: $FINAL_PATH"
 
-    # 5. Create directory and Move
     mkdir -p "$TARGET_FOLDER"
 
+    # 5. The Critical Fix: Added < /dev/null to prevent ffmpeg from reading stdin
     ffmpeg -i "$FILE" -n -loglevel error -codec copy \
         -metadata title="$FINAL_TITLE" \
         -metadata artist="$FINAL_ARTIST" \
@@ -70,5 +78,5 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
         -metadata album="$RAW_ALBUM" \
         -metadata track="$TRACK_RAW" \
         -metadata date="$DATE" \
-        "$FINAL_PATH" && rm "$FILE"
+        "$FINAL_PATH" < /dev/null && rm "$FILE"
 done
