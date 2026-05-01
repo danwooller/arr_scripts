@@ -23,9 +23,9 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     # 1. Extract Metadata using ffprobe and jq
     METADATA=$(ffprobe -v quiet -print_format json -show_format "$FILE")
     
+    # Extract guests for the title
     GUESTS=$(echo "$METADATA" | jq -r '.format.tags.comment // empty' | sed 's/ play The Unbelievable Truth.*//g' | sed 's/\.$//')
 
-    # Fallback: if GUESTS is somehow empty, use the original title
     if [ -z "$GUESTS" ]; then
         FINAL_TITLE=$(echo "$METADATA" | jq -r '.format.tags.title // "Unknown Episode"')
     else
@@ -35,33 +35,31 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     # 2. Parse Series and Track
     RAW_ALBUM=$(echo "$METADATA" | jq -r '.format.tags.album // empty')
     SERIES_NUM=$(echo "$RAW_ALBUM" | grep -oP 'Series \K\d+')
-    TRACK=$(echo "$METADATA" | jq -r '.format.tags.track // "01"' | cut -d'/' -f1)
     
-    printf -v TRACK_PAD "%02d" "$TRACK"
+    # Ensure we have a show name for the path
+    SHOW_NAME="The Unbelievable Truth"
     
-    # Pad track number (1 -> 01)
-    printf -v TRACK_PAD "%02d" "$TRACK"
+    TRACK_RAW=$(echo "$METADATA" | jq -r '.format.tags.track // "1"' | cut -d'/' -f1)
+    printf -v TRACK_PAD "%02d" "$TRACK_RAW"
 
     # 3. Define Paths
     TARGET_FOLDER="$DIR_MEDIA_RADIO/$SHOW_NAME/Season $SERIES_NUM"
-    NEW_FILENAME="$TRACK_PAD $TITLE.mp3"
+    NEW_FILENAME="$TRACK_PAD $FINAL_TITLE.mp3"
     FINAL_PATH="$TARGET_FOLDER/$NEW_FILENAME"
 
-    echo "   Moving to: $FINAL_PATH"
+    echo "    Moving to: $FINAL_PATH"
 
     # 4. Create directory if it doesn't exist
     mkdir -p "$TARGET_FOLDER"
 
-    # 5. Move and Fix Metadata in one go with FFmpeg
-    # We set the Artist to David Mitchell and Album Artist to David Mitchell
-    # We also keep the original comment but clean the title
-    ffmpeg -i "$FILE" -n -codec copy \
-        -metadata title="$TITLE" \
+    # 5. Move and Fix Metadata
+    # Changed $TITLE to $FINAL_TITLE
+    ffmpeg -i "$FILE" -n -loglevel error -codec copy \
+        -metadata title="$FINAL_TITLE" \
         -metadata artist="David Mitchell" \
         -metadata album_artist="David Mitchell" \
         -metadata album="$SHOW_NAME: Series $SERIES_NUM" \
-        -metadata track="$TRACK" \
+        -metadata track="$TRACK_RAW" \
         -metadata date="$(echo "$METADATA" | jq -r '.format.tags.date')" \
         "$FINAL_PATH" && rm "$FILE"
-
 done
