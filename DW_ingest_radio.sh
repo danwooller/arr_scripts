@@ -42,6 +42,7 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     # 2. Case-Insensitive Array Check
     USE_GUESTS=false
     for show in "${RADIO_GUEST[@]}"; do
+        # This converts both to lowercase for the comparison
         if [[ "${SHOW_NAME,,}" == "${show,,}" ]]; then
             USE_GUESTS=true
             break
