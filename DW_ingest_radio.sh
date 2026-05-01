@@ -76,7 +76,7 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     mkdir -p "$TARGET_FOLDER"
     log "Processing: $SHOW_NAME - $FINAL_TITLE"
 
-    ffmpeg -i "$FILE" -n -loglevel error -codec copy \
+    ffmpeg -i "$FILE" -y -loglevel error -codec copy \
         -metadata title="$FINAL_TITLE" \
         -metadata artist="$FINAL_ARTIST" \
         -metadata album_artist="$FINAL_ARTIST" \
