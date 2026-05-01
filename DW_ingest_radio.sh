@@ -51,13 +51,13 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
 
     # 3. Apply Metadata Logic
     if [ "$USE_GUESTS" = true ] && [[ "$RAW_COMMENT" =~ " play " ]]; then
-        # Extract guests from comment
+        # The 'I' at the end of the sed command makes it case-insensitive
         FINAL_TITLE=$(echo "$RAW_COMMENT" | sed -E "s/ play $SHOW_NAME.*//I" | sed 's/\.$//')
         
-        case "$SHOW_NAME" in
-            *"Unbelievable Truth"*)     FINAL_ARTIST="David Mitchell" ;;
-            *"Haven't A Clue"*)         FINAL_ARTIST="Jack Dee" ;;
-            *"Just a Minute"*)          FINAL_ARTIST="Sue Perkins" ;;
+        case "${SHOW_NAME,,}" in
+            *"unbelievable truth"*)     FINAL_ARTIST="David Mitchell" ;;
+            *"haven't a clue"*)         FINAL_ARTIST="Jack Dee" ;;
+            *"just a minute"*)          FINAL_ARTIST="Sue Perkins" ;;
             *)                          FINAL_ARTIST="BBC Radio" ;;
         esac
     else
