@@ -1,0 +1,10 @@
+[Unit]
+Description=Run DW_ingest_radio every 12 hours
+
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=12h
+Unit=DW_ingest_radio.service
+
+[Install]
+WantedBy=timers.target
