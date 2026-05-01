@@ -54,10 +54,12 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     done
 
     # 3. Apply Metadata Logic
-    if [ "$USE_GUESTS" = true ] && [[ "$RAW_COMMENT" =~ " play " ]]; then
-        # The 'I' at the end of the sed command makes it case-insensitive
-        FINAL_TITLE=$(echo "$RAW_COMMENT" | sed -E "s/ play $SHOW_NAME.*//I" | sed 's/\.$//')
+    if [ "$USE_GUESTS" = true ] && [ -n "$RAW_COMMENT" ]; then
+        # 1. Strip the "at the [Location]" or "play [Show]" suffix if they exist
+        # This regex cuts at " at the ", " play ", or " with Jack Dee"
+        FINAL_TITLE=$(echo "$RAW_COMMENT" | sed -E 's/( at the | play | with ).*//I' | sed 's/\.$//')
         
+        # 2. Host Assignment
         case "${SHOW_NAME,,}" in
             *"unbelievable truth"*)     FINAL_ARTIST="David Mitchell" ;;
             *"haven't a clue"*)         FINAL_ARTIST="Jack Dee" ;;
@@ -65,6 +67,7 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
             *)                          FINAL_ARTIST="BBC Radio" ;;
         esac
     else
+        # Standard fallback for John Finnemore / Dead Ringers etc.
         FINAL_TITLE="$RAW_TITLE"
         FINAL_ARTIST=$(echo "$METADATA" | jq -r '.format.tags.artist // "BBC Radio"')
     fi
