@@ -16,6 +16,7 @@ fi
 
 check_dependencies "ffprobe" "jq" "ffmpeg"
 
+FILES_PROCESSED=1
 OVERWRITE_FLAG="-n"
 if [[ "${1,,}" == "y" ]]; then
     log "🚀 Manual Overwrite Enabled (using -y)"
@@ -109,6 +110,7 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
         
         # Success
         rm "$FILE"
+        ((FILES_PROCESSED++))
     else
         # Failure (likely file exists or ffmpeg error)
         log "⚠️  Output exists or FFmpeg failed. Moving source to hold: $(basename "$FILE")"
@@ -117,5 +119,13 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     fi
 done
 
-plex_library_update "$PLEX_RADIO_SRC" "$PLEX_RADIO_NAME"
-log "ℹ️ Plex update for $PLEX_RADIO_NAME"
+if [ "$FILES_PROCESSED" -gt 0 ]; then
+    log "✅ Successfully processed $FILES_PROCESSED file(s)."
+    if plex_library_update "$PLEX_RADIO_SRC" "$PLEX_RADIO_NAME"; then
+        log "ℹ️ Plex update for $PLEX_RADIO_NAME."
+    fi
+else
+    log "ℹ️ No files were processed. Skipping Plex library update."
+fi
+
+log "🏁 DW_ingest_radio.sh script finished."
