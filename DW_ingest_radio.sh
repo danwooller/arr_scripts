@@ -18,17 +18,12 @@ check_dependencies "ffprobe" "jq" "ffmpeg"
 
 # Loop through all MP3s in the source
 find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; do
-    # --- RESET VARIABLES ---
+    # Reset variables each loop
     SHOW_NAME=""
     SERIES_NUM="0"
     FINAL_TITLE=""
     FINAL_ARTIST=""
-    # -----------------------
 
-    echo "------------------------------------------------"
-    echo "Processing: $(basename "$FILE")"
-
-    # 1. Extract Metadata
     METADATA=$(ffprobe -v quiet -print_format json -show_format "$FILE")
     
     RAW_ALBUM=$(echo "$METADATA" | jq -r '.format.tags.album // empty')
@@ -37,40 +32,50 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     TRACK_RAW=$(echo "$METADATA" | jq -r '.format.tags.track // "1"' | cut -d'/' -f1)
     DATE=$(echo "$METADATA" | jq -r '.format.tags.date // empty')
 
-    # 2. Determine Show Name and Series
-    if [ -n "$RAW_ALBUM" ]; then
-        SHOW_NAME=$(echo "$RAW_ALBUM" | sed -E 's/:? Series.*//I' | sed 's/:$//')
-        SERIES_NUM=$(echo "$RAW_ALBUM" | grep -oP 'Series \K\d+')
-    fi
-
-    # Fallback if Album tag is missing or Series not found
+    # 1. Determine Show Name and Series
+    SHOW_NAME=$(echo "$RAW_ALBUM" | sed -E 's/:? Series.*//I' | sed 's/:$//')
+    SERIES_NUM=$(echo "$RAW_ALBUM" | grep -oP 'Series \K\d+')
     [ -z "$SHOW_NAME" ] && SHOW_NAME="Unknown Show"
     [ -z "$SERIES_NUM" ] && SERIES_NUM="0"
 
-    # 3. Specific Handling for "The Unbelievable Truth"
-    if [[ "$SHOW_NAME" == "The Unbelievable Truth" ]]; then
-        FINAL_TITLE=$(echo "$RAW_COMMENT" | sed 's/ play The Unbelievable Truth.*//I' | sed 's/\.$//')
-        FINAL_ARTIST="David Mitchell"
+    # 2. Check if show is in the Guest Title array
+    USE_GUESTS=false
+    for show in "${RADIO_GUEST[@]}"; do
+        if [[ "$SHOW_NAME" == "$show" ]]; then
+            USE_GUESTS=true
+            break
+        fi
+    done
+
+    # 3. Apply Metadata Logic
+    if [ "$USE_GUESTS" = true ] && [[ "$RAW_COMMENT" =~ " play " ]]; then
+        # Extract guests from comment
+        FINAL_TITLE=$(echo "$RAW_COMMENT" | sed -E "s/ play $SHOW_NAME.*//I" | sed 's/\.$//')
+        
+        # Assign Host based on Show
+        case "$SHOW_NAME" in
+            "The Unbelievable Truth")    FINAL_ARTIST="David Mitchell" ;;
+            "I'm Sorry I Haven't a Clue") FINAL_ARTIST="Jack Dee" ;;
+            "Just a Minute")              FINAL_ARTIST="Sue Perkins" ;; # Or Nicholas Parsons for older ones
+            *)                            FINAL_ARTIST="BBC Radio" ;;
+        esac
     else
+        # Standard Show handling
         FINAL_TITLE="$RAW_TITLE"
         FINAL_ARTIST=$(echo "$METADATA" | jq -r '.format.tags.artist // "BBC Radio"')
     fi
 
-    # 4. Define Paths
+    # 4. Define Paths and Sanitize
     printf -v TRACK_PAD "%02d" "$TRACK_RAW"
     TARGET_FOLDER="$DIR_MEDIA_RADIO/$SHOW_NAME/Season $SERIES_NUM"
     NEW_FILENAME="$TRACK_PAD $FINAL_TITLE.mp3"
-    
-    # Sanitize filename
-    NEW_FILENAME=$(echo "$NEW_FILENAME" | tr -d '*?|<>')
+    NEW_FILENAME=$(echo "$NEW_FILENAME" | tr -d '*?|<>') # Sanitize
     FINAL_PATH="$TARGET_FOLDER/$NEW_FILENAME"
 
-    echo "    Show: $SHOW_NAME (Series $SERIES_NUM)"
-    echo "    Dest: $FINAL_PATH"
-
+    # 5. Execute
     mkdir -p "$TARGET_FOLDER"
+    echo "Processing: $SHOW_NAME - $FINAL_TITLE"
 
-    # 5. The Critical Fix: Added < /dev/null to prevent ffmpeg from reading stdin
     ffmpeg -i "$FILE" -n -loglevel error -codec copy \
         -metadata title="$FINAL_TITLE" \
         -metadata artist="$FINAL_ARTIST" \
