@@ -85,8 +85,17 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     NEW_FILENAME=$(echo "$NEW_FILENAME" | tr -d '*?|<>')
     FINAL_PATH="$TARGET_FOLDER/$NEW_FILENAME"
 
-    # 5. Execute
+    # 5. Execute with Safety Catch
     mkdir -p "$TARGET_FOLDER"
+
+    # --- NEW: Catch-all for empty metadata ---
+    if [[ -z "$SHOW_NAME" || "$SHOW_NAME" == "Unknown Show" ]] && [[ -z "$FINAL_TITLE" || "$FINAL_TITLE" == "Unknown" ]]; then
+        log "⚠️  CRITICAL: Missing metadata tags. Moving to HOLD to avoid collisions."
+        mkdir -p "$DIR_MEDIA_HOLD"
+        mv "$FILE" "$DIR_MEDIA_HOLD/"
+        continue # Skip to the next file in the loop
+    fi
+
     log "Processing: $SHOW_NAME - $FINAL_TITLE"
 
     if ffmpeg -i "$FILE" $OVERWRITE_FLAG -loglevel error -codec copy \
@@ -98,11 +107,11 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
         -metadata date="$DATE" \
         "$FINAL_PATH" < /dev/null; then
         
-        # If FFmpeg succeeded (either new file created or forced overwrite)
+        # Success
         rm "$FILE"
     else
-        # If FFmpeg failed (likely because -n saw an existing file)
-        log "⚠️  Output exists. Moving source to hold: $(basename "$FILE")"
+        # Failure (likely file exists or ffmpeg error)
+        log "⚠️  Output exists or FFmpeg failed. Moving source to hold: $(basename "$FILE")"
         mkdir -p "$DIR_MEDIA_HOLD"
         mv "$FILE" "$DIR_MEDIA_HOLD/"
     fi
