@@ -16,7 +16,7 @@ fi
 
 check_dependencies "ffprobe" "jq" "ffmpeg"
 
-FILES_PROCESSED=1
+FILES_PROCESSED=0
 OVERWRITE_FLAG="-n"
 if [[ "${1,,}" == "y" ]]; then
     log "🚀 Manual Overwrite Enabled (using -y)"
