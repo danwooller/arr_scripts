@@ -24,6 +24,9 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**DW_mkv_movies_title.sh**](./DW_mkv_movies_title.sh) | Loops through TV directories and matched the video title to the parent directory name. _Running on ubuntu9_ |
 | [**DW_mkv_set_eng.sh**](./DW_mkv_set_eng.sh) | Checks mkv files in $1 and sets audio and subtitles to English if they are unset. _Running on ubuntu9_ |
 | [**DW_mkv_tv_shows_title.sh**](./DW_mkv_tv_shows_title.sh) | Loops through TV directories and matched the video title to the filename. _Running on ubuntu9_ |
+| [**DW_mysql_backup.sh**](./DW_mysql_backup.sh) | Backup of the main website database. _Running on ubuntu24_ |
+| [**DW_mysql_restore.sh**](./DW_mysql_restore.sh) | Restore function for database. |
+| [**DW_mysql_restore_auto.sh**](./DW_mysql_restore_auto.sh) | Restores the main website database to maintain a mirror. _Running on ubuntu9_ |
 | [**DW_monitor_convert.sh**](./DW_monitor_convert.sh) | Monitors folders for unconverted media, detects resolution (480p/576p/1080p/4K), and transcodes via HandBrakeCLI. _Running on pi14, pi16 & ubuntu9_ |
 | [**DW_monitor_movie_subtitles.sh**](./DW_monitor_movie_subtitles.sh) | Monitors $SOURCE_DIR for mkv files and processes the audio and subtitles, keeping English subs for non-English audio and stripping non-forced subtitles from English audio. _Running on ubuntu9_ |
 | [**DW_move_movies_synology.sh**](./DW_move_movies_synology.sh) | Monitors the movies folder on the secondary server (synology) and checks the primary (truenas) for duplicates (indicating a REPACK) and moves them. _Running on ubuntu24_ |
