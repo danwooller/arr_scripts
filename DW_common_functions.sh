@@ -362,7 +362,7 @@ plex_library_update() {
     # Now, if these return 0 (due to 502 or actual stream), the script stops here.
     if plex_busy || plex_active_streams; then
         log "🔄 Plex server in use, exit library update"
-        return 0
+        return 1
     fi
 
     while [ $attempt -le $max_retries ]; do
