@@ -23,15 +23,21 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     # 1. Extract Metadata using ffprobe and jq
     METADATA=$(ffprobe -v quiet -print_format json -show_format "$FILE")
     
-    RAW_ALBUM=$(echo "$METADATA" | jq -r '.format.tags.album // empty')
-    TITLE=$(echo "$METADATA" | jq -r '.format.tags.title // empty')
-    TRACK=$(echo "$METADATA" | jq -r '.format.tags.track // "01"')
-    COMMENT=$(echo "$METADATA" | jq -r '.format.tags.comment // empty')
+    GUESTS=$(echo "$METADATA" | jq -r '.format.tags.comment // empty' | sed 's/ play The Unbelievable Truth.*//g' | sed 's/\.$//')
 
-    # 2. Parse Series/Season (e.g., "The Unbelievable Truth: Series 33" -> "33")
-    # This regex looks for the word Series followed by digits
+    # Fallback: if GUESTS is somehow empty, use the original title
+    if [ -z "$GUESTS" ]; then
+        FINAL_TITLE=$(echo "$METADATA" | jq -r '.format.tags.title // "Unknown Episode"')
+    else
+        FINAL_TITLE="$GUESTS"
+    fi
+
+    # 2. Parse Series and Track
+    RAW_ALBUM=$(echo "$METADATA" | jq -r '.format.tags.album // empty')
     SERIES_NUM=$(echo "$RAW_ALBUM" | grep -oP 'Series \K\d+')
-    SHOW_NAME="The Unbelievable Truth" # Static for this show, or parse from RAW_ALBUM
+    TRACK=$(echo "$METADATA" | jq -r '.format.tags.track // "01"' | cut -d'/' -f1)
+    
+    printf -v TRACK_PAD "%02d" "$TRACK"
     
     # Pad track number (1 -> 01)
     printf -v TRACK_PAD "%02d" "$TRACK"
