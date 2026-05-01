@@ -8,21 +8,22 @@ else
     exit 1
 fi
 
-# Safety check: Don't run during a ZFS scrub
+# Safety check
 if sudo ssh -o ConnectTimeout=10 "$BASE_HOST6" "zpool status" | grep -q "scrub in progress"; then
-    log "⚠️ ZFS Scrub in progress on $BASE_HOST6. Skipping backup to protect I/O."
+    log "⚠️ ZFS Scrub in progress on $BASE_HOST6. Skipping."
     exit 0
 fi
 
 check_dependencies "ffprobe" "jq" "ffmpeg"
 
-# Loop through all MP3s in the source
+# Loop through all MP3s
 find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; do
-    # Reset variables each loop
+    # Reset variables
     SHOW_NAME=""
     SERIES_NUM="0"
     FINAL_TITLE=""
     FINAL_ARTIST=""
+    TRACK_PAD=""
 
     METADATA=$(ffprobe -v quiet -print_format json -show_format "$FILE")
     
@@ -38,10 +39,10 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     [ -z "$SHOW_NAME" ] && SHOW_NAME="Unknown Show"
     [ -z "$SERIES_NUM" ] && SERIES_NUM="0"
 
-    # 2. Check if show is in the Guest Title array
+    # 2. Case-Insensitive Array Check
     USE_GUESTS=false
     for show in "${RADIO_GUEST[@]}"; do
-        if [[ "$SHOW_NAME" == "$show" ]]; then
+        if [[ "${SHOW_NAME,,}" == "${show,,}" ]]; then
             USE_GUESTS=true
             break
         fi
@@ -52,24 +53,23 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
         # Extract guests from comment
         FINAL_TITLE=$(echo "$RAW_COMMENT" | sed -E "s/ play $SHOW_NAME.*//I" | sed 's/\.$//')
         
-        # Assign Host based on Show
         case "$SHOW_NAME" in
-            "The Unbelievable Truth")    FINAL_ARTIST="David Mitchell" ;;
-            "I'm Sorry I Haven't a Clue") FINAL_ARTIST="Jack Dee" ;;
-            "Just a Minute")              FINAL_ARTIST="Sue Perkins" ;; # Or Nicholas Parsons for older ones
-            *)                            FINAL_ARTIST="BBC Radio" ;;
+            *"Unbelievable Truth"*)     FINAL_ARTIST="David Mitchell" ;;
+            *"Haven't A Clue"*)         FINAL_ARTIST="Jack Dee" ;;
+            *"Just a Minute"*)          FINAL_ARTIST="Sue Perkins" ;;
+            *)                          FINAL_ARTIST="BBC Radio" ;;
         esac
     else
-        # Standard Show handling
         FINAL_TITLE="$RAW_TITLE"
         FINAL_ARTIST=$(echo "$METADATA" | jq -r '.format.tags.artist // "BBC Radio"')
     fi
 
-    # 4. Define Paths and Sanitize
-    [[ $LOG_LEVEL == "debug" ]] && log -v TRACK_PAD "%02d" "$TRACK_RAW"
+    # 4. Define Paths and ALWAYS set TRACK_PAD
+    printf -v TRACK_PAD "%02d" "$TRACK_RAW"
+    
     TARGET_FOLDER="$DIR_MEDIA_RADIO/$SHOW_NAME/Season $SERIES_NUM"
     NEW_FILENAME="$TRACK_PAD $FINAL_TITLE.mp3"
-    NEW_FILENAME=$(echo "$NEW_FILENAME" | tr -d '*?|<>') # Sanitize
+    NEW_FILENAME=$(echo "$NEW_FILENAME" | tr -d '*?|<>')
     FINAL_PATH="$TARGET_FOLDER/$NEW_FILENAME"
 
     # 5. Execute
