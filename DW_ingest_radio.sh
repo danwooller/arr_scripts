@@ -116,3 +116,5 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
         mv "$FILE" "$DIR_MEDIA_HOLD/"
     fi
 done
+
+plex_library_update "$PLEX_RADIO_SRC" "$PLEX_RADIO_NAME"
