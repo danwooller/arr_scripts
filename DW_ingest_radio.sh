@@ -16,6 +16,12 @@ fi
 
 check_dependencies "ffprobe" "jq" "ffmpeg"
 
+OVERWRITE_FLAG="-n"
+if [[ "${1,,}" == "y" ]]; then
+    log "🚀 Manual Overwrite Enabled (using -y)"
+    OVERWRITE_FLAG="-y"
+fi
+
 # Loop through all MP3s
 find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; do
     # Reset variables
@@ -83,12 +89,21 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     mkdir -p "$TARGET_FOLDER"
     log "Processing: $SHOW_NAME - $FINAL_TITLE"
 
-    ffmpeg -i "$FILE" -y -loglevel error -codec copy \
+    if ffmpeg -i "$FILE" $OVERWRITE_FLAG -loglevel error -codec copy \
         -metadata title="$FINAL_TITLE" \
         -metadata artist="$FINAL_ARTIST" \
         -metadata album_artist="$FINAL_ARTIST" \
         -metadata album="$RAW_ALBUM" \
         -metadata track="$TRACK_RAW" \
         -metadata date="$DATE" \
-        "$FINAL_PATH" < /dev/null && rm "$FILE"
+        "$FINAL_PATH" < /dev/null; then
+        
+        # If FFmpeg succeeded (either new file created or forced overwrite)
+        rm "$FILE"
+    else
+        # If FFmpeg failed (likely because -n saw an existing file)
+        log "⚠️  Output exists. Moving source to hold: $(basename "$FILE")"
+        mkdir -p "$DIR_MEDIA_HOLD"
+        mv "$FILE" "$DIR_MEDIA_HOLD/"
+    fi
 done
