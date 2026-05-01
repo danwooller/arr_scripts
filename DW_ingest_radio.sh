@@ -66,7 +66,7 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
     fi
 
     # 4. Define Paths and Sanitize
-    printf -v TRACK_PAD "%02d" "$TRACK_RAW"
+    [[ $LOG_LEVEL == "debug" ]] && log -v TRACK_PAD "%02d" "$TRACK_RAW"
     TARGET_FOLDER="$DIR_MEDIA_RADIO/$SHOW_NAME/Season $SERIES_NUM"
     NEW_FILENAME="$TRACK_PAD $FINAL_TITLE.mp3"
     NEW_FILENAME=$(echo "$NEW_FILENAME" | tr -d '*?|<>') # Sanitize
@@ -74,7 +74,7 @@ find "$DIR_MEDIA_TORRENT_RADIO" -maxdepth 1 -name "*.mp3" | while read -r FILE; 
 
     # 5. Execute
     mkdir -p "$TARGET_FOLDER"
-    echo "Processing: $SHOW_NAME - $FINAL_TITLE"
+    log "Processing: $SHOW_NAME - $FINAL_TITLE"
 
     ffmpeg -i "$FILE" -n -loglevel error -codec copy \
         -metadata title="$FINAL_TITLE" \
