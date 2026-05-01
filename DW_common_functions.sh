@@ -870,10 +870,10 @@ sonarr_weekly_shows() {
                 if [ -f "$file" ]; then
                     
                     # 1. Wait for File Lock (TrueNAS/Torrent Safety)
-                    #while lsof "$file" >/dev/null 2>&1; do
-                    #    log "⏳ File $(basename "$file") is busy. Waiting..."
-                    #    sleep 5
-                    #done
+                    while lsof "$file" >/dev/null 2>&1; do
+                        log "⏳ File $(basename "$file") is busy. Waiting..."
+                        sleep 5
+                    done
 
                     # 2. Capture Names & Sanitize
                     local FILENAME=$(basename "$file")
