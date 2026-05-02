@@ -136,4 +136,15 @@ else
     log "ℹ️ No files were processed. Skipping Plex library update."
 fi
 
+# ---  Topical Cleanup ---
+log "ℹ️ Running scheduled topical cleanups..."
+
+for SHOW in "${!WEEKLY_RADIO_DELETE[@]}"; do
+    DAYS="${WEEKLY_RADIO_DELETE[$SHOW]}"
+    TARGET="/mnt/media/RadioComedy/$SHOW"
+    
+    # Call your new function
+    weekly_delete_files "$TARGET" "$DAYS"
+done
+
 log "🏁 DW_ingest_radio.sh script finished."
