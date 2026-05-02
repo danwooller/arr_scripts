@@ -1104,7 +1104,49 @@ subtitle_opts() {
     export NEEDS_PROPEDIT
 }
 # --- END SUBTITLES ---
-# --- TV SHOW NAME CLEAN ---
+# --- Cleanup Functions ---
+
+# Function: weekly_delete_files
+# Purpose: Recursively delete files older than X days and clean up empty directories.
+# Usage: weekly_delete_files "/path/to/folder" 14
+weekly_delete_files() {
+    local TARGET_DIR="$1"
+    local DAYS="$2"
+
+    # 1. Safety Gate: Ensure path and days are provided
+    if [[ -z "$TARGET_DIR" || -z "$DAYS" ]]; then
+        log "⚠️ weekly_delete_files: Missing arguments. (Path: $TARGET_DIR, Days: $DAYS)"
+        return 1
+    fi
+
+    # 2. Existence Check: Don't error out if the show folder isn't there
+    if [[ ! -d "$TARGET_DIR" ]]; then
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Cleanup skipped: Directory $TARGET_DIR does not exist."
+        return 0
+    fi
+
+    # 3. Execution Logic
+    # -type f: Look for files (recursively through Season folders)
+    # -mtime +$DAYS: Files where (Current Time - Modification Time) > DAYS
+    log "🧹 Scanning $TARGET_DIR for files older than $DAYS days..."
+    
+    # Count targets for the log
+    local COUNT=$(find "$TARGET_DIR" -type f -mtime +"$DAYS" | wc -l)
+    
+    if [[ "$COUNT" -gt 0 ]]; then
+        # Delete the old files
+        find "$TARGET_DIR" -type f -mtime +"$DAYS" -delete
+        
+        # Clean up empty sub-folders (like Season folders) left behind
+        # -mindepth 1 ensures we don't delete the root show folder itself
+        find "$TARGET_DIR" -mindepth 1 -type d -empty -delete
+        
+        log "✅ Deleted $COUNT old topical files and pruned empty folders in $(basename "$TARGET_DIR")."
+    else
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No files older than $DAYS days found in $(basename "$TARGET_DIR")."
+    fi
+}
+# TV show name clean
 clean_media_name() {
     local input="$1"
     
@@ -1129,7 +1171,7 @@ clean_media_name() {
     # 3. Capitalize first letter of each word (Optional, but looks better in logs)
     echo "$name" | sed 's/\b\(.\)/\u\1/g'
 }
-# --- END TV SHOW NAME CLEAN ---
+# --- END Cleanup Functions ---
 # --- VPN SECTION ---
 
 vpn_restart_containers() {
