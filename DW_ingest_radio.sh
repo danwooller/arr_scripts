@@ -65,17 +65,22 @@ while read -r FILE; do
 
     # 3. Apply Metadata Logic
     if [ "$USE_GUESTS" = true ] && [ -n "$RAW_COMMENT" ]; then
-        # Extract guests from comment, stripping filler phrases
+        # Clean title from comment as before
         FINAL_TITLE=$(echo "$RAW_COMMENT" | sed -E 's/( at | return| with | play ).*//I' | sed 's/\.$//')
         
-        case "${SHOW_NAME,,}" in
-            *"unbelievable truth"*)     FINAL_ARTIST="David Mitchell" ;;
-            *"haven't a clue"*)         FINAL_ARTIST="Jack Dee" ;;
-            *"just a minute"*)          FINAL_ARTIST="Sue Perkins" ;;
-            *)                          FINAL_ARTIST="BBC Radio" ;;
-        esac
+        # Look up the clean name from our common_functions map
+        # If not found, default to the Show Name itself
+        LOWER_SHOW="${SHOW_NAME,,}"
+        FINAL_ARTIST="$SHOW_NAME" # Default
+        
+        for key in "${!RADIO_ARTIST_MAP[@]}"; do
+            if [[ "$LOWER_SHOW" == *"$key"* ]]; then
+                FINAL_ARTIST="${RADIO_ARTIST_MAP[$key]}"
+                break
+            fi
+        done
     else
-        # Standard fallback for scripted shows (Dead Ringers, etc.)
+        # Standard fallback for scripted comedy (Dead Ringers, etc.)
         FINAL_TITLE="$RAW_TITLE"
         FINAL_ARTIST=$(echo "$METADATA" | jq -r '.format.tags.artist // "BBC Radio"')
     fi
