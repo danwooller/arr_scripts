@@ -204,7 +204,7 @@ for path in "${PATHS_TO_CHECK[@]}"; do
     
     if [ -n "$COMPOSE_FILE" ]; then
         $DOCKER compose -f "$COMPOSE_FILE" --project-directory "$CLEAN_PATH" down >/dev/null 2>&1
-        $DOCKER compose -f "$COMPOSE_FILE" --project-directory "$CLEAN_PATH" up -d
+        $DOCKER compose -f "$COMPOSE_FILE" --project-directory "$CLEAN_PATH" up -d --build
         
         if [ $? -eq 0 ]; then
             [[ $LOG_LEVEL = "debug" ]] && log "✅ $DIR_NAME is online."
