@@ -735,7 +735,7 @@ sonarr_ingest() {
     # (added -k for https)
     local probe_data=$(curl -s -k -H "X-Api-Key: $SONARR_API_KEY" \
         "$SONARR_API_BASE/manualimport?folder=$encoded_path")
-
+    [[ "$LOG_LEVEL" == "debug" ]] && log "$probe_data"
     # 2. Extract Valid Files (Filtering out everything BUT "Sample" rejections)
     local files_json=$(echo "$probe_data" | jq -c '
         [ .[] | select(.series != null and (.rejections | map(select(.reason != "Sample")) | length == 0)) | {
@@ -746,7 +746,7 @@ sonarr_ingest() {
             languages: .languages,
             importMode: "move"
         } ]')
-    [[ "$LOG_LEVEL" == "debug" ]] && log "$probe_data"
+
     # 3. Identify Failed Files (Files that have a series but still have "Hard" rejections)
     # We use -r to get the raw string for the loop
     local failed_files=$(echo "$probe_data" | jq -r '
