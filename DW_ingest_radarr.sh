@@ -15,6 +15,15 @@ check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
 
 log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
+HOST_COUNT=$(ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
+DOCKER_COUNT=$(docker exec sonarr ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
+
+if [ "$HOST_COUNT" -ne "$DOCKER_COUNT" ]; then
+    log "⚠️ Host and Docker counts mismatch ($HOST_COUNT vs $DOCKER_COUNT). Restarting Radarr..."
+    docker restart radarr
+    sleep 10
+fi
+
 while true; do
     # --- 0. Flatten & Cleanup ---
     # Move files from subfolders to root, then delete empty folders and junk files
