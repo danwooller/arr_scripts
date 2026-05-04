@@ -746,7 +746,7 @@ sonarr_ingest() {
             languages: .languages,
             importMode: "move"
         } ]')
-
+    [[ "$LOG_LEVEL" == "debug" ]] && log "$files_json"
     # 3. Identify Failed Files (Files that have a series but still have "Hard" rejections)
     # We use -r to get the raw string for the loop
     local failed_files=$(echo "$probe_data" | jq -r '
