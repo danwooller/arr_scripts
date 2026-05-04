@@ -22,6 +22,15 @@ trap 'rm -f "$LOCK_FILE"; exit' INT TERM EXIT
 check_dependencies "curl" "jq"
 log_start "🚀 Ingest Service Started"
 
+HOST_COUNT=$(ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
+DOCKER_COUNT=$(docker exec sonarr ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
+
+if [ "$HOST_COUNT" -ne "$DOCKER_COUNT" ]; then
+    log "⚠️ Host and Docker counts mismatch ($HOST_COUNT vs $DOCKER_COUNT). Restarting Sonarr..."
+    docker restart sonarr
+    sleep 10
+fi
+
 # --- Service Loop ---
 while true; do
     # 1. Verify Mountpoint
