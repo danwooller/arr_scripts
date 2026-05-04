@@ -735,7 +735,8 @@ sonarr_ingest() {
     # (added -k for https)
     local probe_data=$(curl -s -k -H "X-Api-Key: $SONARR_API_KEY" \
         "$SONARR_API_BASE/manualimport?folder=$encoded_path")
-    [[ "$LOG_LEVEL" == "debug" ]] && log "$probe_data"
+    #[[ "$LOG_LEVEL" == "debug" ]] && log "$probe_data"
+
     # 2. Extract Valid Files (Filtering out everything BUT "Sample" rejections)
     local files_json=$(echo "$probe_data" | jq -c '
         [ .[] | select(.series != null and (.rejections | map(select(.reason != "Sample")) | length == 0)) | {
