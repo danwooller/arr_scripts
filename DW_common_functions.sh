@@ -173,7 +173,7 @@ manage_remote_torrent() {
     local search_regex=$(echo "${filename:0:10}" | sed 's/[^a-zA-Z0-9]/.*/g')
     for server in "${QBT_SERVERS[@]}"; do
     # Loops through every server URL defined in your common_functions.sh array.
-        local t_data=$(curl -s -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
+        local t_data=$(curl -s -k -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
                        jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
         # Fetches all torrents, uses jq to find one matching the regex (case-insensitive), and returns "hash|name".
 
@@ -189,8 +189,7 @@ manage_remote_torrent() {
             # Creates a local variable for the command to be sent to the qBittorrent API.
             [[ "$action" == "stop" ]] && q_cmd="pause"
             # Since the qBittorrent API uses '/pause' instead of '/stop', this translates the intent.
-            #curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=false"
-            curl -s -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=$delete_data" > /dev/null
+            curl -s -k -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=$delete_data" > /dev/null
             # Sends the POST request to the server to pause or delete the hash, ensuring files are kept safe.
             return 0
             # Exits the function with a 'success' code so the main script knows it can move on.
@@ -470,7 +469,7 @@ radarr_ingest() {
         # 4. Trigger Rename for all affected Movie IDs
         # This fixes the "LAMA" naming issue automatically
         local movie_ids=$(echo "$files_json" | jq -c '[.[].movieId] | unique')
-        curl -s -X POST "$RADARR_API_BASE/command" \
+        curl -s -k -X POST "$RADARR_API_BASE/command" \
             -H "X-Api-Key: $RADARR_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{ \"name\": \"RenameMovie\", \"movieIds\": $movie_ids }" > /dev/null
@@ -490,7 +489,7 @@ radarr_targeted_scan() {
     fi
 
     # 1. Fetch ALL movies (once) to avoid multiple API hits
-    local radarr_data=$(curl -s -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie")
+    local radarr_data=$(curl -s -k -H "X-Api-Key: $RADARR_API_KEY" "$RADARR_API_BASE/movie")
 
     # 2. Normalize the SortTV name for matching (removes hyphens, spaces, and years)
     local clean_name=$(echo "$movie_name" | sed -E 's/_\([0-9]{4}\)$//; s/\([0-9]{4}\)$//' | tr -dc '[:alnum:]' | tr '[:upper:]' '[:lower:]')
@@ -509,13 +508,13 @@ radarr_targeted_scan() {
         # 4. PUSH the path update to Radarr
         # We take the original JSON, update the path, and PUT it back
         echo "$movie_json" | jq --arg p "$new_path" '.path = $p' | \
-        curl -s -X PUT -H "X-Api-Key: $RADARR_API_KEY" \
+        curl -s -k -X PUT -H "X-Api-Key: $RADARR_API_KEY" \
              -H "Content-Type: application/json" \
              -d @- "$RADARR_API_BASE/movie/$movie_id" > /dev/null
 
         # 5. Trigger Rescan
         log "🔄 Triggering Radarr rescan for ID: $movie_id"
-        curl -s -H "X-Api-Key: $RADARR_API_KEY" -X POST -H "Content-Type: application/json" \
+        curl -s -k -H "X-Api-Key: $RADARR_API_KEY" -X POST -H "Content-Type: application/json" \
              -d "{\"name\": \"RescanMovie\", \"movieId\": $movie_id}" \
              "$RADARR_API_BASE/command" > /dev/null
 
@@ -534,7 +533,7 @@ seerr_issue_notify() {
     local media_type="$4"
 
     # We query Seerr for issues and see if any match our TMDB ID and are still "OPEN" (status 1)
-    local existing_issue=$(curl -s -X GET "$SEERR_URL/api/v1/issue?status=1" \
+    local existing_issue=$(curl -s -k -X GET "$SEERR_URL/api/v1/issue?status=1" \
         -H "X-Api-Key: $SEERR_API_KEY" | \
         jq -r --arg id "$tmdb_id" '.results[]? | select(.media.tmdbId == ($id|tonumber)) | .id' 2>/dev/null)
 
@@ -584,7 +583,7 @@ seerr_resolve_notify() {
     local endpoint="tv"
     [[ "$media_type" == "movie" ]] && endpoint="movie"
 
-    local user_info=$(curl -s -X GET "$SEERR_URL/api/v1/$endpoint/$tmdb_id" \
+    local user_info=$(curl -s -k -X GET "$SEERR_URL/api/v1/$endpoint/$tmdb_id" \
         -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.mediaInfo.requests[0].requestedBy | "\(.id)|\(.email)"')
 
     local req_id=$(echo "$user_info" | cut -d'|' -f1)
@@ -596,7 +595,7 @@ seerr_resolve_notify() {
     fi
 
     # 3. Check Opt-in
-    local email_enabled=$(curl -s -X GET "$SEERR_URL/api/v1/user/$req_id/settings/notifications" \
+    local email_enabled=$(curl -s -k -X GET "$SEERR_URL/api/v1/user/$req_id/settings/notifications" \
         -H "X-Api-Key: $SEERR_API_KEY" | jq -r '.emailEnabled')
 
     if [[ "$email_enabled" == "true" ]]; then
@@ -618,13 +617,13 @@ seerr_resolve_issue() {
     local resolved_count=0
 
     # 1. Authenticate
-    curl -s -c "$cookie_file" -X POST "$base_url/auth/local" \
+    curl -s -k -c "$cookie_file" -X POST "$base_url/auth/local" \
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$SEERR_EMAIL\", \"password\": \"$SEERR_PASSWORD\"}" > /dev/null
 
     # 2. Get Open Issues from Seerr
     # We only care about issues that are currently OPEN (filter=open)
-    curl -s -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
+    curl -s -k -b "$cookie_file" -o "$response_file" "$base_url/issue?take=100&filter=open"
 
     # 3. Identify if THIS show has an open issue
     # We check if the TMDB ID from Sonarr matches the TMDB ID in Seerr's open issues
@@ -639,7 +638,7 @@ seerr_resolve_issue() {
     # 4. Resolve only if IDs were found
     for issue_id in $active_ids; do
         if [[ -n "$issue_id" && "$issue_id" != "null" ]]; then
-            local resolve_status=$(curl -s -o /dev/null -w "%{http_code}" -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved")
+            local resolve_status=$(curl -s -k -o /dev/null -w "%{http_code}" -b "$cookie_file" -X POST "$base_url/issue/$issue_id/resolved")
             
             if [[ "$resolve_status" == "200" || "$resolve_status" == "204" ]]; then
                 log "✅ Seerr: Resolved issue #$issue_id for $folder_path"
@@ -669,7 +668,7 @@ seerr_sync_issue() {
     local seerr_pass="${SEERR_PASSWORD}"
     local cookie_file="/tmp/seerr_sync_cookie.txt"
 
-    curl -s -c "$cookie_file" -X POST "${SEERR_API_BASE%/}/auth/local" \
+    curl -s -k -c "$cookie_file" -X POST "${SEERR_API_BASE%/}/auth/local" \
          -H "Content-Type: application/json" \
          -d "{\"email\": \"$seerr_user\", \"password\": \"$seerr_pass\"}" > /dev/null
 
@@ -680,15 +679,14 @@ seerr_sync_issue() {
     if [[ -z "$media_id" || "$media_id" == "null" ]]; then
         local search_term=$(echo "$media_name" | sed -E 's/\.[^.]*$//; s/[0-9]+x[0-9]+.*//i; s/\([0-9]{4}\)//g; s/[._]/ /g; s/ +/ /g')
         local encoded_query=$(echo "$search_term" | jq -Rr @uri)
-        local search_results=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/search?query=$encoded_query")
+        local search_results=$(curl -s -k -b "$cookie_file" -X GET "$SEERR_API_BASE/search?query=$encoded_query")
         media_id=$(echo "$search_results" | jq -r --arg type "$media_type" '.results[] | select(.mediaType == $type).mediaInfo.id // empty' | head -n 1)
     fi
 
     [[ -z "$media_id" || "$media_id" == "null" ]] && { rm -f "$cookie_file"; return 1; }
 
     # 3. Deduplication & Anti-Spam Check
-    #local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=100&filter=open")
-    local existing_issues=$(curl -s -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=10&filter=all")
+    local existing_issues=$(curl -s -k -b "$cookie_file" -X GET "$SEERR_API_BASE/issue?take=10&filter=all")
     
     # Extract Issue ID, Main Message, and Last Comment Message
     local issue_info=$(echo "$existing_issues" | jq -r --arg mid "$media_id" '
@@ -708,7 +706,7 @@ seerr_sync_issue() {
         fi
 
         # If we got here, the message is NEW or CHANGED
-        curl -s -b "$cookie_file" -X POST "$SEERR_API_BASE/issue/$issue_id/comment" \
+        curl -s -k -b "$cookie_file" -X POST "$SEERR_API_BASE/issue/$issue_id/comment" \
             -H "Content-Type: application/json" -d "{\"message\": \"$message\"}"
         rm -f "$cookie_file"
         return 0 
@@ -733,7 +731,7 @@ sonarr_ingest() {
     # 1. Probe the folder
     local encoded_path=$(jq -nr --arg p "$ingest_path" '$p|@uri')
     # (added -k for https)
-    local probe_data=$(curl -s -k -H "X-Api-Key: $SONARR_API_KEY" \
+    local probe_data=$(curl -s -k -k -H "X-Api-Key: $SONARR_API_KEY" \
         "$SONARR_API_BASE/manualimport?folder=$encoded_path")
     #[[ "$LOG_LEVEL" == "debug" ]] && log "$probe_data"
 
@@ -811,7 +809,7 @@ sonarr_search() {
         if [[ "$s_monitored" == "true" ]]; then
             log "🔍 Triggering Sonarr Search for $series_name"
             local payload=$(jq -n --arg id "$s_id" '{name: "SeriesSearch", seriesId: ($id|tonumber)}')
-            curl -s -o /dev/null -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
+            curl -s -k -o /dev/null -X POST "$SONARR_API_BASE/command" -H "X-Api-Key: $SONARR_API_KEY" -H "Content-Type: application/json" -d "$payload"
         fi
     fi
 }
