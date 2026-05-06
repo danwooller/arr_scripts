@@ -71,9 +71,9 @@ for HOST_ROOT in "${!PATH_MAP[@]}"; do
             [ -z "$CHANNEL_DESC" ] && CHANNEL_DESC="YouTube content for $CHANNEL_NAME."
             
             cat <<EOF > "${CHANNEL_DIR}.plexmatch"
-            Title: $CHANNEL_NAME
-            Summary: $CHANNEL_DESC
-            EOF
+Title: $CHANNEL_NAME
+Summary: $CHANNEL_DESC
+EOF
 
             # 4. Permissions & Final Validation
             if [ -f "${CHANNEL_DIR}poster.jpg" ]; then
