@@ -10,55 +10,64 @@ fi
 
 # Configuration
 CONTAINER_NAME="pinchflat"
-INTERNAL_PATH="/downloads" # Internal Pinchflat mount
-
 CHANNEL_NAME=$1
 CHANNEL_URL=$2
 
+# Ensure arguments are provided
 if [ -z "$CHANNEL_NAME" ] || [ -z "$CHANNEL_URL" ]; then
     echo "Usage: ./fix_yt.sh [ChannelName] [URL]"
     exit 1
 fi
 
-# --- Find the correct Host Path from the array ---
-MATCHED_HOST_PATH=""
+# --- Mapping Host Paths to Container Internal Paths ---
+# Key = Host Directory | Value = Internal Docker Directory
+declare -A PATH_MAP
+PATH_MAP=(
+    ["$DIR_MEDIA_YOUTUBE"]="/downloads"
+    ["$DIR_SYNOLOGY_YOUTUBE"]="/synology"
+)
 
-for path in "${DIR_YOUTUBE[@]}"; do
-    if [ -d "$path/$CHANNEL_NAME" ]; then
-        MATCHED_HOST_PATH="$path"
+# --- Logic: Find the Channel & Download ---
+MATCHED_HOST=""
+MATCHED_INTERNAL=""
+
+for host_path in "${!PATH_MAP[@]}"; do
+    if [ -d "$host_path/$CHANNEL_NAME" ]; then
+        MATCHED_HOST="$host_path"
+        MATCHED_INTERNAL="${PATH_MAP[$host_path]}"
         break
     fi
 done
 
-if [ -z "$MATCHED_HOST_PATH" ]; then
-    echo "❌ Could not find folder '$CHANNEL_NAME' in any YouTube directories."
+if [ -z "$MATCHED_HOST" ]; then
+    echo "❌ Folder '$CHANNEL_NAME' not found in your YouTube directories."
     exit 1
 fi
 
-echo "✅ Found $CHANNEL_NAME at $MATCHED_HOST_PATH"
-echo "🚀 Using Pinchflat container to grab metadata..."
+echo "✅ Found $CHANNEL_NAME at $MATCHED_HOST"
+echo "🚀 Using Pinchflat to grab poster for $CHANNEL_NAME..."
 
-# 1. Grab the thumbnail via the container
-# We assume the internal path structure matches the host structure under /downloads
+# 1. Download thumbnail via Docker
+# Using -o to force filename to 'poster' regardless of extension
 docker exec $CONTAINER_NAME yt-dlp --write-thumbnail --skip-download --playlist-items 0 \
-    -o "$INTERNAL_PATH/$CHANNEL_NAME/poster" "$CHANNEL_URL"
+    -o "$MATCHED_INTERNAL/$CHANNEL_NAME/poster" "$CHANNEL_URL"
 
-# 2. Convert webp to jpg on the host
-# Check both potential formats yt-dlp might spit out
-for ext in webp png mkv; do
-    if [ -f "$MATCHED_HOST_PATH/$CHANNEL_NAME/poster.$ext" ]; then
-        mv "$MATCHED_HOST_PATH/$CHANNEL_NAME/poster.$ext" "$MATCHED_HOST_PATH/$CHANNEL_NAME/poster.jpg"
+# 2. Convert and Rename
+# yt-dlp might download .webp, .png, or .jpg. Plex prefers .jpg.
+for ext in webp png; do
+    if [ -f "$MATCHED_HOST/$CHANNEL_NAME/poster.$ext" ]; then
+        mv "$MATCHED_HOST/$CHANNEL_NAME/poster.$ext" "$MATCHED_HOST/$CHANNEL_NAME/poster.jpg"
     fi
 done
 
-# 3. Create the .plexmatch file
-cat <<EOF > "$MATCHED_HOST_PATH/$CHANNEL_NAME/.plexmatch"
+# 3. Create .plexmatch (Optional but recommended for title/summary)
+cat <<EOF > "$MATCHED_HOST/$CHANNEL_NAME/.plexmatch"
 Title: $CHANNEL_NAME
 Summary: YouTube content for $CHANNEL_NAME.
 EOF
 
-# 4. Fix permissions
-chmod 644 "$MATCHED_HOST_PATH/$CHANNEL_NAME/poster.jpg"
-chmod 644 "$MATCHED_HOST_PATH/$CHANNEL_NAME/.plexmatch"
+# 4. Standardize Permissions
+chmod 644 "$MATCHED_HOST/$CHANNEL_NAME/poster.jpg"
+chmod 644 "$MATCHED_HOST/$CHANNEL_NAME/.plexmatch"
 
-echo "✨ Done! Refresh Plex metadata for $CHANNEL_NAME."
+echo "✨ Success! Refresh metadata in Plex for $CHANNEL_NAME."
