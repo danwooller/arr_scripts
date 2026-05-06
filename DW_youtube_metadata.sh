@@ -22,41 +22,36 @@ for HOST_ROOT in "${!PATH_MAP[@]}"; do
         [ -d "$CHANNEL_DIR" ] || continue
         CHANNEL_NAME=$(basename "$CHANNEL_DIR")
         
-        # Skip if metadata exists
         if [ -f "${CHANNEL_DIR}poster.jpg" ] && [ -f "${CHANNEL_DIR}.plexmatch" ]; then
-            echo "⏩ Skipping $CHANNEL_NAME (Metadata exists)"
+            echo "⏩ Skipping $CHANNEL_NAME"
             continue
         fi
 
-        echo "🔍 Querying Pinchflat for: $CHANNEL_NAME..."
+        echo "🔍 Querying DB for: $CHANNEL_NAME..."
 
-        # Query the Pinchflat DB for the URL where custom_name matches the folder
-        # The table is usually 'sources' and the column is 'custom_name' or 'name'
-        CHANNEL_URL=$(docker exec "$CONTAINER_NAME" sqlite3 "$DB_PATH" \
-            "SELECT url FROM sources WHERE custom_name='$CHANNEL_NAME' OR name='$CHANNEL_NAME' LIMIT 1;")
+        # Query the DB directly on the host
+        # Using LIKE to handle case-sensitivity and @ handles
+        CHANNEL_URL=$(sqlite3 "$HOST_DB_PATH" "SELECT url FROM sources WHERE custom_name LIKE '$CHANNEL_NAME' OR name LIKE '$CHANNEL_NAME' OR url LIKE '%/$CHANNEL_NAME' OR url LIKE '%/@$CHANNEL_NAME' LIMIT 1;")
 
         if [[ "$CHANNEL_URL" == http* ]]; then
             echo "🎯 Found Match: $CHANNEL_URL"
             
-            # 1. Download Poster
-            docker exec "$CONTAINER_NAME" yt-dlp --write-thumbnail --skip-download --playlist-items 0 \
+            # Use the container ONLY for the yt-dlp download part
+            docker exec -i "$CONTAINER_NAME" yt-dlp --write-thumbnail --skip-download --playlist-items 0 \
                 -o "$INTERNAL_ROOT/$CHANNEL_NAME/poster" "$CHANNEL_URL"
 
-            # 2. Convert to JPG
+            # Rename/Clean up
             for ext in webp png; do
                 [ -f "${CHANNEL_DIR}poster.$ext" ] && mv "${CHANNEL_DIR}poster.$ext" "${CHANNEL_DIR}poster.jpg"
             done
 
-            # 3. Create .plexmatch
+            # Create .plexmatch
             echo -e "Title: $CHANNEL_NAME\nSummary: YouTube content for $CHANNEL_NAME." > "${CHANNEL_DIR}.plexmatch"
-
-            # 4. Set Permissions
             chmod 644 "${CHANNEL_DIR}poster.jpg" "${CHANNEL_DIR}.plexmatch"
-            echo "✅ Assets created for $CHANNEL_NAME"
+            echo "✅ Success for $CHANNEL_NAME"
         else
-            echo "❌ No matching source found in Pinchflat for '$CHANNEL_NAME'."
+            echo "❌ No DB match for '$CHANNEL_NAME'. Check if name matches Pinchflat exactly."
         fi
     done
 done
-
 echo "✨ Auto-scan complete."
