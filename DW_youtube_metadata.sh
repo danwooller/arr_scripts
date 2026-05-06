@@ -50,41 +50,40 @@ for HOST_ROOT in "${!PATH_MAP[@]}"; do
             echo "🎯 Found Match: $CHANNEL_URL"
             
             # 1. Download Poster via Docker
-            # Added --convert-thumbnails to force it to actually be a jpg
+            # Added --no-cache-dir to ensure we aren't getting old hits
             sudo docker exec -i "$CONTAINER_NAME" yt-dlp --write-thumbnail --skip-download \
-                --playlist-items 0 --no-playlist \
+                --playlist-items 0 --no-playlist --no-cache-dir \
                 --convert-thumbnails jpg \
                 -o "$INTERNAL_ROOT/$CHANNEL_NAME/poster" "$CHANNEL_URL"
 
-            # 2. Convert/Rename to JPG
-            sleep 1
-            # Check for various outcomes of yt-dlp's naming convention
-            for f in "${CHANNEL_DIR}poster"*; do
-                [ -e "$f" ] || continue
-                # If it's not already .jpg, move it to .jpg
-                if [[ "$f" != *.jpg ]]; then
-                    mv "$f" "${CHANNEL_DIR}poster.jpg"
-                fi
-            done
+            # 2. FORCE SYNC
+            # This tells Ubuntu to flush all mount buffers and refresh the file list
+            sync
+            sleep 2 
 
-            # 3. Create .plexmatch
-            [ -z "$CHANNEL_DESC" ] && CHANNEL_DESC="YouTube content for $CHANNEL_NAME."
-            
-            cat <<EOF > "${CHANNEL_DIR}.plexmatch"
+            # 3. Handle the rename with a broader search
+            # We look for anything 'poster' and force it to be 'poster.jpg'
+            MATCHED_FILE=$(find "$CHANNEL_DIR" -maxdepth 1 -name "poster*" | head -n 1)
+
+            if [ -n "$MATCHED_FILE" ]; then
+                if [[ "$MATCHED_FILE" != *.jpg ]]; then
+                    mv "$MATCHED_FILE" "${CHANNEL_DIR}poster.jpg"
+                fi
+                
+                # 4. Create .plexmatch
+                [ -z "$CHANNEL_DESC" ] && CHANNEL_DESC="YouTube content for $CHANNEL_NAME."
+                cat <<EOF > "${CHANNEL_DIR}.plexmatch"
 Title: $CHANNEL_NAME
 Summary: $CHANNEL_DESC
 EOF
 
-            # 4. Permissions & Final Validation
-            if [ -f "${CHANNEL_DIR}poster.jpg" ]; then
-                chmod 644 "${CHANNEL_DIR}poster.jpg"
+                # 5. Fix Permissions immediately
+                chmod 644 "${CHANNEL_DIR}poster.jpg" "${CHANNEL_DIR}.plexmatch"
                 echo "✅ Success: $CHANNEL_NAME"
             else
-                # Let's see what actually landed in the folder if it fails
-                echo "⚠️ Poster download failed. Current folder contents:"
-                ls -l "$CHANNEL_DIR" | grep "poster"
+                echo "⚠️ Poster download failed. yt-dlp reported success but $CHANNEL_NAME/poster* is missing on the host."
+                echo "Check your Synology NFS/SMB permissions for the Docker user."
             fi
-            chmod 644 "${CHANNEL_DIR}.plexmatch"
         else
             echo "❌ No DB match for '$CHANNEL_NAME'."
         fi
