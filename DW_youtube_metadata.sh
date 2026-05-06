@@ -37,33 +37,39 @@ for HOST_ROOT in "${!PATH_MAP[@]}"; do
                OR LOWER(original_url) LIKE LOWER('%$CHANNEL_NAME%') 
             LIMIT 1;")
 
-        if [ -n "$DB_DATA" ]; then
-            CHANNEL_URL=$(echo "$DB_DATA" | cut -d'|' -f1)
-            CHANNEL_DESC=$(echo "$DB_DATA" | cut -d'|' -f2)
-            
-            # Fallback if description is empty
-            [ -z "$CHANNEL_DESC" ] && CHANNEL_DESC="YouTube content for $CHANNEL_NAME."
-
+        if [[ "$CHANNEL_URL" == http* ]]; then
             echo "🎯 Found Match: $CHANNEL_URL"
             
             # 1. Download Poster via Docker
-            sudo docker exec -i "$CONTAINER_NAME" yt-dlp --write-thumbnail --skip-download --playlist-items 0 \
+            # Using --no-playlist to ensure it stays on the main page
+            sudo docker exec -i "$CONTAINER_NAME" yt-dlp --write-thumbnail --skip-download --playlist-items 0 --no-playlist \
                 -o "$INTERNAL_ROOT/$CHANNEL_NAME/poster" "$CHANNEL_URL"
 
             # 2. Convert/Rename to JPG
+            # Adding a tiny sleep to ensure file system sync on the mount
+            sleep 1
             for ext in webp png; do
-                [ -f "${CHANNEL_DIR}poster.$ext" ] && mv "${CHANNEL_DIR}poster.$ext" "${CHANNEL_DIR}poster.jpg"
+                if [ -f "${CHANNEL_DIR}poster.$ext" ]; then
+                    mv "${CHANNEL_DIR}poster.$ext" "${CHANNEL_DIR}poster.jpg"
+                fi
             done
 
-            # 3. Create .plexmatch with REAL description
+            # 3. Create .plexmatch
+            [ -z "$CHANNEL_DESC" ] && CHANNEL_DESC="YouTube content for $CHANNEL_NAME."
+            
             cat <<EOF > "${CHANNEL_DIR}.plexmatch"
 Title: $CHANNEL_NAME
 Summary: $CHANNEL_DESC
 EOF
 
             # 4. Permissions
-            chmod 644 "${CHANNEL_DIR}poster.jpg" "${CHANNEL_DIR}.plexmatch"
-            echo "✅ Success: $CHANNEL_NAME"
+            if [ -f "${CHANNEL_DIR}poster.jpg" ]; then
+                chmod 644 "${CHANNEL_DIR}poster.jpg"
+                echo "✅ Success: $CHANNEL_NAME"
+            else
+                echo "⚠️ Poster download failed for $CHANNEL_NAME"
+            fi
+            chmod 644 "${CHANNEL_DIR}.plexmatch"
         else
             echo "❌ No DB match for '$CHANNEL_NAME'."
         fi
