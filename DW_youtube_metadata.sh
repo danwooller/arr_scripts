@@ -1,73 +1,69 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
-    source "/usr/local/bin/DW_common_functions.sh"
-else
-    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
-    exit 1
-fi
+source "/usr/local/bin/DW_common_functions.sh"
 
 # Configuration
 CONTAINER_NAME="pinchflat"
-CHANNEL_NAME=$1
-CHANNEL_URL=$2
-
-# Ensure arguments are provided
-if [ -z "$CHANNEL_NAME" ] || [ -z "$CHANNEL_URL" ]; then
-    echo "Usage: ./fix_yt.sh [ChannelName] [URL]"
-    exit 1
-fi
-
-# --- Mapping Host Paths to Container Internal Paths ---
-# Key = Host Directory | Value = Internal Docker Directory
-declare -A PATH_MAP
-PATH_MAP=(
+# Map host paths to internal container paths (Keys = Host | Values = Docker)
+declare -A PATH_MAP=(
     ["$DIR_MEDIA_YOUTUBE"]="/downloads"
     ["$DIR_SYNOLOGY_YOUTUBE"]="/synology"
 )
 
-# --- Logic: Find the Channel & Download ---
-MATCHED_HOST=""
-MATCHED_INTERNAL=""
+echo "🕵️ Starting YouTube Metadata Auto-Scan..."
 
-for host_path in "${!PATH_MAP[@]}"; do
-    if [ -d "$host_path/$CHANNEL_NAME" ]; then
-        MATCHED_HOST="$host_path"
-        MATCHED_INTERNAL="${PATH_MAP[$host_path]}"
-        break
-    fi
+for HOST_ROOT in "${!PATH_MAP[@]}"; do
+    INTERNAL_ROOT="${PATH_MAP[$HOST_ROOT]}"
+    
+    # Iterate through each channel folder
+    for CHANNEL_DIR in "$HOST_ROOT"/*/; do
+        [ -d "$CHANNEL_DIR" ] || continue
+        CHANNEL_NAME=$(basename "$CHANNEL_DIR")
+        
+        # Check if we already have a poster to save resources
+        if [ -f "${CHANNEL_DIR}poster.jpg" ] && [ -f "${CHANNEL_DIR}.plexmatch" ]; then
+            echo "⏩ Skipping $CHANNEL_NAME (Metadata already exists)"
+            continue
+        fi
+
+        echo "🔍 Identifying channel for folder: $CHANNEL_NAME..."
+
+        # Find the first video file to extract channel info
+        SAMPLE_VIDEO=$(find "$CHANNEL_DIR" -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" \) | head -n 1)
+
+        if [ -z "$SAMPLE_VIDEO" ]; then
+            echo "⚠️ No videos found in $CHANNEL_NAME, cannot auto-identify."
+            continue
+        fi
+
+        # Convert Host Video Path to Internal Container Path
+        INTERNAL_VIDEO="${SAMPLE_VIDEO/$HOST_ROOT/$INTERNAL_ROOT}"
+
+        # Get Channel URL from video metadata using yt-dlp inside the container
+        CHANNEL_URL=$(docker exec "$CONTAINER_NAME" yt-dlp --get-filename -o "%(channel_url)s" "$INTERNAL_VIDEO" 2>/dev/null)
+
+        if [[ "$CHANNEL_URL" == http* ]]; then
+            echo "🎯 Found URL: $CHANNEL_URL. Downloading assets..."
+            
+            # 1. Download Poster
+            docker exec "$CONTAINER_NAME" yt-dlp --write-thumbnail --skip-download --playlist-items 0 \
+                -o "$INTERNAL_ROOT/$CHANNEL_NAME/poster" "$CHANNEL_URL"
+
+            # 2. Convert to JPG
+            for ext in webp png; do
+                [ -f "${CHANNEL_DIR}poster.$ext" ] && mv "${CHANNEL_DIR}poster.$ext" "${CHANNEL_DIR}poster.jpg"
+            done
+
+            # 3. Create .plexmatch
+            echo -e "Title: $CHANNEL_NAME\nSummary: YouTube content for $CHANNEL_NAME." > "${CHANNEL_DIR}.plexmatch"
+
+            # 4. Set Permissions
+            chmod 644 "${CHANNEL_DIR}poster.jpg" "${CHANNEL_DIR}.plexmatch"
+        else
+            echo "❌ Failed to extract Channel URL for $CHANNEL_NAME."
+        fi
+    done
 done
 
-if [ -z "$MATCHED_HOST" ]; then
-    echo "❌ Folder '$CHANNEL_NAME' not found in your YouTube directories."
-    exit 1
-fi
-
-echo "✅ Found $CHANNEL_NAME at $MATCHED_HOST"
-echo "🚀 Using Pinchflat to grab poster for $CHANNEL_NAME..."
-
-# 1. Download thumbnail via Docker
-# Using -o to force filename to 'poster' regardless of extension
-docker exec $CONTAINER_NAME yt-dlp --write-thumbnail --skip-download --playlist-items 0 \
-    -o "$MATCHED_INTERNAL/$CHANNEL_NAME/poster" "$CHANNEL_URL"
-
-# 2. Convert and Rename
-# yt-dlp might download .webp, .png, or .jpg. Plex prefers .jpg.
-for ext in webp png; do
-    if [ -f "$MATCHED_HOST/$CHANNEL_NAME/poster.$ext" ]; then
-        mv "$MATCHED_HOST/$CHANNEL_NAME/poster.$ext" "$MATCHED_HOST/$CHANNEL_NAME/poster.jpg"
-    fi
-done
-
-# 3. Create .plexmatch (Optional but recommended for title/summary)
-cat <<EOF > "$MATCHED_HOST/$CHANNEL_NAME/.plexmatch"
-Title: $CHANNEL_NAME
-Summary: YouTube content for $CHANNEL_NAME.
-EOF
-
-# 4. Standardize Permissions
-chmod 644 "$MATCHED_HOST/$CHANNEL_NAME/poster.jpg"
-chmod 644 "$MATCHED_HOST/$CHANNEL_NAME/.plexmatch"
-
-echo "✨ Success! Refresh metadata in Plex for $CHANNEL_NAME."
+echo "✅ Auto-scan complete."
