@@ -37,6 +37,15 @@ for HOST_ROOT in "${!PATH_MAP[@]}"; do
                OR LOWER(original_url) LIKE LOWER('%$CHANNEL_NAME%') 
             LIMIT 1;")
 
+        echo "🔍 Querying DB for: $CHANNEL_NAME..."
+
+        # Use -line mode to make parsing easier and more robust
+        CHANNEL_URL=$(sudo sqlite3 "$HOST_DB_PATH" "SELECT original_url FROM sources WHERE LOWER(custom_name) LIKE LOWER('%$CHANNEL_NAME%') OR LOWER(original_url) LIKE LOWER('%$CHANNEL_NAME%') LIMIT 1;")
+        CHANNEL_DESC=$(sudo sqlite3 "$HOST_DB_PATH" "SELECT description FROM sources WHERE LOWER(custom_name) LIKE LOWER('%$CHANNEL_NAME%') OR LOWER(original_url) LIKE LOWER('%$CHANNEL_NAME%') LIMIT 1;")
+
+        # Clean up the variables (remove potential carriage returns)
+        CHANNEL_URL=$(echo "$CHANNEL_URL" | tr -d '\r\n')
+
         if [[ "$CHANNEL_URL" == http* ]]; then
             echo "🎯 Found Match: $CHANNEL_URL"
             
