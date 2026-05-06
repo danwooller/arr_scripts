@@ -5,7 +5,7 @@ source "/usr/local/bin/DW_common_functions.sh"
 
 # Configuration
 CONTAINER_NAME="pinchflat"
-DB_PATH="/config/db/pinchflat.db" # Standard path inside Pinchflat container
+DB_PATH="/opt/docker/pinchflat/config/db/pinchflat.db" # Standard path inside Pinchflat container
 
 # Map host paths to internal container paths
 declare -A PATH_MAP=(
