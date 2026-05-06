@@ -12,12 +12,6 @@ declare -A PATH_MAP=(
     ["$DIR_SYNOLOGY_YOUTUBE"]="/synology"
 )
 
-# 1. Verify DB Access
-if [ ! -f "$HOST_DB_PATH" ]; then
-    echo "❌ DB not found at $HOST_DB_PATH."
-    exit 1
-fi
-
 echo "🕵️ Starting YouTube Metadata Auto-Scan..."
 
 for HOST_ROOT in "${!PATH_MAP[@]}"; do
@@ -33,39 +27,45 @@ for HOST_ROOT in "${!PATH_MAP[@]}"; do
             continue
         fi
 
-        echo "🔍 Querying DB for folder: $CHANNEL_NAME..."
+        echo "🔍 Querying DB for: $CHANNEL_NAME..."
 
-        # Query using LOWER() and LIKE for maximum flexibility
-        # This matches if the folder name is anywhere in the URL, name, or custom_name
-        CHANNEL_URL=$(sudo sqlite3 "$HOST_DB_PATH" "
-            SELECT url FROM sources 
+        # Query for both URL and Description
+        # We use | as a separator to split the results later
+        DB_DATA=$(sudo sqlite3 "$HOST_DB_PATH" "
+            SELECT original_url, description FROM sources 
             WHERE LOWER(custom_name) LIKE LOWER('%$CHANNEL_NAME%') 
-               OR LOWER(name) LIKE LOWER('%$CHANNEL_NAME%') 
-               OR LOWER(url) LIKE LOWER('%$CHANNEL_NAME%') 
+               OR LOWER(original_url) LIKE LOWER('%$CHANNEL_NAME%') 
             LIMIT 1;")
 
-        if [[ "$CHANNEL_URL" == http* ]]; then
+        if [ -n "$DB_DATA" ]; then
+            CHANNEL_URL=$(echo "$DB_DATA" | cut -d'|' -f1)
+            CHANNEL_DESC=$(echo "$DB_DATA" | cut -d'|' -f2)
+            
+            # Fallback if description is empty
+            [ -z "$CHANNEL_DESC" ] && CHANNEL_DESC="YouTube content for $CHANNEL_NAME."
+
             echo "🎯 Found Match: $CHANNEL_URL"
             
-            # Download via Docker
+            # 1. Download Poster via Docker
             sudo docker exec -i "$CONTAINER_NAME" yt-dlp --write-thumbnail --skip-download --playlist-items 0 \
                 -o "$INTERNAL_ROOT/$CHANNEL_NAME/poster" "$CHANNEL_URL"
 
-            # Rename/Clean up
+            # 2. Convert/Rename to JPG
             for ext in webp png; do
-                if [ -f "${CHANNEL_DIR}poster.$ext" ]; then
-                    mv "${CHANNEL_DIR}poster.$ext" "${CHANNEL_DIR}poster.jpg"
-                fi
+                [ -f "${CHANNEL_DIR}poster.$ext" ] && mv "${CHANNEL_DIR}poster.$ext" "${CHANNEL_DIR}poster.jpg"
             done
 
-            # Create .plexmatch
-            echo -e "Title: $CHANNEL_NAME\nSummary: YouTube content for $CHANNEL_NAME." > "${CHANNEL_DIR}.plexmatch"
-            
-            # Permissions
+            # 3. Create .plexmatch with REAL description
+            cat <<EOF > "${CHANNEL_DIR}.plexmatch"
+Title: $CHANNEL_NAME
+Summary: $CHANNEL_DESC
+EOF
+
+            # 4. Permissions
             chmod 644 "${CHANNEL_DIR}poster.jpg" "${CHANNEL_DIR}.plexmatch"
-            echo "✅ Created poster and .plexmatch for $CHANNEL_NAME"
+            echo "✅ Success: $CHANNEL_NAME"
         else
-            echo "❌ No DB match for '$CHANNEL_NAME'. Double check the name in Pinchflat."
+            echo "❌ No DB match for '$CHANNEL_NAME'."
         fi
     done
 done
