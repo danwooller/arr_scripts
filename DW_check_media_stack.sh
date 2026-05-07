@@ -22,17 +22,15 @@ check_service() {
     local url=$2
     local key=$3
     local endpoint=$4
+    local auth_header="X-Api-Key"
+
+    # Switch to Authorization header for Mealie or if "Bearer" is passed
+    [[ "$key" == Bearer* ]] && auth_header="Authorization"
 
     echo -n "Checking $name... "
     
-    if [[ -z "$url" || -z "$key" ]]; then
-        echo -e "${RED}FAILED (Missing Config)${NC}"
-        ((TOTAL_ERRORS++))
-        return 1
-    fi
-
     local status=$(curl -s -k -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
-        -H "X-Api-Key: $key" \
+        -H "$auth_header: $key" \
         "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
