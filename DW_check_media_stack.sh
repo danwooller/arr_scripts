@@ -102,8 +102,8 @@ for i in "${!QBT_SERVERS[@]}"; do
     FRIENDLY_NAME="${QBT_NAMES[$i]}"
     log "URL: $URL"
     log "NAME: $FRIENDLY_NAME"
-    log "${QBT_SERVERS[$i]}"
-    log "${QBT_NAMES[$i]}"
+    log ${QBT_SERVERS[$i]}
+    log ${QBT_NAMES[$i]}
     # If the name is missing for some reason, fallback to the index
     [[ -z "$FRIENDLY_NAME" ]] && FRIENDLY_NAME="Instance $i"
 
