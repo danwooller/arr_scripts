@@ -2,15 +2,6 @@
 
 HOST=$(hostname -s)
 
-# --- Shared Logging Function ---
-#log() {
-    # Using local variables for cleaner output
-#    local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
-#    local script_name="${0##*/}"
-#    echo "[$timestamp] ($script_name) $1" | tee -a "$LOG_FILE"
-#}
-    #local target_log="$LOG_FILE"
-
 # Universal Graceful Exit
 #trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
 cleanup() {
@@ -36,7 +27,7 @@ fi
 check_dependencies() {
     local missing_deps=()
     # Initializes an empty array to store the names of any tools not found on the system.
-    
+
     for dep in "$@"; do
     # Loops through every argument passed to the function (e.g., "jq", "curl", "mkvmerge").
         if ! command -v "$dep" >/dev/null 2>&1; then
@@ -56,12 +47,12 @@ check_dependencies() {
         # Logs the list of all missing tools in a single line.
         log "Attempting to install missing packages..."
         # Informs the user that the script is about to try and fix the problem automatically.
-        
+
         # Note: Package names don't always match command names (e.g., HandBrakeCLI vs handbrake-cli)
         # This logic attempts to install the command name, but may need manual overrides
         sudo apt-get update && sudo apt-get install -y "${missing_deps[@]}"
         # Refreshes the package list and attempts to install the missing tools using the Debian/Ubuntu package manager.
-        
+
         # Final verification
         for dep in "${missing_deps[@]}"; do
         # Loops back through the list of tools that were just supposedly installed.
@@ -83,10 +74,9 @@ log() {
     local server_name=$(hostname)
     local default_log="/mnt/media/torrent/${server_name}.log"
     local target_log="${LOG_FILE:-$default_log}"
-    
     local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     local script_name="${0##*/}"
-    
+
     # Write to screen and the server-specific log file
     echo "[$timestamp] ($script_name) $1" | stdbuf -oL tee -a "$target_log"
 }
