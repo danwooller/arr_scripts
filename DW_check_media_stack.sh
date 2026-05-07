@@ -112,9 +112,8 @@ for i in "${!QBT_SERVERS[@]}"; do
     fi
 
     # Heartbeat check
-    status=$(curl -s -k -L -o /dev/null --connect-timeout 3 -w "%{http_code}" \
-        -H "Referer: $URL" \
-        "$URL/api/v2/app/version")
+    # We check the login page; it returns 200 even if we aren't logged in.
+    status=$(curl -s -k -L -o /dev/null --connect-timeout 3 -w "%{http_code}" "$URL/login")
 
     # Prepare a clean Entity ID for Home Assistant (e.g., "qbt_4k_movies")
     # This removes spaces, converts to lowercase, and removes parentheses
