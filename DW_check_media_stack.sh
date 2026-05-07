@@ -29,8 +29,11 @@ check_service() {
 
     echo -n "Checking $name... "
     
+    local header_cmd=()
+    [[ "$key" != "NONE" ]] && header_cmd=(-H "X-Api-Key: $key")
+
     local status=$(curl -s -k -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
-        -H "$auth_header: $key" \
+        "${header_cmd[@]}" \
         "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
