@@ -20,17 +20,14 @@ NC='\033[0m'
 TOTAL_ERRORS=0
 
 check_service() {
-    local name=$1
-    local url=$2
-    local key=$3
-    local endpoint=$4
+    local name="$1"
+    local url="${2%/}"       # Strips trailing slash if present
+    local endpoint="${4#/}"  # Strips leading slash if present
+    local key="$3"
     
     echo -n "Checking $name... "
     
-    # 1. Initialize an empty array for headers
     local header_args=()
-
-    # 2. Only add a header if the key is not "NONE" and not empty
     if [[ "$key" != "NONE" && -n "$key" ]]; then
         if [[ "$key" == Bearer* ]]; then
             header_args+=("-H" "Authorization: $key")
@@ -39,11 +36,13 @@ check_service() {
         fi
     fi
 
-    # 3. Execute curl
-    # The "${header_args[@]}" part will literally disappear if the array is empty
+    # Explicitly join with a single slash
+    local full_url="${url}/${endpoint}"
+
+    # Use quotes around $full_url to handle any accidental spaces
     local status=$(curl -s -k -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
         "${header_args[@]}" \
-        "$url$endpoint")
+        "$full_url")
 
     if [[ "$status" == "200" ]]; then
         echo -e "${GREEN}OK (HTTP 200)${NC}"
