@@ -31,7 +31,7 @@ check_service() {
         return 1
     fi
 
-    local status=$(curl -s -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
+    local status=$(curl -s -k -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
         -H "X-Api-Key: $key" \
         -H "Authorization: $key" \
         "$url$endpoint")
