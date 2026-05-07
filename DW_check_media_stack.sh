@@ -9,8 +9,6 @@ else
     exit 1
 fi
 
-log "ℹ️ start"
-
 # Colors for readability
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -53,8 +51,6 @@ check_service() {
         return 1
     fi
 }
-
-log "--- Media Stack Connectivity Diagnostic ---"
 
 # Bazarr
 check_service "Bazarr" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/api/$BAZARR_API_VER/system/status"
