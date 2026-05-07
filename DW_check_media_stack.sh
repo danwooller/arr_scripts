@@ -27,7 +27,7 @@ check_service() {
     # Switch to Authorization header for Mealie or if "Bearer" is passed
     [[ "$key" == Bearer* ]] && auth_header="Authorization"
 
-    echo -n "Checking $name... "
+    log -n "Checking $name... "
     
     local header_cmd=()
     [[ "$key" != "NONE" ]] && header_cmd=(-H "X-Api-Key: $key")
@@ -44,7 +44,7 @@ check_service() {
     fi
 }
 
-echo "--- Media Stack Connectivity Diagnostic ---"
+log "--- Media Stack Connectivity Diagnostic ---"
 
 # Bazarr
 check_service "Bazarr" "$BAZARR_API_BASE" "$BAZARR_API_KEY" "/api/$BAZARR_API_VER/system/status"
