@@ -98,7 +98,10 @@ QBT_NAMES=("TV" "Movies" "Music" "4K TV" "4K Movies")
 for i in "${!QBT_SERVERS[@]}"; do
     URL="${QBT_SERVERS[$i]}"
     FRIENDLY_NAME="${QBT_NAMES[$i]}"
-    log "$URL - $FRIENDLY_NAME"
+    log "URL: $URL"
+    log "NAME: $FRIENDLY_NAME"
+    log "${QBT_SERVERS[$i]}"
+    log "${QBT_NAMES[$i]}"
     # If the name is missing for some reason, fallback to the index
     [[ -z "$FRIENDLY_NAME" ]] && FRIENDLY_NAME="Instance $i"
 
