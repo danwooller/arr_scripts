@@ -27,27 +27,22 @@ check_service() {
     
     echo -n "Checking $name... "
     
-    if [[ -z "$url" ]]; then
-        echo -e "${RED}FAILED (Missing URL)${NC}"
-        ((TOTAL_ERRORS++))
-        return 1
-    fi
+    # 1. Initialize an empty array for headers
+    local header_args=()
 
-    # Initialize an empty array for curl arguments
-    local curl_opts=()
-
-    # Only add headers if the key is NOT "NONE" and NOT empty
+    # 2. Only add a header if the key is not "NONE" and not empty
     if [[ "$key" != "NONE" && -n "$key" ]]; then
-        if [[ "$key" == Bearer* || "$name" == "Mealie" ]]; then
-            curl_opts+=("-H" "Authorization: $key")
+        if [[ "$key" == Bearer* ]]; then
+            header_args+=("-H" "Authorization: $key")
         else
-            curl_opts+=("-H" "X-Api-Key: $key")
+            header_args+=("-H" "X-Api-Key: $key")
         fi
     fi
 
-    # Execute curl using the array to handle empty headers gracefully
+    # 3. Execute curl
+    # The "${header_args[@]}" part will literally disappear if the array is empty
     local status=$(curl -s -k -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
-        "${curl_opts[@]}" \
+        "${header_args[@]}" \
         "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
