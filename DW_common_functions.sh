@@ -74,6 +74,7 @@ log() {
     local server_name=$(hostname)
     local default_log="/mnt/media/torrent/${server_name}.log"
     local target_log="${LOG_FILE:-$default_log}"
+
     local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     local script_name="${0##*/}"
 
@@ -117,7 +118,7 @@ flatten_source_dir() {
 ha_notification() {
     local title="$1"
     local message="$2"
-    
+
     if [[ -n "$HA_URL" && -n "$HA_TOKEN" ]]; then
         curl -X POST -H "Authorization: Bearer $HA_TOKEN" \
              -H "Content-Type: application/json" \
@@ -230,7 +231,7 @@ synology_tv_show_sync() {
     local SYNOLOGY_DIR="${SYNOLOGY_DIR:-/mnt/synology/TV}"
     local MEDIA_DIR="${MEDIA_DIR:-/mnt/media/TV}"
     local DRY_RUN="${DRY_RUN:-false}"
-    
+
     local DEST_SHOW_PATH="$SYNOLOGY_DIR/$SHOW_NAME"
     local SOURCE_SHOW_PATH="$MEDIA_DIR/$SHOW_NAME"
 
@@ -267,7 +268,7 @@ synology_tv_show_sync() {
             if ! $DRY_RUN; then
                 # Clean up empty sub-directories
                 find "$SOURCE_SHOW_PATH" -mindepth 1 -type d -empty -delete
-                
+
                 # Remove show folder if empty
                 if [[ -d "$SOURCE_SHOW_PATH" ]] && [[ -z "$(ls -A "$SOURCE_SHOW_PATH")" ]]; then
                     rmdir "$SOURCE_SHOW_PATH"
@@ -299,7 +300,7 @@ lidarr_targeted_rename() {
         folder_name=$(basename "$search_path")
         [[ $LOG_LEVEL == "debug" ]] && log "📂 Multi-disc folder detected. Moving up to: $folder_name"
     fi
-    
+
     [[ $LOG_LEVEL == "debug" ]] && log "🔍 Requesting Lidarr ID for: $folder_name"
 
     # --- Hardened JQ Logic ---
