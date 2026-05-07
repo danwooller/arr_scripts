@@ -9,7 +9,7 @@ else
     exit 1
 fi
 
-log "start"
+log "ℹ️ start"
 
 # Colors for readability
 GREEN='\033[0;32m'
@@ -29,7 +29,7 @@ check_service() {
     # Switch to Authorization header for Mealie or if "Bearer" is passed
     [[ "$key" == Bearer* ]] && auth_header="Authorization"
 
-    log -n "Checking $name... "
+    log "Checking $name... "
     
     local header_cmd=()
     [[ "$key" != "NONE" ]] && header_cmd=(-H "X-Api-Key: $key")
