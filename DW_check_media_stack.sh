@@ -9,6 +9,8 @@ else
     exit 1
 fi
 
+log "start"
+
 # Colors for readability
 GREEN='\033[0;32m'
 RED='\033[0;31m'
