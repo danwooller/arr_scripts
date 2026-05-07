@@ -24,25 +24,39 @@ check_service() {
     local url=$2
     local key=$3
     local endpoint=$4
-    local auth_header="X-Api-Key"
-
-    # Switch to Authorization header for Mealie or if "Bearer" is passed
-    [[ "$key" == Bearer* ]] && auth_header="Authorization"
-
-    log "Checking $name... "
     
-    local header_cmd=()
-    [[ "$key" != "NONE" ]] && header_cmd=(-H "X-Api-Key: $key")
+    echo -n "Checking $name... "
+    
+    if [[ -z "$url" ]]; then
+        echo -e "${RED}FAILED (Missing URL)${NC}"
+        ((TOTAL_ERRORS++))
+        return 1
+    fi
 
+    # Initialize an empty array for curl arguments
+    local curl_opts=()
+
+    # Only add headers if the key is NOT "NONE" and NOT empty
+    if [[ "$key" != "NONE" && -n "$key" ]]; then
+        if [[ "$key" == Bearer* || "$name" == "Mealie" ]]; then
+            curl_opts+=("-H" "Authorization: $key")
+        else
+            curl_opts+=("-H" "X-Api-Key: $key")
+        fi
+    fi
+
+    # Execute curl using the array to handle empty headers gracefully
     local status=$(curl -s -k -L -o /dev/null --connect-timeout 5 -w "%{http_code}" \
-        "${header_cmd[@]}" \
+        "${curl_opts[@]}" \
         "$url$endpoint")
 
     if [[ "$status" == "200" ]]; then
         echo -e "${GREEN}OK (HTTP 200)${NC}"
+        return 0
     else
         echo -e "${RED}FAILED (HTTP $status)${NC}"
         ((TOTAL_ERRORS++))
+        return 1
     fi
 }
 
