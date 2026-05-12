@@ -38,7 +38,7 @@ while true; do
         FILENAME=$(basename "$FILE")
         FILE_DIR=$(dirname "$FILE")
         TEMP_FILE="$FILE_DIR/processing_$FILENAME"
-        
+
         [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Checking file: $FILENAME"
 
         # Identify English, non-forced subtitles
@@ -46,7 +46,7 @@ while true; do
 
         if [ -n "$REMOVABLE_IDS" ]; then
             [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Match found ($REMOVABLE_IDS). Remuxing..."
-            
+
             if mkvmerge -o "$TEMP_FILE" --subtitle-tracks "!$REMOVABLE_IDS" "$FILE"; then
                 if [ -n "$CUSTOM_SOURCE" ]; then
                     mv "$TEMP_FILE" "$FILE"
