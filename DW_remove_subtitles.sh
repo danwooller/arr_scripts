@@ -28,7 +28,7 @@ mkdir -p "$DEST_DIR"
 POLL_INTERVAL=30
 MIN_FILE_AGE=0 
 
-log $SOURCE_DIR"
+log "$SOURCE_DIR"
 
 while true; do
     NEEDS_UPDATE=false
@@ -45,7 +45,7 @@ while true; do
         REMOVABLE_IDS=$(mkvmerge --identify "$FILE" --identification-format json | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == false) | .id' | tr '\n' ',' | sed 's/,$//')
 
         if [ -n "$REMOVABLE_IDS" ]; then
-#            [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Match found ($REMOVABLE_IDS). Remuxing..."
+            [[ -n "$CUSTOM_SOURCE" && "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Match found ($REMOVABLE_IDS). Remuxing..."
 
             if mkvmerge -o "$TEMP_FILE" --subtitle-tracks "!$REMOVABLE_IDS" "$FILE"; then
                 if [ -n "$CUSTOM_SOURCE" ]; then
