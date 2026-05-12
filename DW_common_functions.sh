@@ -863,6 +863,7 @@ sonarr_weekly_shows() {
                     # 1. Wait for File Lock (TrueNAS/Torrent Safety)
                     while lsof "$file" >/dev/null 2>&1; do
                         log "⏳ File $(basename "$file") is busy. Waiting..."
+                        manage_remote_torrent "delete" "$(basename "$file")"
                         sleep 5
                     done
 
