@@ -149,46 +149,44 @@ ha_update_status() {
 # ---- End Home Asistant ----
 
 manage_remote_torrent() {
-    # DW_clean_malicious.sh
-    # DW_convert_mkv.sh
-    # DW_monitor_convert.sh
-    # DW_monitor_movie_subtitles.sh
     local action=$1
-    # Assigns the first argument (stop/delete) to a local variable for clarity.
     local filename="$2"
-    # Assigns the filename passed from the main script to a local variable.
-    #local search_regex=$(echo "${filename:0:25}" | sed 's/[^a-zA-Z0-9]/.*/g')
-    # Takes the first 25 chars, then replaces all non-alphanumeric chars with '.*' (the regex wildcard).
-    # We shorten the capture to 10 characters to avoid "BluRay/BrRip" mismatches
-    local delete_data="${3:-false}" # Defaults to false if no argument is provided
+    local delete_data="${3:-false}"
     local search_regex=$(echo "${filename:0:10}" | sed 's/[^a-zA-Z0-9]/.*/g')
+
     for server in "${QBT_SERVERS[@]}"; do
-    # Loops through every server URL defined in your common_functions.sh array.
-        local t_data=$(curl -s -k -u "$QBT_USER:$QBT_PASS" "${server}/api/v2/torrents/info?all=true" | \
-                       jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
-        # Fetches all torrents, uses jq to find one matching the regex (case-insensitive), and returns "hash|name".
+        # 1. Login and save the cookie to a temporary file
+        local cookie_file=$(mktemp)
+        curl -s -k -X POST "${server}/api/v2/auth/login" \
+             -d "username=$QBT_USER&password=$QBT_PASS" \
+             -c "$cookie_file" > /dev/null
+
+        # 2. Use the cookie for the info request + Add Referer header
+        local t_data=$(curl -s -k -b "$cookie_file" \
+                        -H "Referer: ${server}" \
+                        "${server}/api/v2/torrents/info?all=true" | \
+                        jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
 
         if [[ -n "$t_data" && "$t_data" != "|" ]]; then
-        # Checks if t_data is not empty and contains more than just the pipe separator (meaning a match was found).
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
-            # Extracts the unique 40-character torrent hash from the first part of the string.
             local t_name=$(echo "$t_data" | cut -d'|' -f2)
-            # Extracts the actual torrent name as it appears in qBittorrent for logging purposes.
             log "ℹ️ ${action^} torrent: $t_name"
-            # Records the successful match and the intended action to your host-specific log file.
+
             local q_cmd="${action}"
-            # Creates a local variable for the command to be sent to the qBittorrent API.
             [[ "$action" == "stop" ]] && q_cmd="pause"
-            # Since the qBittorrent API uses '/pause' instead of '/stop', this translates the intent.
-            curl -s -k -u "$QBT_USER:$QBT_PASS" -X POST "${server}/api/v2/torrents/${q_cmd}" -d "hashes=$t_hash&deleteFiles=$delete_data" > /dev/null
-            # Sends the POST request to the server to pause or delete the hash, ensuring files are kept safe.
+
+            # 3. Use the same cookie for the action
+            curl -s -k -b "$cookie_file" \
+                 -H "Referer: ${server}" \
+                 -X POST "${server}/api/v2/torrents/${q_cmd}" \
+                 -d "hashes=$t_hash&deleteFiles=$delete_data" > /dev/null
+            
+            rm "$cookie_file"
             return 0
-            # Exits the function with a 'success' code so the main script knows it can move on.
         fi
+        rm "$cookie_file"
     done
-    # Ends the loop if the current server didn't have the torrent, moving to the next server.
     return 1
-    # Exits with an 'error' code if no server in the array contained a matching torrent.
 }
 
 # --- Media Library Notification Function ---
