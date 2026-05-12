@@ -47,12 +47,25 @@ for file in "$TARGET_DIR"/**/*.mkv; do
     audio_idx=0
     while read -r lang; do
         ((audio_idx++))
+
+        # 1. Check if language needs to be updated to 'eng'
         if [[ "$lang" == "und" || "$lang" == "null" ]]; then
             ((this_file_audio++))
-            [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: $filename -> Audio #$audio_idx is '$lang'"
+            [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: $filename -> Audio #$audio_idx is '$lang', setting to eng"
             
             if [[ "$DRY_RUN" != "true" ]]; then
                 mkvpropedit "$file" --edit "track:a$audio_idx" --set language=eng >/dev/null
+            fi
+            # Update our local variable so the next check catches it
+            lang="eng"
+        fi
+
+        # 2. Additional check: If language is 'eng', ensure track name is "English"
+        if [[ "$lang" == "eng" ]]; then
+            [[ "$LOG_LEVEL" == "debug" ]] && log "DEBUG: $filename -> Audio #$audio_idx is eng, ensuring name is 'English'"
+            
+            if [[ "$DRY_RUN" != "true" ]]; then
+                mkvpropedit "$file" --edit "track:a$audio_idx" --set name="English" >/dev/null
             fi
         fi
     done < <(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio") | .properties.language // "null"')
