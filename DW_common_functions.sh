@@ -152,16 +152,20 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     local delete_data="${3:-false}"
+    # Shortened to 10 chars to avoid release tag mismatches
     local search_regex=$(echo "${filename:0:10}" | sed 's/[^a-zA-Z0-9]/.*/g')
+    
+    # Use a single temp file for cookies
+    local cookie_file=$(mktemp)
 
     for server in "${QBT_SERVERS[@]}"; do
-        # 1. Login and save the cookie to a temporary file
-        local cookie_file=$(mktemp)
-        curl -s -k -X POST "${server}/api/v2/auth/login" \
-             -d "username=$QBT_USER&password=$QBT_PASS" \
-             -c "$cookie_file" > /dev/null
+        # 1. Login to the current server
+        curl -s -k -c "$cookie_file" \
+             -H "Referer: ${server}" \
+             --data "username=$QBT_USER&password=$QBT_PASS" \
+             "${server}/api/v2/auth/login" > /dev/null
 
-        # 2. Use the cookie for the info request + Add Referer header
+        # 2. Search for the torrent
         local t_data=$(curl -s -k -b "$cookie_file" \
                         -H "Referer: ${server}" \
                         "${server}/api/v2/torrents/info?all=true" | \
@@ -170,12 +174,14 @@ manage_remote_torrent() {
         if [[ -n "$t_data" && "$t_data" != "|" ]]; then
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
             local t_name=$(echo "$t_data" | cut -d'|' -f2)
+            
             log "ℹ️ ${action^} torrent: $t_name"
 
+            # Translate stop -> pause for the API
             local q_cmd="${action}"
             [[ "$action" == "stop" ]] && q_cmd="pause"
 
-            # 3. Use the same cookie for the action
+            # 3. Perform the action
             curl -s -k -b "$cookie_file" \
                  -H "Referer: ${server}" \
                  -X POST "${server}/api/v2/torrents/${q_cmd}" \
@@ -184,8 +190,9 @@ manage_remote_torrent() {
             rm "$cookie_file"
             return 0
         fi
-        rm "$cookie_file"
     done
+    
+    rm "$cookie_file"
     return 1
 }
 
