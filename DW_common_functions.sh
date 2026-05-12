@@ -865,6 +865,7 @@ sonarr_weekly_shows() {
                         log "⏳ File $(basename "$file") is busy. Waiting..."
                         local CLEAN_BASE="${FILENAME%.*}" 
                         manage_remote_torrent "stop" "$CLEAN_BASE"
+                        log "stoppihg "$CLEAN_BASE""
                         sleep 5
                     done
 
