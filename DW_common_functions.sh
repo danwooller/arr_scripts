@@ -859,22 +859,22 @@ sonarr_weekly_shows() {
             
             for file in "${FILES[@]}"; do
                 if [ -f "$file" ]; then
-                    
-                    # 1. Wait for File Lock (TrueNAS/Torrent Safety)
-                    while lsof "$file" >/dev/null 2>&1; do
-                        log "⏳ File $(basename "$file") is busy. Waiting..."
-                        local CLEAN_BASE="${file%.*}" 
-                        manage_remote_torrent "stop" "$CLEAN_BASE"
-                        log "stoppihg $(basename "$file")"
-                        sleep 5
-                    done
 
-                    # 2. Capture Names & Sanitize
+                    # 1. Capture Names & Sanitize
                     local FILENAME=$(basename "$file")
                     local DIR=$(dirname "$file")
                     local SAFE_NAME="${FILENAME//\[/_}"
                     SAFE_NAME="${SAFE_NAME//\]/_}"
                     local SAFE_FILE="$DIR/$SAFE_NAME"
+
+                    # 2. Wait for File Lock (TrueNAS/Torrent Safety)
+                    while lsof "$file" >/dev/null 2>&1; do
+                        log "⏳ File $(basename "$file") is busy. Waiting..."
+                        local CLEAN_BASE="${FILENAME%.*}" 
+                        manage_remote_torrent "stop" "$CLEAN_BASE"
+                        log "stoppihg $CLEAN_BASE"
+                        sleep 5
+                    done
 
                     # Rename if brackets exist
                     if [[ "$FILENAME" != "$SAFE_NAME" ]]; then
