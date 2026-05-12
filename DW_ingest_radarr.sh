@@ -15,8 +15,8 @@ check_dependencies "lsof" "mkvmerge" "jq" "mkvpropedit" "rename"
 
 log_start "$DIR_MEDIA_COMPLETED_MOVIES"
 
-HOST_COUNT=$(ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
-DOCKER_COUNT=$(docker exec sonarr ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
+HOST_COUNT=$(ls -1 "$DIR_MEDIA_COMPLETED_MOVIES" | wc -l)
+DOCKER_COUNT=$(docker exec sonarr ls -1 "$DIR_MEDIA_COMPLETED_MOVIES" | wc -l)
 
 if [ "$HOST_COUNT" -ne "$DOCKER_COUNT" ]; then
     log "⚠️ Host and Docker counts mismatch ($HOST_COUNT vs $DOCKER_COUNT). Restarting Radarr..."
