@@ -1051,7 +1051,7 @@ subtitle_extract() {
         
         # 4. Extract (Using the correct variables)
         log "📤 Extracting forced subtitle from: $filename"
-        mkvextract tracks "$file_path" "$primary_forced:$DIR_MEDIA_SUBTITLES/${base_name}.en.forced.srt" >/dev/null 2>&1
+        mkvextract tracks "$file_path" "$primary_forced:$DIR_MEDIA_SUBTITLES/${base_name}.srt" >/dev/null 2>&1
         
         if [ $? -eq 0 ]; then
             log "✅ Subtitle extracted to $DIR_MEDIA_SUBTITLES"
