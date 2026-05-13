@@ -30,20 +30,20 @@ while true; do
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) -exec mv -t "$DIR_MEDIA_COMPLETED_MOVIES" {} +
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 1 -type d -empty -delete 2>/dev/null
     find "$DIR_MEDIA_COMPLETED_MOVIES" -type f \( -name "*.nfo" -o -name "*.txt" -o -name "*.jpg" -o -name "*.png" -o -name "*.url" \) -delete 2>/dev/null
-log "1"
+
     # --- 1. Processing Loop ---
     # Regex updated to ignore ANY file ending in (YYYY).mkv regardless of space or underscore
     find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) \
     ! -name "*.tmp" \
     ! -regex ".*([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
-log "2"
+
         ORIGINAL_FILENAME=$(basename "$file")
         FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
-log "3"  
+
         # Check if file is still being written
         SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
-log "4"
+
         # --- 2. Robust Naming Logic ---
         year=$(echo "$ORIGINAL_FILENAME" | grep -oP '\d{4}' | head -n 1)
         
@@ -84,6 +84,11 @@ log "4"
         # --- 3. Remux Logic ---
         #sonos_audio_fix "$file"
         #subtitle_opts "$file"
+        manage_remote_torrent "stop" "$FILE_NAME_BASE"
+        # Call the logic to determine tracks (Pass the current file)
+        # We need to capture TRACK_OPTS and NEEDS_PROPEDIT from this function
+        # NOTE: Use the version of the function provided below that returns these vars
+        audio_subtitle_opt "$file" 
 
         if [ -f "$TARGET_PATH" ]; then
             log "⚠️ $TARGET_FILENAME already exists. Skipping."
