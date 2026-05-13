@@ -151,11 +151,10 @@ ha_update_status() {
 manage_remote_torrent() {
     local action=$1
     local filename="$2"
-    local delete_data="${3:-false}"
     
-    # 1. Cleaner regex: Replace dots/spaces with a literal dot for flexible matching
-    # Instead of just the first 10, use a larger chunk but escape special chars
-    local search_regex=$(echo "${filename:0:20}" | sed 's/[^a-zA-Z0-9]/./g')
+    # 1. Improved Search: Take more characters and replace ALL non-alphanumeric 
+    # with a dot (regex wildcard) to bridge dots vs spaces issues.
+    local search_term=$(echo "${filename:0:20}" | sed 's/[^a-zA-Z0-9]/./g')
     
     local cookie_file=$(mktemp)
 
@@ -166,32 +165,29 @@ manage_remote_torrent() {
              --data "username=$QBT_USER&password=$QBT_PASS" \
              "${server}/api/v2/auth/login" > /dev/null
 
-        # 2. Search - We use 'test' with the 'i' flag for case-insensitive matching
+        # 2. Match with Case-Insensitive regex
         local t_data=$(curl -s -k -b "$cookie_file" \
                         -H "Referer: ${server}" \
                         "${server}/api/v2/torrents/info?all=true" | \
-                        jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
+                        jq -r --arg RGX "$search_term" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
 
-        if [[ -n "$t_data" && "$t_data" != "|" ]]; then
+        if [[ -n "$t_data" ]]; then
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
-            local t_name=$(echo "$t_data" | cut -d'|' -f2)
             
-            # Map 'stop' to 'pause'
-            local q_cmd="${action}"
-            [[ "$action" == "stop" ]] && q_cmd="pause"
+            # 3. Action: Using 'stop' as primary, 'pause' as fallback
+            # Most 2026 versions of qBittorrent use /stop
+            local api_action="stop"
+            [[ "$action" == "resume" || "$action" == "start" ]] && api_action="start"
 
-            # 3. Perform the action
-            # Note: Ensure hashes= is passed correctly as a POST parameter
             curl -s -k -b "$cookie_file" \
                  -H "Referer: ${server}" \
-                 -X POST "${server}/api/v2/torrents/${q_cmd}" \
-                 -d "hashes=${t_hash}" > /dev/null
+                 -X POST "${server}/api/v2/torrents/${api_action}" \
+                 -d "hashes=${t_hash}"
             
             rm "$cookie_file"
             return 0
         fi
     done
-    
     rm "$cookie_file"
     return 1
 }
