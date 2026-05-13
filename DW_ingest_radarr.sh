@@ -88,7 +88,7 @@ while true; do
         # Call the logic to determine tracks (Pass the current file)
         # We need to capture TRACK_OPTS and NEEDS_PROPEDIT from this function
         # NOTE: Use the version of the function provided below that returns these vars
-        prepare_remux_options "$file" 
+        audio_subtitle_opt "$file" 
 
         if [ -f "$TARGET_PATH" ]; then
             log "⚠️ $TARGET_FILENAME already exists. Skipping."
