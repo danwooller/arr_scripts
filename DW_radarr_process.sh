@@ -34,9 +34,17 @@ fi
 # --- STEP 3: Final Flags ---
 # Set the 'Forced' flags if needed after all remuxing is done
 if [ "$NEEDS_PROPEDIT" = true ]; then
-    # forced subtitles
+    log "📝 Finalizing: Extracting forced subtitles and setting flags..."
+    # 1. Extract the subtitle first
+    # This ensures we have the external file as a backup
     subtitle_extract "$FILE_PATH"
-    mkvpropedit "$FILE_PATH" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
+    # 2. Set the flags on the mkv
+    # This makes the internal subtitle track behave correctly in players
+    if mkvpropedit "$FILE_PATH" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1; then
+        log "✅ Internal flags set and subtitle extracted."
+    else
+        log "⚠️ Subtitle flags could not be set (is the file locked?)."
+    fi
 fi
 
 log "🏁 All processing finished for $radarr_movie_title"
