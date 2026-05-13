@@ -34,6 +34,8 @@ fi
 # --- STEP 3: Final Flags ---
 # Set the 'Forced' flags if needed after all remuxing is done
 if [ "$NEEDS_PROPEDIT" = true ]; then
+    # forced subtitles
+    subtitle_extract "$FILE_PATH"
     mkvpropedit "$FILE_PATH" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
 fi
 
