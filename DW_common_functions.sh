@@ -995,61 +995,40 @@ sonos_audio_fix() {
 }
 # --- END SONOS AUDIO ---
 # --- AUDIO AND SUBTITLES ---
-audio_subtitle() {
-    local file="$1"
-    local filename=$(basename "$file")
-    local output_file="$DIR_MEDIA_COMPLETED/$filename"
-    local needs_propedit=false
-    local track_opts=""
-
-    # Get metadata once
-    local metadata=$(mkvmerge --identify "$file" --identification-format json)
+audio_subtitle_opt() {
+    local input_file="$1"
+    local metadata=$(mkvmerge --identify "$input_file" --identification-format json)
     
-    # 1. Identify Target Audio (English, Undefined, or Null)
+    # Reset globals
+    TRACK_OPTS=""
+    NEEDS_PROPEDIT=false
+
+    # 1. Identify Target Audio
     read -r audio_id audio_uid audio_lang <<< $(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="eng" or .properties.language=="und" or .properties.language==null)) | "\(.id) \(.properties.uid) \(.properties.language)"' | head -n 1)
 
     if [ -z "$audio_id" ]; then
-        log "No English audio found. Keeping all English subtitles..."
-        # Rule 2: No English audio -> Keep all English subs
+        log "No English audio found. Keeping all English subtitles."
         local eng_sub_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng") | .id] | join(",")')
-        track_opts=$([ -n "$eng_sub_ids" ] && echo "--subtitle-tracks $eng_sub_ids" || echo "--no-subtitles")
+        TRACK_OPTS=$([ -n "$eng_sub_ids" ] && echo "--subtitle-tracks $eng_sub_ids" || echo "--no-subtitles")
     else
-        # Rule 1: English audio exists -> Only keep Forced English subs
-        
-        # Fix "Undefined" labels if necessary
+        # Rule 1: English Audio exists
         if [ "$audio_lang" == "und" ] || [ "$audio_lang" == "null" ]; then
-            log "Fixing Undefined audio (UID: $audio_uid) to English..."
-            mkvpropedit "$file" --edit "track:=$audio_uid" --set language=eng --set language-ietf=en --tags all: >/dev/null 2>&1
-            # Refresh metadata after edit
-            metadata=$(mkvmerge --identify "$file" --identification-format json)
+            mkvpropedit "$input_file" --edit "track:=$audio_uid" --set language=eng --tags all: >/dev/null 2>&1
+            metadata=$(mkvmerge --identify "$input_file" --identification-format json)
         fi
 
-        # Find Forced subs
+        # Filter for Forced English subtitles
         local forced_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id] | join(",")')
         
         if [ -n "$forced_ids" ]; then
-            local primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
-            # Extract .srt for external compatibility (e.g., Plex/Sonos)
-            mkvextract tracks "$file" "$primary_forced:$DIR_MEDIA_SUBTITLES/${filename%.*}.srt" >/dev/null 2>&1
-            track_opts="--subtitle-tracks $forced_ids"
-            needs_propedit=true
+            TRACK_OPTS="--subtitle-tracks $forced_ids"
+            NEEDS_PROPEDIT=true
         else
-            track_opts="--no-subtitles"
+            TRACK_OPTS="--no-subtitles"
         fi
         
-        # Ensure we only keep the ONE English audio track we identified
-        track_opts="--audio-tracks $audio_id $track_opts"
-    fi
-
-    # 2. Execute the Merge
-    if mkvmerge -q -o "$output_file" $track_opts "$file"; then
-        if [ "$needs_propedit" = true ]; then
-            # Clean up the new file headers
-            mkvpropedit "$output_file" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
-        fi
-        return 0 # Success
-    else
-        return 1 # Fail
+        # Strip other audio tracks (keep only the English one)
+        TRACK_OPTS="--audio-tracks $audio_id $TRACK_OPTS"
     fi
 }
 # --- AUDIO AND SUBTITLES ---
