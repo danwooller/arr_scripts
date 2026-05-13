@@ -151,22 +151,21 @@ ha_update_status() {
 manage_remote_torrent() {
     local action=$1
     local filename="$2"
+    # Ensure delete_data is a literal 'true' or 'false' string for the API
     local delete_data="${3:-false}"
     
-    # Replace dots/hyphens/spaces with a dot (regex wildcard)
-    # Using more than 10 chars ensures we don't accidentally stop the wrong show
+    # 1. Improved regex to bridge the "dots vs spaces" gap
     local search_regex=$(echo "${filename:0:30}" | sed 's/[^a-zA-Z0-9]/./g')
-    
     local cookie_file=$(mktemp)
 
     for server in "${QBT_SERVERS[@]}"; do
-        # 1. Login
+        # Login
         curl -s -k -c "$cookie_file" \
              -H "Referer: ${server}" \
              --data "username=$QBT_USER&password=$QBT_PASS" \
              "${server}/api/v2/auth/login" > /dev/null
 
-        # 2. Search for the hash
+        # 2. Search
         local t_data=$(curl -s -k -b "$cookie_file" \
                         -H "Referer: ${server}" \
                         "${server}/api/v2/torrents/info?all=true" | \
@@ -175,16 +174,20 @@ manage_remote_torrent() {
         if [[ -n "$t_data" && "$t_data" != "|" ]]; then
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
             
-            # 3. Action Mapping for 2026 API
-            local q_cmd="stop"
-            [[ "$action" == "start" || "$action" == "resume" ]] && q_cmd="start"
-            [[ "$action" == "delete" ]] && q_cmd="delete"
+            # 3. Correct API Endpoint Mapping
+            local q_cmd="${action}"
+            case "$action" in
+                "stop")   q_cmd="stop" ;;  # Use 'pause' if on version < 5.0
+                "start")  q_cmd="start" ;; # Use 'resume' if on version < 5.0
+                "delete") q_cmd="delete" ;;
+            esac
 
-            # 4. Execute
+            # 4. Perform the action
+            # Note: deleteFiles MUST be true or false (lowercase)
             curl -s -k -b "$cookie_file" \
                  -H "Referer: ${server}" \
                  -X POST "${server}/api/v2/torrents/${q_cmd}" \
-                 -d "hashes=$t_hash&deleteFiles=$delete_data"
+                 -d "hashes=${t_hash}&deleteFiles=${delete_data}"
             
             rm "$cookie_file"
             return 0
