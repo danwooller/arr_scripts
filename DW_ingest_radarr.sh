@@ -30,7 +30,7 @@ while true; do
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 2 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) -exec mv -t "$DIR_MEDIA_COMPLETED_MOVIES" {} +
     find "$DIR_MEDIA_COMPLETED_MOVIES" -mindepth 1 -type d -empty -delete 2>/dev/null
     find "$DIR_MEDIA_COMPLETED_MOVIES" -type f \( -name "*.nfo" -o -name "*.txt" -o -name "*.jpg" -o -name "*.png" -o -name "*.url" \) -delete 2>/dev/null
-
+log "$DIR_MEDIA_COMPLETED_MOVIES"
     # --- 1. Processing Loop ---
     # Regex updated to ignore ANY file ending in (YYYY).mkv regardless of space or underscore
     find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) \
@@ -39,7 +39,7 @@ while true; do
         
         ORIGINAL_FILENAME=$(basename "$file")
         FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
-        
+log "$FILE_NAME_BASE"
         # Check if file is still being written
         SIZE1=$(stat -c%s "$file"); sleep 5; SIZE2=$(stat -c%s "$file")
         if [ "$SIZE1" -ne "$SIZE2" ]; then continue; fi
