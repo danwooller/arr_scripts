@@ -33,9 +33,11 @@ while true; do
 log "$DIR_MEDIA_COMPLETED_MOVIES"
     # --- 1. Processing Loop ---
     # Regex updated to ignore ANY file ending in (YYYY).mkv regardless of space or underscore
-    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \( -iname "*.mkv" -o -iname "*.mp4" -o -iname "*.ts" \) \
-    ! -name "*.tmp" \
-    ! -regex ".*([0-9][0-9][0-9][0-9])\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
+    find -L "$DIR_MEDIA_COMPLETED_MOVIES" -maxdepth 1 -type f \
+        -regextype posix-egrep \
+        \( -iname ".*\.mkv" -o -iname ".*\.mp4" -o -iname ".*\.ts" \) \
+        ! -name "*.tmp" \
+        ! -regex ".* \([0-9]{4}\)\.mkv$" -print0 | while IFS= read -r -d $'\0' file; do
         
         ORIGINAL_FILENAME=$(basename "$file")
         FILE_NAME_BASE="${ORIGINAL_FILENAME%.*}"
