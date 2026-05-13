@@ -152,20 +152,21 @@ manage_remote_torrent() {
     local action=$1
     local filename="$2"
     local delete_data="${3:-false}"
-    # Shortened to 10 chars to avoid release tag mismatches
-    local search_regex=$(echo "${filename:0:10}" | sed 's/[^a-zA-Z0-9]/.*/g')
     
-    # Use a single temp file for cookies
+    # 1. Cleaner regex: Replace dots/spaces with a literal dot for flexible matching
+    # Instead of just the first 10, use a larger chunk but escape special chars
+    local search_regex=$(echo "${filename:0:20}" | sed 's/[^a-zA-Z0-9]/./g')
+    
     local cookie_file=$(mktemp)
 
     for server in "${QBT_SERVERS[@]}"; do
-        # 1. Login to the current server
+        # Login
         curl -s -k -c "$cookie_file" \
              -H "Referer: ${server}" \
              --data "username=$QBT_USER&password=$QBT_PASS" \
              "${server}/api/v2/auth/login" > /dev/null
 
-        # 2. Search for the torrent
+        # 2. Search - We use 'test' with the 'i' flag for case-insensitive matching
         local t_data=$(curl -s -k -b "$cookie_file" \
                         -H "Referer: ${server}" \
                         "${server}/api/v2/torrents/info?all=true" | \
@@ -175,17 +176,16 @@ manage_remote_torrent() {
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
             local t_name=$(echo "$t_data" | cut -d'|' -f2)
             
-            log "ℹ️ ${action^} torrent: $t_name"
-
-            # Translate stop -> pause for the API
+            # Map 'stop' to 'pause'
             local q_cmd="${action}"
             [[ "$action" == "stop" ]] && q_cmd="pause"
 
             # 3. Perform the action
+            # Note: Ensure hashes= is passed correctly as a POST parameter
             curl -s -k -b "$cookie_file" \
                  -H "Referer: ${server}" \
                  -X POST "${server}/api/v2/torrents/${q_cmd}" \
-                 -d "hashes=$t_hash&deleteFiles=$delete_data" > /dev/null
+                 -d "hashes=${t_hash}" > /dev/null
             
             rm "$cookie_file"
             return 0
