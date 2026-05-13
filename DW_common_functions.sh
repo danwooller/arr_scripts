@@ -151,43 +151,46 @@ ha_update_status() {
 manage_remote_torrent() {
     local action=$1
     local filename="$2"
+    local delete_data="${3:-false}"
     
-    # 1. Improved Search: Take more characters and replace ALL non-alphanumeric 
-    # with a dot (regex wildcard) to bridge dots vs spaces issues.
-    local search_term=$(echo "${filename:0:20}" | sed 's/[^a-zA-Z0-9]/./g')
+    # Replace dots/hyphens/spaces with a dot (regex wildcard)
+    # Using more than 10 chars ensures we don't accidentally stop the wrong show
+    local search_regex=$(echo "${filename:0:30}" | sed 's/[^a-zA-Z0-9]/./g')
     
     local cookie_file=$(mktemp)
 
     for server in "${QBT_SERVERS[@]}"; do
-        # Login
+        # 1. Login
         curl -s -k -c "$cookie_file" \
              -H "Referer: ${server}" \
              --data "username=$QBT_USER&password=$QBT_PASS" \
              "${server}/api/v2/auth/login" > /dev/null
 
-        # 2. Match with Case-Insensitive regex
+        # 2. Search for the hash
         local t_data=$(curl -s -k -b "$cookie_file" \
                         -H "Referer: ${server}" \
                         "${server}/api/v2/torrents/info?all=true" | \
-                        jq -r --arg RGX "$search_term" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
+                        jq -r --arg RGX "$search_regex" '.[] | select(.name | test($RGX; "i")) | "\(.hash)|\(.name)"' | head -n 1)
 
-        if [[ -n "$t_data" ]]; then
+        if [[ -n "$t_data" && "$t_data" != "|" ]]; then
             local t_hash=$(echo "$t_data" | cut -d'|' -f1)
             
-            # 3. Action: Using 'stop' as primary, 'pause' as fallback
-            # Most 2026 versions of qBittorrent use /stop
-            local api_action="stop"
-            [[ "$action" == "resume" || "$action" == "start" ]] && api_action="start"
+            # 3. Action Mapping for 2026 API
+            local q_cmd="stop"
+            [[ "$action" == "start" || "$action" == "resume" ]] && q_cmd="start"
+            [[ "$action" == "delete" ]] && q_cmd="delete"
 
+            # 4. Execute
             curl -s -k -b "$cookie_file" \
                  -H "Referer: ${server}" \
-                 -X POST "${server}/api/v2/torrents/${api_action}" \
-                 -d "hashes=${t_hash}"
+                 -X POST "${server}/api/v2/torrents/${q_cmd}" \
+                 -d "hashes=$t_hash&deleteFiles=$delete_data"
             
             rm "$cookie_file"
             return 0
         fi
     done
+    
     rm "$cookie_file"
     return 1
 }
