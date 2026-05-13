@@ -1033,6 +1033,34 @@ audio_subtitle_opt() {
 }
 # --- AUDIO AND SUBTITLES ---
 # --- SUBTITLES ---
+subtitle_extract() {
+    local file_path="$1"
+    
+    # 1. Define the filename and base name
+    local filename=$(basename "$file_path")
+    local base_name="${filename%.*}"
+    
+    # 2. Get Metadata
+    metadata=$(mkvmerge --identify "$file_path" --identification-format json)
+    
+    # 3. Find Forced English IDs
+    forced_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and (.properties.language=="eng" or .properties.language=="en") and .properties.forced_track==true) | .id] | join(",")')
+    
+    if [ -n "$forced_ids" ]; then
+        primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
+        
+        # 4. Extract (Using the correct variables)
+        log "📤 Extracting forced subtitle from: $filename"
+        mkvextract tracks "$file_path" "$primary_forced:$DIR_MEDIA_SUBTITLES/${base_name}.en.forced.srt" >/dev/null 2>&1
+        
+        if [ $? -eq 0 ]; then
+            log "✅ Subtitle extracted to $DIR_MEDIA_SUBTITLES"
+        else
+            log "❌ Subtitle extraction failed."
+        fi
+    fi
+}
+
 subtitle_opts() {
     local file_path="$1"
     TRACK_OPTS=""
