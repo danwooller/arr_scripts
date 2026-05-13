@@ -84,7 +84,7 @@ while true; do
         # --- 3. Remux & Audio/Sub Logic ---
         # Stop the torrent to release file locks before moving to .tmp
         manage_remote_torrent "stop" "$FILE_NAME_BASE"
-
+log "$file"
         # Call the logic to determine tracks (Pass the current file)
         # We need to capture TRACK_OPTS and NEEDS_PROPEDIT from this function
         # NOTE: Use the version of the function provided below that returns these vars
