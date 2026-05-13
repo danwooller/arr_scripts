@@ -992,78 +992,67 @@ sonos_audio_fix() {
         rm -f -- "$output_file"
         return 1
     fi
-}
+}process_mkv_media() {
+    local file="$1"
+    local filename=$(basename "$file")
+    local output_file="$DIR_MEDIA_COMPLETED/$filename"
+    local needs_propedit=false
+    local track_opts=""
 
-xxxxxxxxxxsonos_audio_fix() {
-    local media_name="$1"
-
-    [[ "$media_name" != /* ]] && media_name="/$media_name"
-    if [ ! -f "$media_name" ]; then return 1; fi
-
-    # 1. NEW CHECK: Look for our custom "SONOS_FIXED" tag
-    IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name")
+    # Get metadata once
+    local metadata=$(mkvmerge --identify "$file" --identification-format json)
     
-    if [[ "$IS_FIXED" == "true" ]]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized: $(basename "$media_name")"
-        return 0
-    fi
+    # 1. Identify Target Audio (English, Undefined, or Null)
+    read -r audio_id audio_uid audio_lang <<< $(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="eng" or .properties.language=="und" or .properties.language==null)) | "\(.id) \(.properties.uid) \(.properties.language)"' | head -n 1)
 
-    # 2. Existing Layout Check
-    AUDIO_INFO=$(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels,channel_layout -of csv=p=0 "$media_name")
-    CODEC=$(echo "$AUDIO_INFO" | cut -d',' -f1)
-    CHANNELS=$(echo "$AUDIO_INFO" | cut -d',' -f2)
-    FINAL_LAYOUT=$(echo "$AUDIO_INFO" | cut -d',' -f3)
-
-    if [ -z "$CODEC" ]; then
-        [[ "$LOG_LEVEL" == "debug" ]] && log "🚫 No audio stream found in: $(basename "$media_name")"
-        return 1
-    fi
-
-    if [[ "$FINAL_LAYOUT" == "5.1(side)" && "$CHANNELS" -eq 6 && "$CODEC" == "ac3" ]]; then 
-        [[ "$LOG_LEVEL" == "debug" ]] && log "⏭️ Already Optimized (AC3 5.1 Side): $(basename "$media_name")"
-        return 0
-    fi
-
-    [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Normalising $CHANNELS ch audio for: $(basename "$media_name")"
-
-    temp_file="${media_name}.processing.tmp"
-    mv "$media_name" "$temp_file"
-
-    # 3. FIXED FFMPEG COMMANDS
-    if [[ "$CHANNELS" -gt 2 ]]; then
-        log "🔊 Downmixing $CHANNELS ch to 5.1(side) AC3 + Preserving Subtitles..."
-
-        ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v -map 0:a -map 0:s? \
-        -c:v copy \
-        -c:s copy \
-        -c:a ac3 -b:a 640k -ac 6 \
-        -af "channelmap=channel_layout=5.1(side),loudnorm=I=-16:TP=-1.5:LRA=11" \
-        -metadata SONOS_FIXED="true" \
-        -metadata:s:a:0 codec_name="ac3" \
-        "$media_name"
+    if [ -z "$audio_id" ]; then
+        log "No English audio found. Keeping all English subtitles..."
+        # Rule 2: No English audio -> Keep all English subs
+        local eng_sub_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng") | .id] | join(",")')
+        track_opts=$([ -n "$eng_sub_ids" ] && echo "--subtitle-tracks $eng_sub_ids" || echo "--no-subtitles")
     else
-        log "🔊 Normalising Stereo/Mono AC3 + Preserving Subtitles..."
+        # Rule 1: English audio exists -> Only keep Forced English subs
         
-        ffmpeg -v error -nostdin -y -i "$temp_file" \
-        -map 0:v -map 0:a -map 0:s? \
-        -c:v copy \
-        -c:s copy \
-        -c:a ac3 -b:a 640k \
-        -af "loudnorm=I=-16:TP=-1.5:LRA=11" \
-        -metadata SONOS_FIXED="true" \
-        "$media_name"
+        # Fix "Undefined" labels if necessary
+        if [ "$audio_lang" == "und" ] || [ "$audio_lang" == "null" ]; then
+            log "Fixing Undefined audio (UID: $audio_uid) to English..."
+            mkvpropedit "$file" --edit "track:=$audio_uid" --set language=eng --set language-ietf=en --tags all: >/dev/null 2>&1
+            # Refresh metadata after edit
+            metadata=$(mkvmerge --identify "$file" --identification-format json)
+        fi
+
+        # Find Forced subs
+        local forced_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id] | join(",")')
+        
+        if [ -n "$forced_ids" ]; then
+            local primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
+            # Extract .srt for external compatibility (e.g., Plex/Sonos)
+            mkvextract tracks "$file" "$primary_forced:$DIR_MEDIA_SUBTITLES/${filename%.*}.srt" >/dev/null 2>&1
+            track_opts="--subtitle-tracks $forced_ids"
+            needs_propedit=true
+        else
+            track_opts="--no-subtitles"
+        fi
+        
+        # Ensure we only keep the ONE English audio track we identified
+        track_opts="--audio-tracks $audio_id $track_opts"
     fi
 
-    if [ $? -eq 0 ] && [ -s "$media_name" ]; then
-        rm "$temp_file"
-        log "✨ $(basename "$media_name")"
+    # 2. Execute the Merge
+    if mkvmerge -q -o "$output_file" $track_opts "$file"; then
+        if [ "$needs_propedit" = true ]; then
+            # Clean up the new file headers
+            mkvpropedit "$output_file" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1
+        fi
+        return 0 # Success
     else
-        log "❌ Restore original for $(basename "$media_name")"
-        mv "$temp_file" "$media_name"
+        return 1 # Fail
     fi
 }
+# --- AUDIO AND SUBTITLES ---
 # --- END SONOS AUDIO ---
+# --- AUSIO AND SUBTITLES ---
+
 # --- SUBTITLES ---
 subtitle_opts() {
     local file_path="$1"
