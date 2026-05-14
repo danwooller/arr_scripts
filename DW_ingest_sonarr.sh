@@ -20,7 +20,7 @@ trap 'rm -f "$LOCK_FILE"; exit' INT TERM EXIT
 
 # --- Initialization ---
 check_dependencies "curl" "jq"
-log_start "🚀 Ingest Service Started"
+log_start "Ingest Service Started"
 
 HOST_COUNT=$(ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
 DOCKER_COUNT=$(docker exec sonarr ls -1 "$DIR_MEDIA_COMPLETED_TV" | wc -l)
