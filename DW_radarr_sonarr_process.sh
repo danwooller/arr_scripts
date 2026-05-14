@@ -1,16 +1,19 @@
 #!/bin/bash
 source "/usr/local/bin/DW_common_functions.sh"
 
-FILE_PATH="$radarr_moviefile_path"
+# --- Sonarr/Radarr Variable Detection ---
+# This allows the script to work regardless of which service calls it
+FILE_PATH="${sonarr_episodefile_path:-$radarr_moviefile_path}"
+TITLE="${sonarr_series_title:-$radarr_movie_title}"
 
 if [[ -z "$FILE_PATH" || ! -f "$FILE_PATH" ]]; then
     exit 0
 fi
 
-log "🎬 Processing: $radarr_movie_title"
+log "📺 Processing: $TITLE"
 
 # --- STEP 1: Audio & Subtitle Cleanup ---
-# This decides which tracks to keep based on your English/Forced rules
+# Filters tracks based on your English/Forced logic
 audio_subtitle_opt "$FILE_PATH"
 
 TEMP_CLEAN="${FILE_PATH}.clean"
@@ -24,27 +27,27 @@ else
 fi
 
 # --- STEP 2: Sonos Audio Fix ---
-# Now we fix the audio on the already-cleaned file
+# Transcodes audio to AC3/EAC3 for Sonos compatibility
 if sonos_audio_fix "$FILE_PATH"; then
     log "✅ Step 2: Sonos Fix Complete."
 else
     log "⚠️ Step 2: Sonos Fix skipped or failed (check logs)."
 fi
 
-# --- STEP 3: Final Flags ---
-# Set the 'Forced' flags if needed after all remuxing is done
+# --- STEP 3: Final Flags & Extraction ---
 if [ "$NEEDS_PROPEDIT" = true ]; then
     log "📝 Finalizing: Extracting forced subtitles and setting flags..."
-    # 1. Extract the subtitle first
-    # This ensures we have the external file as a backup
+    
+    # 1. Extract the subtitle first as an external backup
     subtitle_extract "$FILE_PATH"
-    # 2. Set the flags on the mkv
-    # This makes the internal subtitle track behave correctly in players
+    
+    # 2. Set the flags on the internal track
+    # Note: track:s1 assumes this is the first subtitle track after remux
     if mkvpropedit "$FILE_PATH" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1; then
         log "✅ Internal flags set and subtitle extracted."
     else
-        log "⚠️ Subtitle flags could not be set (is the file locked?)."
+        log "⚠️ Subtitle flags could not be set."
     fi
 fi
 
-log "🏁 All processing finished for $radarr_movie_title"
+log "🏁 All processing finished for $TITLE"
