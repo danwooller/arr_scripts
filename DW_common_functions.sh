@@ -757,7 +757,7 @@ sonarr_ingest() {
             -H "X-Api-Key: $SONARR_API_KEY" \
             -H "Content-Type: application/json" \
             -d "{ \"name\": \"ManualImport\", \"files\": $files_json }")
-        log "✅ Ingest queued for valid files."
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Ingest queued for valid files."
     fi
 
     # 5. Handle Failures (Hold & Report)
