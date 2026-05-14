@@ -937,7 +937,7 @@ sonos_audio_fix() {
     IS_FIXED=$(ffprobe -v error -show_entries format_tags=SONOS_FIXED -of csv=p=0 "$media_name" | tr -d '\r\n')
     
     if [[ "$IS_FIXED" == "true" ]]; then
-        log "⏭️ Already Optimized: $(basename "$media_name")"
+        [[ $LOG_LEVEL == "debug" ]] && log "⏭️ Already Optimized: $(basename "$media_name")"
         return 0
     fi
 
@@ -948,11 +948,11 @@ sonos_audio_fix() {
 
     # 2. Skip Logic
     if [[ "$CODEC" == "ac3" && "$CHANNELS" -le 6 ]]; then
-        log "⏭️ Already standard AC3: $(basename "$media_name")"
+        [[ $LOG_LEVEL == "debug" ]] && log "⏭️ Already standard AC3: $(basename "$media_name")"
         return 0
     fi
 
-    log "⚠️ Normalising $CHANNELS ch $CODEC audio: $(basename "$media_name")"
+    [[ $LOG_LEVEL == "debug" ]] && log "⚠️ Normalising $CHANNELS ch $CODEC audio: $(basename "$media_name")"
 
     # 3. Path setup
     local output_file="${media_name}.fixed.mkv"
@@ -960,10 +960,10 @@ sonos_audio_fix() {
     # 4. Conversion Logic
     local cmd_args
     if [ "$CHANNELS" -gt 2 ]; then
-        log "🔊 5.1+ detected -> AC3 6ch 640k"
+        [[ $LOG_LEVEL == "debug" ]] && log "🔊 5.1+ detected -> AC3 6ch 640k"
         cmd_args=(-c:a ac3 -b:a 640k -ac 6)
     else
-        log "🔊 Stereo detected -> AC3 2ch 256k"
+        [[ $LOG_LEVEL == "debug" ]] && log "🔊 Stereo detected -> AC3 2ch 256k"
         cmd_args=(-c:a ac3 -b:a 256k -ac 2)
     fi
 
@@ -983,7 +983,7 @@ sonos_audio_fix() {
     if [ $exit_code -eq 0 ] && [ -s "$output_file" ]; then
         rm -f -- "$media_name"
         mv -- "$output_file" "$media_name"
-        log "✨ Audio Fix complete: $(basename "$media_name")"
+        [[ $LOG_LEVEL == "debug" ]] && log "✨ Audio Fix complete: $(basename "$media_name")"
         return 0
     else
         log "❌ FFmpeg failed (Exit: $exit_code). Check /tmp/ffmpeg_debug.log"
@@ -1007,7 +1007,7 @@ audio_subtitle_opt() {
     read -r audio_id audio_uid audio_lang <<< $(echo "$metadata" | jq -r '.tracks[] | select(.type=="audio" and (.properties.language=="eng" or .properties.language=="und" or .properties.language==null)) | "\(.id) \(.properties.uid) \(.properties.language)"' | head -n 1)
 
     if [ -z "$audio_id" ]; then
-        log "No English audio found. Keeping all English subtitles."
+        [[ $LOG_LEVEL == "debug" ]] && log "No English audio found. Keeping all English subtitles."
         local eng_sub_ids=$(echo "$metadata" | jq -r '[.tracks[] | select(.type=="subtitles" and .properties.language=="eng") | .id] | join(",")')
         TRACK_OPTS=$([ -n "$eng_sub_ids" ] && echo "--subtitle-tracks $eng_sub_ids" || echo "--no-subtitles")
     else
@@ -1050,11 +1050,11 @@ subtitle_extract() {
         primary_forced=$(echo "$forced_ids" | cut -d',' -f1)
         
         # 4. Extract (Using the correct variables)
-        log "📤 Extracting forced subtitle from: $filename"
+        [[ $LOG_LEVEL == "debug" ]] && log "📤 Extracting forced subtitle from: $filename"
         mkvextract tracks "$file_path" "$primary_forced:$DIR_MEDIA_SUBTITLES/${base_name}.srt" >/dev/null 2>&1
         
         if [ $? -eq 0 ]; then
-            log "✅ Subtitle extracted to $DIR_MEDIA_SUBTITLES"
+            [[ $LOG_LEVEL == "debug" ]] && log "✅ Subtitle extracted to $DIR_MEDIA_SUBTITLES"
         else
             log "❌ Subtitle extraction failed."
         fi
@@ -1079,7 +1079,7 @@ subtitle_opts() {
     if [[ "$audio_lang" != "eng" && "$audio_lang" != "und" ]]; then
         # NON-ENGLISH AUDIO: Find the first English subtitle (forced or standard)
         sub_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="subtitles" and .properties.language=="eng") | .id' | head -n 1)
-        log "🌍 Foreign Audio Detected ($audio_lang). Looking for English translation subs..."
+        [[ $LOG_LEVEL == "debug" ]] && log "🌍 Foreign Audio Detected ($audio_lang). Looking for English translation subs..."
     else
         # ENGLISH AUDIO: Look ONLY for Forced English subtitles
         sub_id=$(echo "$metadata" | jq -r '.tracks[] | select(.type=="subtitles" and .properties.language=="eng" and .properties.forced_track==true) | .id' | head -n 1)
@@ -1124,7 +1124,7 @@ weekly_delete_files() {
     # 3. Execution Logic
     # -type f: Look for files (recursively through Season folders)
     # -mtime +$DAYS: Files where (Current Time - Modification Time) > DAYS
-    log "🧹 Scanning $TARGET_DIR for files older than $DAYS days..."
+    [[ $LOG_LEVEL == "debug" ]] && log "🧹 Scanning $TARGET_DIR for files older than $DAYS days..."
     
     # Count targets for the log
     local COUNT=$(find "$TARGET_DIR" -type f -mtime +"$DAYS" | wc -l)
@@ -1137,7 +1137,7 @@ weekly_delete_files() {
         # -mindepth 1 ensures we don't delete the root show folder itself
         find "$TARGET_DIR" -mindepth 1 -type d -empty -delete
         
-        log "✅ Deleted $COUNT old topical files and pruned empty folders in $(basename "$TARGET_DIR")."
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Deleted $COUNT old topical files and pruned empty folders in $(basename "$TARGET_DIR")."
     else
         [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ No files older than $DAYS days found in $(basename "$TARGET_DIR")."
     fi
