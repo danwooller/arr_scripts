@@ -34,6 +34,7 @@ while true; do
     weekly_delete_files "$DIR_MEDIA_HOLD" "7"
     weekly_delete_files "$DIR_MEDIA_FINISHED" "7"
     weekly_delete_files "$DIR_MEDIA_YOUTUBE" "7"
+    weekly_delete_files "$DIR_SYNOLOGY_YOUTUBE" "7"
     sonarr_weekly_shows
     find "$SOURCE_DIR" -type f -mmin +$MIN_FILE_AGE \
         \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" \) \
