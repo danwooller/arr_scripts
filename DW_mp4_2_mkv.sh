@@ -26,10 +26,6 @@ WATCH_DIRS=(
     "$DIR_SYNOLOGY_4KTV"
 )
 
-# Note: OUTPUT_DIR is now used as a fallback or temp if needed, 
-# but we will prioritize the source subfolder.
-POLL_INTERVAL=30
-
 # --- Run Dependency Check ---
 check_dependencies "HandBrakeCLI" "jq" "mkvmerge" "mkvpropedit" "rename"
 
@@ -90,7 +86,6 @@ for TARGET_DIR in "${WATCH_DIRS[@]}"; do
                 log "ℹ️ Success. Moving original ${FULL_FILE_NAME} to finished."
                 mv "$FULL_PATH" "${DIR_MEDIA_FINISHED}/${FULL_FILE_NAME}"
 
-                log "ℹ️ Removing torrent: $FILE_NAME"
                 plex_library_update "$TARGET_DIR" "$TARGET_DIR"
             else
                 log "⚠️ Error: mkvmerge failed on ${FULL_FILE_NAME}"
