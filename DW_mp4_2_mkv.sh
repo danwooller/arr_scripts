@@ -20,10 +20,6 @@ WATCH_DIRS=(
     "$DIR_MEDIA_4KMOVIES"
     "$DIR_SYNOLOGY_MOVIES"
     "$DIR_SYNOLOGY_4KMOVIES"
-    "$DIR_MEDIA_TV"
-    "$DIR_MEDIA_4KTV"
-    "$DIR_SYNOLOGY_TV"
-    "$DIR_SYNOLOGY_4KTV"
 )
 
 # --- Run Dependency Check ---
@@ -85,11 +81,11 @@ for TARGET_DIR in "${WATCH_DIRS[@]}"; do
             if [ $? -eq 0 ]; then
                 log "ℹ️ Success. Moving original ${FULL_FILE_NAME} to finished."
                 mv "$FULL_PATH" "${DIR_MEDIA_FINISHED}/${FULL_FILE_NAME}"
-
-                plex_library_update "$TARGET_DIR" "$TARGET_DIR"
             else
                 log "⚠️ Error: mkvmerge failed on ${FULL_FILE_NAME}"
             fi
         fi
     done
+    plex_library_update "$PLEX_MOVIES_SRC" "$PLEX_MOVIES_NAME"
+    plex_library_update "$PLEX_4KMOVIES_SRC" "$PLEX_4KMOVIES_NAME"
 done
