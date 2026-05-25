@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Monitors for mp4/m4v and converts them to mkv. Running on ubuntu9
+
 # --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
