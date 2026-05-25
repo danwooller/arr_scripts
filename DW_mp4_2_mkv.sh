@@ -91,7 +91,7 @@ for TARGET_DIR in "${WATCH_DIRS[@]}"; do
                 mv "$FULL_PATH" "${DIR_MEDIA_FINISHED}/${FULL_FILE_NAME}"
 
                 log "ℹ️ Removing torrent: $FILE_NAME"
-                manage_remote_torrent "delete" "$FILE_NAME"
+                plex_library_update "$TARGET_DIR" "$TARGET_DIR"
             else
                 log "⚠️ Error: mkvmerge failed on ${FULL_FILE_NAME}"
             fi
