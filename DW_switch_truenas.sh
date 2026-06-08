@@ -28,28 +28,31 @@ OLD_NAS=$2
 FSTAB_FILE="/etc/fstab"
 BACKUP_FILE="/etc/fstab.bak"
 
-# 1. Create a backup just in case
+# Create a backup just in case
 cp "$FSTAB_FILE" "$BACKUP_FILE"
 
-echo "Modifying $FSTAB_FILE..."
+log "Modifying $FSTAB_FILE..."
 
-# 2. Enable truenas4 (remove the '#' at the start of the line)
+# Enable truenas4 (remove the '#' at the start of the line)
 sed -i "s|^#\(\/\/${NEW_NAS}\.wooller\.com/media\)[[:space:]]|\1 |" "$FSTAB_FILE"
 
-# 3. Disable truenas6 (add a '#' at the start of the line)
+# Disable truenas6 (add a '#' at the start of the line)
 sed -i "s|^\(\/\/${OLD_NAS}\.wooller\.com/media\)[[:space:]]|#\1 |" "$FSTAB_FILE"
 
-# 4. Reload the mounts
-echo "Unmounting current share..."
+# Reload the mounts
+log "Reloading systemd manager configuration..."
+systemctl daemon-reload
+
+log "Unmounting current share..."
 umount /mnt/media 2>/dev/null
 
-echo "Mounting new share..."
+log "Mounting new share..."
 mount -a
 
 if [ $? -eq 0 ]; then
-  echo "Successfully switched to truenas4 and reloaded mounts!"
+  log "Successfully switched to truenas4 and reloaded mounts!"
 else
-  echo "Error: Mount failed. Restoring backup."
+  log "Error: Mount failed. Restoring backup."
   cp "$BACKUP_FILE" "$FSTAB_FILE"
   exit 1
 fi
