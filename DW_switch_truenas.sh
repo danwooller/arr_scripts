@@ -34,10 +34,10 @@ cp "$FSTAB_FILE" "$BACKUP_FILE"
 echo "Modifying $FSTAB_FILE..."
 
 # 2. Enable truenas4 (remove the '#' at the start of the line)
-sed -i 's|^#\(//truenas4\.wooller\.com/media\)[[:space:]]|\1 |' "$FSTAB_FILE"
+sed -i "s|^#\(\/\/${NEW_NAS}\.wooller\.com/media\)[[:space:]]|\1 |" "$FSTAB_FILE"
 
 # 3. Disable truenas6 (add a '#' at the start of the line)
-sed -i 's|^\(//truenas6\.wooller\.com/media\)[[:space:]]|#\1 |' "$FSTAB_FILE"
+sed -i "s|^\(\/\/${OLD_NAS}\.wooller\.com/media\)[[:space:]]|#\1 |" "$FSTAB_FILE"
 
 # 4. Reload the mounts
 echo "Unmounting current share..."
