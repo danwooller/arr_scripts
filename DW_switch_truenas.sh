@@ -50,7 +50,7 @@ log "Mounting new share..."
 mount -a
 
 if [ $? -eq 0 ]; then
-  log "Successfully switched to truenas4 and reloaded mounts!"
+  log "Successfully switched to $NEW_NAS and reloaded mounts!"
 else
   log "Error: Mount failed. Restoring backup."
   cp "$BACKUP_FILE" "$FSTAB_FILE"
