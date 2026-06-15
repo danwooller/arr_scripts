@@ -36,12 +36,12 @@ echo "Mounting TrueNAS..."
 sudo mount -t nfs -o soft,timeo=50,retrans=2 $BASE_HOST4:$NAS_PATH $MOUNT_POINT
 
 if mountpoint -q "$MOUNT_POINT" && mountpoint -q "$SSD_MOUNT"; then
-    sudo mkdir -p $NAS_PATH/$HOST
+    sudo mkdir -p "$NAS_PATH/$HOST"
     [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ Drives ready, starting sync..."
     
     # --timeout=180: If no data moves for 3 mins (NAS went to sleep), rsync kills itself
     # --partial: Keeps what it got so far to save time tomorrow
-    sudo rsync -aH --delete --timeout=180 "$SSD_SNAPSHOTS" "$MOUNT_POINT/"
+    sudo rsync -aH --delete --timeout=180 "$SSD_SNAPSHOTS" "$MOUNT_POINT/$HOST"
     
     log "🏁 Sync complete, cleaning up..."
     # -l (Lazy) is key here. If the drive is already "gone" (asleep), 
