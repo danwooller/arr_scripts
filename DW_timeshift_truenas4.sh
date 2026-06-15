@@ -12,7 +12,7 @@ fi
 # --- CONFIGURATION ---
 SSD_DEVICE="/dev/sda"
 SSD_MOUNT="/mnt/ssd_recovery"
-NAS_PATH="/mnt/backup/$HOST"
+NAS_PATH="/mnt/tank1/backup/$HOST"
 MOUNT_POINT="/mnt/truenas4_backup"
 SSD_SNAPSHOTS="$SSD_MOUNT/timeshift/snapshots/"
 trap 'sudo umount -l $MOUNT_POINT $SSD_MOUNT 2>/dev/null' EXIT
