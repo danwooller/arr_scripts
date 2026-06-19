@@ -71,13 +71,11 @@ log() {
     # 1. Look for a LOG_FILE variable set in the script or environment.
     # 2. If it's NOT set, automatically create a log based on the Server's Name.
     #    (e.g., /mnt/media/torrent/debian12.log or /mnt/media/torrent/fedora.log)
-    local server_name=$(hostname)
+    local server_name="${HOST:-$(hostname)}"
     local default_log="/mnt/media/torrent/${server_name}.log"
     local target_log="${LOG_FILE:-$default_log}"
-
     local timestamp=$(date +'%Y-%m-%d %H:%M:%S')
     local script_name="${0##*/}"
-
     # Write to screen and the server-specific log file
     echo "[$timestamp] ($script_name) $1" | stdbuf -oL tee -a "$target_log"
 }
