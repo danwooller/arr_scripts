@@ -161,7 +161,7 @@ while true; do
                     # Only now do we clear the source and the torrent
                     mv "$SOURCE_FILE" "$DIR_MEDIA_FINISHED/$BASE_NAME-$(date +%H%M).$EXTENSION"
                     manage_remote_torrent "delete" "$BASE_NAME"
-                    rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT" "$SUB_FILE"
+                    rm -f "$FILE_TO_PROCESS" "$TEMP_OUTPUT"
                 else
                     log "❌ Move to Ingest FAILED. Sending source to HOLD."
                     mv "$SOURCE_FILE" "$DIR_MEDIA_HOLD/"
