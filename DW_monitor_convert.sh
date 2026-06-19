@@ -47,13 +47,22 @@ while true; do
         TEMP_OUTPUT="$WORKING_DIR/${BASE_NAME}_temp.mkv"
         FINAL_OUTPUT="$WORKING_DIR/$BASE_NAME.mkv"
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
+        
+        # Initialize internal tracking states
+        HAS_SUBTITLES=false
+        FORCED_FLAG="no"
+        SUB_NAME="English"
+
         # --- Subtitle Logic ---
-        TRACK_JSON=$(mkvmerge -J "$FILE_TO_PROCESS" | tr -d '\r\n')
-        # 1. Try to find Forced English subtitles first
-        SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
+        TRACK_JSON=$(mkvmerge -J "$FILE_TO_PROCESS")
+        
+        # 1. Try to find Forced English subtitles first (handles both true, "true", and 1 flags)
+        SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and (.properties.forced_track == true or .properties.forced_track == 1 or .properties.forced_track == "1")) | .id' | head -n 1)
         
         if [[ -n "$SUB_TRACK_ID" && "$SUB_TRACK_ID" != "null" ]]; then
             SUB_NAME="Forced"
+            FORCED_FLAG="yes"
+            HAS_SUBTITLES=true
         else
             # 2. No Forced track found. Check if English Audio exists
             HAS_ENG_AUDIO=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio" and .properties.language == "eng") | .id' | head -n 1)
@@ -62,10 +71,19 @@ while true; do
             if [[ -z "$HAS_ENG_AUDIO" || "$HAS_ENG_AUDIO" == "null" ]]; then
                 SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng") | .id' | head -n 1)
                 
-                # Only label it "English" if we actually found a track
                 if [[ -n "$SUB_TRACK_ID" && "$SUB_TRACK_ID" != "null" ]]; then
                     SUB_NAME="English"
+                    HAS_SUBTITLES=true
                 fi
+            fi
+        fi
+
+        # Executing extraction only if a valid subtitle track was flagged
+        if [ "$HAS_SUBTITLES" = true ]; then
+            log "ℹ️ Extracting subtitle track $SUB_TRACK_ID to $SUB_FILE"
+            if ! mkvextract tracks "$FILE_TO_PROCESS" "${SUB_TRACK_ID}:${SUB_FILE}"; then
+                log "⚠️ Subtitle extraction command failed. Proceeding without external subs."
+                HAS_SUBTITLES=false
             fi
         fi
 
@@ -110,14 +128,12 @@ while true; do
             if [ "$HAS_SUBTITLES" = true ] && [[ -f "$SUB_FILE" ]]; then
                 log "ℹ️ Remuxing subtitles: $FILENAME"
                 
-                # Use the exact flags from the successful manual test
-                # We use quotes around variables to handle spaces in names
                 MKV_ERROR=$(mkvmerge -o "$FINAL_OUTPUT" \
                     "$TEMP_OUTPUT" \
                     --language 0:eng \
-                    --track-name 0:"${SUB_NAME:-English}" \
-                    --default-track-flag 0:"${FORCED_FLAG:-no}" \
-                    --forced-display-flag 0:"${FORCED_FLAG:-no}" \
+                    --track-name 0:"${SUB_NAME}" \
+                    --default-track-flag 0:"${FORCED_FLAG}" \
+                    --forced-display-flag 0:"${FORCED_FLAG}" \
                     "$SUB_FILE" 2>&1)        
                 if [[ ! -f "$FINAL_OUTPUT" ]]; then
                     log "❌ mkvmerge FAILED! Error details:"
