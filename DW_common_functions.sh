@@ -750,6 +750,8 @@ sonarr_ingest() {
 
     # 4. Handle Successes
     if [[ "$files_json" != "[]" && -n "$files_json" ]]; then
+        # --- Run the isolated subtitle matching function ---
+        sonarr_stage_subtitles "$probe_data"
         # (added -k for https)
         local response=$(curl -s -k -X POST "$SONARR_API_BASE/command" \
             -H "X-Api-Key: $SONARR_API_KEY" \
@@ -775,6 +777,57 @@ sonarr_ingest() {
             fi
         done <<< "$failed_files"
     fi
+}
+
+sonarr_stage_subtitles() {
+    local probe_data="$1"
+    
+    if [[ -z "$probe_data" || "$probe_data" == "[]" ]]; then
+        return 1
+    fi
+
+    [[ "$LOG_LEVEL" == "debug" ]] && log "🔍 Scanning probe data for matching subtitle files..."
+
+    # Loop through items that Sonarr matched to a valid show and passed rejection checks
+    echo "$probe_data" | jq -r '
+        .[] | select(.series != null and (.rejections | map(select(.reason != "Sample")) | length == 0)) 
+        | "\(.path)|\(.relativePath)"' | while IFS='|' read -r source_video_path relative_dest_path; do
+        
+        if [[ -z "$relative_dest_path" || "$relative_dest_path" == "null" ]]; then
+            continue
+        fi
+
+        # 1. Isolate the base filename (e.g., Show.S01E01.mkv -> Show.S01E01)
+        local video_filename=$(basename "$source_video_path")
+        local base_name="${video_filename%.*}"
+        
+        # 2. Look for the subtitle directly inside your designated global subtitles directory
+        # Checking for both raw .srt and localized .en.srt variants just in case
+        local target_src=""
+        if [[ -f "$DIR_MEDIA_SUBTITLES/${base_name}.srt" ]]; then
+            target_src="$DIR_MEDIA_SUBTITLES/${base_name}.srt"
+        elif [[ -f "$DIR_MEDIA_SUBTITLES/${base_name}.en.srt" ]]; then
+            target_src="$DIR_MEDIA_SUBTITLES/${base_name}.en.srt"
+        fi
+
+        # 3. If found, copy it to Sonarr's calculated target destination folder
+        if [[ -n "$target_src" ]]; then
+            local dest_base="${relative_dest_path%.*}"
+            local tv_root="${DIR_MEDIA_TV:-/mnt/media/TV}"
+#            local final_srt_dest="$tv_root/${dest_base}.en.forced.srt"
+            local final_srt_dest="$tv_root/${dest_base}.srt"
+
+            # Ensure destination directory exists and copy the file
+            mkdir -p "$(dirname "$final_srt_dest")"
+            if cp "$target_src" "$final_srt_dest"; then
+                log "💾 Library Sidecar Subtitle Pre-staged: $(basename "$final_srt_dest")"
+            else
+                log "⚠️ Failed to copy sidecar subtitle to: $final_srt_dest"
+            fi
+        else
+            [[ "$LOG_LEVEL" == "debug" ]] && log "ℹ️ No matching subtitle found in $DIR_MEDIA_SUBTITLES for: $video_filename"
+        fi
+    done
 }
 
 sonarr_missing_episodes() {
