@@ -49,34 +49,6 @@ while true; do
         SUB_FILE="$DIR_MEDIA_SUBTITLES/$BASE_NAME.srt"
         # --- Subtitle Logic ---
         TRACK_JSON=$(mkvmerge -J "$FILE_TO_PROCESS" | tr -d '\r\n')
-        # 1. Try Forced English
-#        SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
-#        if [[ -n "$SUB_TRACK_ID" && "$SUB_TRACK_ID" != "null" ]]; then
-#            SUB_NAME="Forced"
-#        else
-#            # 2. Check if we need English Audio to decide on Subtitle Fallback
-#            HAS_ENG_AUDIO=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio" and .properties.language == "eng") | .id' | head -n 1)            
-#            # 3. If NO English audio exists, Fallback to FIRST English subtitle
-#            if [[ -z "$HAS_ENG_AUDIO" || "$HAS_ENG_AUDIO" == "null" ]]; then
-#                SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng") | .id' | head -n 1)
-#                SUB_NAME="English"
-#            fi
-#        fi
-#        # 2. Check if we need English Audio to decide on Subtitle Fallback
-#        HAS_ENG_AUDIO=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "audio" and .properties.language == "eng") | .id' | head -n 1)        
-#        # 3. If NO English audio exists, Fallback to FIRST English subtitle
-#        if [[ -z "$HAS_ENG_AUDIO" || "$HAS_ENG_AUDIO" == "null" ]]; then
-#            if [[ -z "$SUB_TRACK_ID" || "$SUB_TRACK_ID" == "null" ]]; then
-#                SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng") | .id' | head -n 1)
-#            fi
-#        fi
-#        HAS_SUBTITLES=false
-#        if [[ -n "$SUB_TRACK_ID" && "$SUB_TRACK_ID" != "null" ]]; then
-#            log "ℹ️ Extracting English Subtitle (ID: $SUB_TRACK_ID)..."
-#            ffmpeg -i "$FILE_TO_PROCESS" -map 0:"$SUB_TRACK_ID" -c:s srt "$SUB_FILE" -y -loglevel error
-#            [[ $? -eq 0 ]] && HAS_SUBTITLES=true
-#        fi
-
         # 1. Try to find Forced English subtitles first
         SUB_TRACK_ID=$(echo "$TRACK_JSON" | jq -r '.tracks[] | select(.type == "subtitles" and .properties.language == "eng" and .properties.forced_track == true) | .id' | head -n 1)
         
