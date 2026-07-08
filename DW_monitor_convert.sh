@@ -37,7 +37,7 @@ while true; do
     weekly_delete_files "$DIR_SYNOLOGY_YOUTUBE" "7"
     sonarr_weekly_shows
     find "$SOURCE_DIR" -type f -mmin +$MIN_FILE_AGE \
-        \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" \) \
+        \( -iname "*.mp4" -o -iname "*.mkv" -o -iname "*.avi" -o -iname "*.mov" -o -iname "*.mpg" \) \
         -print0 | while IFS= read -r -d $'\0' SOURCE_FILE; do
         FILENAME=$(basename "$SOURCE_FILE")
         BASE_NAME="${FILENAME%.*}"
