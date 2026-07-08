@@ -26,7 +26,7 @@ fi
 
 # --- Execution Loop ---
 for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
-    
+
     # 1. Check if the directory actually exists/is mounted
     if [ ! -d "$CURRENT_DIR" ]; then
         log "❌ SKIP: $CURRENT_DIR is not available (Check mount/network)."
@@ -44,10 +44,12 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
     # Determine if we are scanning a single show or a whole library
     if [[ "$CURRENT_DIR" == *"/TV"* && $(basename "$CURRENT_DIR") != "TV" ]]; then
         # Single Show Mode
-        search_cmd="echo $CURRENT_DIR"
+        #search_cmd="echo $CURRENT_DIR"
+        search_cmd="printf '%s\n' \"\$CURRENT_DIR\""
     else
         # Library Mode
-        search_cmd="find $CURRENT_DIR -maxdepth 1 -mindepth 1 -type d"
+        #search_cmd="find $CURRENT_DIR -maxdepth 1 -mindepth 1 -type d"
+        search_cmd="find \"\$CURRENT_DIR\" -maxdepth 1 -mindepth 1 -type d"
     fi
 
     while read -r series_path; do
