@@ -87,7 +87,6 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             manual_id="${MANUAL_MAPS[$series_name]}"
             seerr_resolve_issue "$series_path" "tv" "$manual_id"
         fi
-        fi
 
     done < <(eval "$search_cmd")
 
