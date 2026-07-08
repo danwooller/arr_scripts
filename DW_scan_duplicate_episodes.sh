@@ -83,7 +83,10 @@ for CURRENT_DIR in "${TARGET_PATHS[@]}"; do
             seerr_sync_issue "$series_name" "tv" "Duplicate Episode(s): $dup_list" "$manual_id"
         else
             [[ "$LOG_LEVEL" == "debug" ]] && log "✨ No duplicates for $series_name. Checking for resolution..."
-            seerr_resolve_issue "$series_path"
+            # Retrieve the manual map ID if it exists, similar to how sync handles it
+            manual_id="${MANUAL_MAPS[$series_name]}"
+            seerr_resolve_issue "$series_path" "tv" "$manual_id"
+        fi
         fi
 
     done < <(eval "$search_cmd")
