@@ -1,0 +1,16 @@
+[Unit]
+Description=Wait for TrueNAS and Mount Media Share
+# This ensures the script waits until the network interfaces have an actual IP address
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# RemainAfterExit keeps the service marked as "active" even after the script finishes executing
+RemainAfterExit=yes
+User=root
+ExecStart=/usr/local/bin/DW_boot_mount_check.sh
+
+[Install]
+# This hooks the service into the normal boot sequence
+WantedBy=multi-user.target
