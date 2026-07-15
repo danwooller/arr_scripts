@@ -94,15 +94,17 @@ fi
 selected_item="${dirs[$((item_choice-1))]}"
 absolute_path="$TARGET_DIR/${selected_item#./}"
 
-# --- Step 3: Backdate the Directory ---
+# --- Step 3: Backdate the Directory and all its contents ---
+# Calculate date 1 year in the past
 backdate=$(date -d "1 year ago" +%Y%m%d%H%M.%S 2>/dev/null || date -v -1y +%Y%m%d%H%M.%S)
 
-echo "Updating modification date for: ${selected_item#./}"
+echo "Updating modification date for: ${selected_item#./} (including all seasons/files)..."
 echo "Setting modification time to 1 year ago..."
 
-if touch -t "$backdate" "$absolute_path"; then
-    log "PASS: Backdated directory ${selected_item#./} to prevent Plex pickup."
-    echo "Success! Directory date modified."
+# Added the -h flag (to not follow symlinks) and applied touch recursively
+if find "$absolute_path" -exec touch -h -t "$backdate" {} +; then
+    log "PASS: Recursively backdated ${selected_item#./} to prevent Plex pickup."
+    echo "Success! Show, Season folders, and media files have been backdated."
     
     # --- Step 4: Optional Plex Library Update ---
     echo "---------------------------------------------"
