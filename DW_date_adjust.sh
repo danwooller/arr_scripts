@@ -65,7 +65,7 @@ echo "------------------------------------------------------------------------"
 cd "$TARGET_DIR" || exit 1
 
 # Safely parse directories into an array
-IFS=$'\n' read -r -d '' -a dirs < <(find . -maxdepth 1 -mindepth 1 -type d -printf '%T@ %p\n' | sort -rn | head -n 200 | cut -d' ' -f2- && printf '\0')
+IFS=$'\n' read -r -d '' -a dirs < <(find . -maxdepth 1 -mindepth 1 -type d -printf '%T@ %p\n' | sort -rn | head -n 10 | cut -d' ' -f2- && printf '\0')
 
 if [ ${#dirs[@]} -eq 0 ]; then
     echo "No directories found."
