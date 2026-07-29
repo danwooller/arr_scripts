@@ -18,21 +18,14 @@ OUTPUT_DIR="/mnt/media/torrent/hold"
 # HandBrake options defined as an array to prevent quoting bugs
 HANDBRAKE_PRESET=(--preset "Fast 1080p30")
 
+if [ ! -d "$OUTPUT_DIR" ]; then
+    log "Creating output directory: $OUTPUT_DIR"
+    mkdir -p "$OUTPUT_DIR" || { log "ERROR: Failed to create output directory."; exit 1; }
+fi
+
 # --- FUNCTIONS ---
-
-check_dependencies() {
-    log "Checking dependencies..."
-    
-    if ! command -v HandBrakeCLI &> /dev/null; then
-        log "ERROR: HandBrakeCLI is not installed."
-        exit 1
-    fi
-
-    if [ ! -d "$OUTPUT_DIR" ]; then
-        log "Creating output directory: $OUTPUT_DIR"
-        mkdir -p "$OUTPUT_DIR" || { log "ERROR: Failed to create output directory."; exit 1; }
-    fi
-}
+# --- Run Dependency Check ---
+check_dependencies "HandBrakeCLI"
 
 eject_disk() {
     log "Ejecting disk from $DVD_DEVICE."
