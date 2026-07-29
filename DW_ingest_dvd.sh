@@ -11,6 +11,9 @@ else
     exit 1
 fi
 
+# --- Run Dependency Check ---
+check_dependencies "HandBrakeCLI"
+
 # --- CONFIGURATION ---
 DVD_DEVICE="/dev/sr0"
 OUTPUT_DIR="/mnt/media/torrent/hold"
@@ -24,8 +27,6 @@ if [ ! -d "$OUTPUT_DIR" ]; then
 fi
 
 # --- FUNCTIONS ---
-# --- Run Dependency Check ---
-check_dependencies "HandBrakeCLI"
 
 eject_disk() {
     log "Ejecting disk from $DVD_DEVICE."
