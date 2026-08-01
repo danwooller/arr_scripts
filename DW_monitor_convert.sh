@@ -121,7 +121,8 @@ while true; do
         elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then PRESET="$PRESET_1080P"
         else PRESET="$PRESET_SD"; fi
 
-        HandBrakeCLI --preset "$PRESET" -q 24.0 -i "$FILE_TO_PROCESS" -o "$TEMP_OUTPUT" $AUDIO_PARAMS --subtitle none --optimize < /dev/null
+#        HandBrakeCLI --preset "$PRESET" -q 24.0 -i "$FILE_TO_PROCESS" -o "$TEMP_OUTPUT" $AUDIO_PARAMS --subtitle none --optimize --crop 0:0:0:0 < /dev/null
+        HandBrakeCLI --preset "$PRESET" -q 24.0 -i "$FILE_TO_PROCESS" -o "$TEMP_OUTPUT" $AUDIO_PARAMS --subtitle none --optimize --crop-mode conservative < /dev/null
 
         # --- Remux ---
         if [[ -f "$TEMP_OUTPUT" ]]; then
