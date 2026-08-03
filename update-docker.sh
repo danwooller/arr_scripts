@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
+# Checking existence to prevent 'set -e' from killing the script cryptically
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
@@ -8,143 +9,41 @@ else
     exit 1
 fi
 
-# --- Helper Function to find Compose files ---
-find_compose() {
-    local target="$1"
-    local cname="$2"
-
-    # 1. Try label inspection if container name provided
-    if [ -n "$cname" ]; then
-        local label_file
-        label_file=$($DOCKER inspect -f '{{ index .Config.Labels "com.docker.compose.project.config_files" }}' "$cname" 2>/dev/null)
-        if [ -n "$label_file" ] && [ -f "$label_file" ]; then
-            echo "$label_file"
-            return
-        fi
-    fi
-
-    # 2. Search folder up to 3 levels deep inside /opt/docker
-    if [ -d "$target" ] && [ "$target" != "/opt" ]; then
-        sudo find "$target" -maxdepth 3 \( -name "docker-compose.yml" -o -name "docker-compose.yaml" -o -name "compose.yml" -o -name "compose.yaml" \) 2>/dev/null | head -n 1
-    fi
-}
-
-# --- Configuration ---
-DOCKER="/usr/bin/docker"
-DOCKER_DIR="/opt/docker"
-BACKUP_DEST="$DIR_MEDIA_BACKUP/${HOSTNAME}/opt"
-REQUIRED_SPACE_MB=5000
-LOG_LEVEL="debug"
-
-# --- Gather Running Containers via Docker Inspect ---
-RUNNING_IDS=$($DOCKER ps -q)
-CONTAINER_NAMES=()
-COMPOSE_TARGETS=()
-
-if [ -n "$RUNNING_IDS" ]; then
-    while IFS= read -r cname; do
-        CLEAN_NAME="${cname#/}"
-        if [ -n "$CLEAN_NAME" ]; then
-            CONTAINER_NAMES+=("$CLEAN_NAME")
-            
-            # Direct match under /opt/docker/container_name
-            if [ -d "$DOCKER_DIR/$CLEAN_NAME" ]; then
-                COMPOSE_TARGETS+=("$DOCKER_DIR/$CLEAN_NAME")
-            else
-                FOUND_DIR=$(sudo find "$DOCKER_DIR" -maxdepth 2 -type d -name "$CLEAN_NAME" 2>/dev/null | head -n 1)
-                if [ -n "$FOUND_DIR" ]; then
-                    COMPOSE_TARGETS+=("$FOUND_DIR")
-                else
-                    PROJ_DIR=$($DOCKER inspect -f '{{ index .Config.Labels "com.docker.compose.project.working_dir" }}' "$CLEAN_NAME" 2>/dev/null)
-                    # Enforce that paths do not fallback higher than /opt/docker
-                    if [ -z "$PROJ_DIR" ] || [ "$PROJ_DIR" == "/opt" ] || [ "$PROJ_DIR" == "/" ]; then
-                        COMPOSE_TARGETS+=("$DOCKER_DIR/$CLEAN_NAME")
-                    else
-                        COMPOSE_TARGETS+=("$PROJ_DIR")
-                    fi
-                fi
-            fi
-        fi
-    done < <($DOCKER inspect -f '{{.Name}}' $RUNNING_IDS 2>/dev/null | sort -u)
-fi
-
-if [ ${#CONTAINER_NAMES[@]} -eq 0 ]; then
-    echo "⚠️ No running Docker containers detected."
-    exit 1
-fi
-
-# --- Flag Handling & Interactive Menu ---
+# --- Flag Handling ---
 SKIP_BACKUP=false
 SKIP_UPDATE=false
-TARGET_DIR="" # Empty means process ALL
-TARGET_CONTAINER=""
-
-if [[ "$1" == "--single" ]]; then
-    echo "📋 Running Docker Services:"
-    for i in "${!CONTAINER_NAMES[@]}"; do
-        echo "  $((i+1))) ${CONTAINER_NAMES[$i]}"
-    done
-    read -p "Select a target (1-${#CONTAINER_NAMES[@]}): " CHOICE
-    if [[ "$CHOICE" =~ ^[0-9]+$ ]] && [ "$CHOICE" -ge 1 ] && [ "$CHOICE" -le "${#CONTAINER_NAMES[@]}" ]; then
-        TARGET_CONTAINER="${CONTAINER_NAMES[$((CHOICE-1))]}"
-        TARGET_DIR="${COMPOSE_TARGETS[$((CHOICE-1))]}"
-        log "ℹ️ Selected single target: $TARGET_CONTAINER [$TARGET_DIR]"
-    else
-        echo "❌ Invalid choice. Exiting."
-        exit 1
-    fi
-elif [[ "$1" == "--no-backup-update" ]]; then
+if [[ "$1" == "--no-backup-update" ]]; then
     SKIP_BACKUP=true
     SKIP_UPDATE=true
-    TARGET_DIR=""
-    TARGET_CONTAINER=""
 elif [[ "$1" == "--no-backup" ]]; then
     SKIP_BACKUP=true
 elif [[ "$1" == "--no-update" ]]; then
     SKIP_UPDATE=true
 elif [ -z "$1" ]; then
-    echo "❓ Interactive Setup Mode:"
-    
-    # 1. Ask about System Updates
-    read -t 30 -p "   -> Skip OS apt Updates? (y/N): " RESP_UPDATE
-    if [[ "$RESP_UPDATE" =~ ^[Yy]$ ]]; then
-        SKIP_UPDATE=true
-        log "ℹ️ Skipping Updates."
-    fi
+    # 2. No flags provided? Enter Interactive Mode with 30s timeout
+    echo "❓ No flags detected. Choose your options (Default is 'No' in 30s):"
 
-    # 2. Ask about Backup
+    # Ask about Backup
     read -t 30 -p "   -> Skip Backup? (y/N): " RESP_BACKUP
     if [[ "$RESP_BACKUP" =~ ^[Yy]$ ]]; then
         SKIP_BACKUP=true
         log "ℹ️ Skipping Backup."
     fi
 
-    # 3. Selection Scope & Single Target Option
-    echo ""
-    echo "Select Update Scope:"
-    echo "  1) All Running Containers (Default)"
-    echo "  2) Single Service"
-    read -t 30 -p "Choice (1/2) [1]: " SCOPE_CHOICE
-    SCOPE_CHOICE=${SCOPE_CHOICE:-1}
-
-    if [ "$SCOPE_CHOICE" -eq 2 ]; then
-        echo ""
-        echo "📋 Running Docker Services:"
-        for i in "${!CONTAINER_NAMES[@]}"; do
-            echo "  $((i+1))) ${CONTAINER_NAMES[$i]}"
-        done
-        read -t 30 -p "Select a target (1-${#CONTAINER_NAMES[@]}): " CHOICE
-        if [[ "$CHOICE" =~ ^[0-9]+$ ]] && [ "$CHOICE" -ge 1 ] && [ "$CHOICE" -le "${#CONTAINER_NAMES[@]}" ]; then
-            TARGET_CONTAINER="${CONTAINER_NAMES[$((CHOICE-1))]}"
-            TARGET_DIR="${COMPOSE_TARGETS[$((CHOICE-1))]}"
-            log "ℹ️ Selected single target: $TARGET_CONTAINER [$TARGET_DIR]"
-        else
-            echo "❌ Invalid selection or timeout reached. Exiting."
-            exit 1
-        fi
+    # Ask about System Updates
+    read -t 30 -p "   -> Skip OS apt Updates? (y/N): " RESP_UPDATE
+    if [[ "$RESP_UPDATE" =~ ^[Yy]$ ]]; then
+        SKIP_UPDATE=true
+        log "ℹ️ Skipping Updates."
     fi
-    echo ""
+    echo "" # Clean line break
 fi
+
+# --- Configuration ---
+DOCKER="/usr/bin/docker"
+BACKUP_DEST="$DIR_MEDIA_BACKUP/${HOSTNAME}/opt"
+REQUIRED_SPACE_MB=5000
+LOG_LEVEL="debug"
 
 # 1. System Updates
 log_start
@@ -153,12 +52,13 @@ if [ "$SKIP_UPDATE" = false ]; then
     sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
 fi
 
-# 2. Safety Checks
+# 2. & 3. Safety Checks
 if ! mountpoint -q "$MOUNT_ROOT"; then
     log "❌ $MOUNT_ROOT is not mounted!"
     exit 1
 fi
 
+# Only check space if we are actually backing up
 if [ "$SKIP_BACKUP" = false ]; then
     AVAILABLE_SPACE_MB=$(df -m "$MOUNT_ROOT" | awk 'NR==2 {print $4}')
     if [ "$AVAILABLE_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
@@ -167,140 +67,125 @@ if [ "$SKIP_BACKUP" = false ]; then
     fi
 fi
 
-# 3. Pre-fetch Images
-PULL_LIST=()
-PULL_NAMES=()
+# --- Helper Function to find Compose files ---
+find_compose() {
+    sudo find "$1" -maxdepth 1 \( -name "docker-compose.yml" -o -name "docker-compose.yaml" \) 2>/dev/null | head -n 1
+}
 
-if [ -n "$TARGET_DIR" ]; then
-    PULL_LIST=("$TARGET_DIR")
-    PULL_NAMES=("$TARGET_CONTAINER")
-else
-    mapfile -t PULL_LIST < <(printf "%s\n" "${COMPOSE_TARGETS[@]}" | sort -u)
-    PULL_NAMES=("${CONTAINER_NAMES[@]}")
+# 4. Pre-fetch Images (with Error Logging)
+ROOT_COMPOSE=$(find_compose "/opt")
+if [ -n "$ROOT_COMPOSE" ]; then
+    log "ℹ️ Pre-pulling images for: $ROOT_COMPOSE"
+
+    # --- Pre-Pull Space Check ---
+    # Get current available space in MB
+    CURRENT_SPACE_MB=$(df -m /opt | awk 'NR==2 {print $4}')
+    
+    if [ "$CURRENT_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
+        log "⚠️ Skipping pull for $DIR_NAME. Low space: ${CURRENT_SPACE_MB}MB (Required: ${REQUIRED_SPACE_MB}MB)"
+        continue # Skip to the next folder in /opt/
+    fi
+    
+    # Run timeout and capture the result
+    sudo timeout 300s $DOCKER compose -f "$ROOT_COMPOSE" pull -q
+    RESULT=$?
+
+    if [ $RESULT -eq 124 ]; then
+        log "❌ Pull TIMED OUT (300s exceeded) for $ROOT_COMPOSE"
+    elif [ $RESULT -ne 0 ]; then
+        log "❌ Pull FAILED (Exit Code: $RESULT) for $ROOT_COMPOSE"
+    else
+        [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $ROOT_COMPOSE"
+    fi
 fi
 
-for i in "${!PULL_LIST[@]}"; do
-    path="${PULL_LIST[$i]}"
-    cname="${PULL_NAMES[$i]}"
-    COMPOSE_FILE=$(find_compose "$path" "$cname")
-    DIR_NAME=$(basename "$path")
+for dir in /opt/*/ ; do
+    COMPOSE_FILE=$(find_compose "$dir")
     
     if [ -n "$COMPOSE_FILE" ]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pre-pulling image for $cname using: $COMPOSE_FILE"
+        DIR_NAME=$(basename "$dir")
+        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pre-pulling images for: $DIR_NAME"
 
-        CURRENT_SPACE_MB=$(df -m "$path" | awk 'NR==2 {print $4}')
-        if [ "$CURRENT_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
-            log "⚠️ Skipping pull for $DIR_NAME. Low space: ${CURRENT_SPACE_MB}MB (Required: ${REQUIRED_SPACE_MB}MB)"
-            continue
-        fi
-
-        # Target specific container name if single mode is set to avoid pulling entire root stacks
-        if [ -n "$TARGET_CONTAINER" ]; then
-            PULL_ERR=$(sudo timeout 600s $DOCKER compose -f "$COMPOSE_FILE" pull "$TARGET_CONTAINER" 2>&1)
-        else
-            PULL_ERR=$(sudo timeout 600s $DOCKER compose -f "$COMPOSE_FILE" pull 2>&1)
-        fi
-        
+        # Run pull with a 10-minute timeout
+        # Using -q to keep the overnight logs clean
+        sudo timeout 600s $DOCKER compose -f "$COMPOSE_FILE" pull -q
         PULL_RESULT=$?
 
         if [ $PULL_RESULT -eq 124 ]; then
             log "❌ Pull TIMED OUT (600s) for $DIR_NAME"
         elif [ $PULL_RESULT -ne 0 ]; then
-            log "❌ Pull FAILED for $DIR_NAME: $PULL_ERR"
+            log "❌ Pull FAILED (Exit Code: $PULL_RESULT) for $DIR_NAME"
         else
             [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $DIR_NAME"
         fi
-    else
-        log "⚠️ No compose file found in $path for $DIR_NAME. Skipping image pull."
     fi
 done
 
-# Check Tautulli Plex Activity
-if [ "$SKIP_BACKUP" = false ] && { [ -z "$TARGET_CONTAINER" ] || [ "$TARGET_CONTAINER" == "plex" ]; }; then
-    if [ -n "$TAUTULLI_URL" ] && [ -n "$TAUTULLI_API_KEY" ]; then
-        log "ℹ️ Checking Plex activity via Tautulli..."
-        MAX_RETRIES=${MAX_RETRIES:-3}
-        WAIT_TIME=${WAIT_TIME:-900}
-        
-        for (( i=1; i<=$MAX_RETRIES; i++ )); do
-            STREAMS=$(curl -s "$TAUTULLI_URL/api/v2?apikey=$TAUTULLI_API_KEY&cmd=get_activity" | grep -oP '"stream_count":\s*"\K[0-9]+')
-            STREAMS=${STREAMS:-0}
+if [ "$SKIP_BACKUP" = false ]; then
+    log "ℹ️ Checking Plex activity via Tautulli..."
+    
+    for (( i=1; i<=$MAX_RETRIES; i++ )); do
+        # Fetch the stream count
+        STREAMS=$(curl -s "$TAUTULLI_URL/api/v2?apikey=$TAUTULLI_API_KEY&cmd=get_activity" | grep -oP '"stream_count":\s*"\K[0-9]+')
+        STREAMS=${STREAMS:-0} # Default to 0 if null
 
-            if [ "$STREAMS" -eq 0 ]; then
-                log "✅ No active streams detected. Proceeding..."
-                break
+        if [ "$STREAMS" -eq 0 ]; then
+            log "✅ No active streams detected. Proceeding..."
+            break
+        else
+            if [ $i -eq $MAX_RETRIES ]; then
+                log "⚠️ Max retries reached. Users are still watching, but proceeding with backup anyway."
+                # Alternatively, use 'exit 0' here if you'd rather skip the backup entirely
             else
-                if [ $i -eq $MAX_RETRIES ]; then
-                    log "⚠️ Max retries reached. Users are still watching, but proceeding with backup anyway."
-                else
-                    log "⏳ $STREAMS stream(s) active. Waiting 15m (Attempt $i/$MAX_RETRIES)..."
-                    sleep $WAIT_TIME
-                fi
+                log "⏳ $STREAMS stream(s) active. Waiting 15m (Attempt $i/$MAX_RETRIES)..."
+                sleep $WAIT_TIME
             fi
-        done
-    fi
-fi
-
-# 4. Stop Containers
-if [ -n "$TARGET_CONTAINER" ]; then
-    COMPOSE_FILE=$(find_compose "$TARGET_DIR" "$TARGET_CONTAINER")
-    if [ -n "$COMPOSE_FILE" ]; then
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Stopping target compose service: $TARGET_CONTAINER..."
-        $DOCKER compose -f "$COMPOSE_FILE" stop "$TARGET_CONTAINER"
-    else
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Stopping target container directly: $TARGET_CONTAINER..."
-        $DOCKER stop "$TARGET_CONTAINER" >/dev/null 2>&1
-    fi
-else
-    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Stopping all containers..."
-    if [ -n "$RUNNING_IDS" ]; then
-        $DOCKER stop -t 20 $RUNNING_IDS >/dev/null 2>&1
-        
-        COUNT=0
-        while [ -n "$($DOCKER ps -q)" ] && [ $COUNT -lt 10 ]; do
-            sleep 3
-            ((COUNT++))
-        done
-
-        STUCK=$($DOCKER ps -q)
-        if [ -n "$STUCK" ]; then
-            log "⚠️ Killing stuck processes..."
-            $DOCKER kill $STUCK >/dev/null 2>&1
-            sleep 5 
         fi
+    done
+fi
+
+# 5. Stop Containers & Wait
+[[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Stopping all containers..."
+
+RUNNING_CONTAINERS=$($DOCKER ps -q)
+if [ -n "$RUNNING_CONTAINERS" ]; then
+    $DOCKER stop -t 20 $RUNNING_CONTAINERS >/dev/null 2>&1
+    
+    COUNT=0
+    while [ -n "$($DOCKER ps -q)" ] && [ $COUNT -lt 10 ]; do
+        sleep 3
+        ((COUNT++))
+    done
+
+    STUCK=$($DOCKER ps -q)
+    if [ -n "$STUCK" ]; then
+        log "⚠️ Killing stuck processes (Exit 137 imminent)..."
+        $DOCKER kill $STUCK >/dev/null 2>&1
+        sleep 5 
     fi
 fi
 
-# 5. Backup Data
+# 6. Backup Data (Conditional)
 if [ "$SKIP_BACKUP" = true ]; then
     log "⏩ Skipping rsync backup as requested."
 else
-    if [ -n "$TARGET_DIR" ] && [ -d "$TARGET_DIR" ]; then
-        TARGET_NAME=$(basename "$TARGET_DIR")
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Syncing $TARGET_DIR to $BACKUP_DEST/$TARGET_NAME..."
+    [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Syncing /opt/docker to $BACKUP_DEST..."
+    
+    # -r: recursive
+    # -l: copy symlinks as symlinks
+    # -t: preserve modification times (crucial for rsync efficiency)
+    # -h: human readable
+    # --delete: remove deleted files
+    # --no-p -no-o -no-g: skip permissions/owner/group (SMB unfriendly)
+    sudo rsync -rlth /opt/docker-compose.yaml /opt/docker "$BACKUP_DEST/" \
+    --delete \
+    --no-perms \
+    --no-owner \
+    --no-group \
+    --timeout=180 \
+    --quiet
         
-        sudo rsync -rlth "$TARGET_DIR/" "$BACKUP_DEST/$TARGET_NAME/" \
-            --delete \
-            --no-perms \
-            --no-owner \
-            --no-group \
-            --timeout=180 \
-            --quiet
-        RSYNC_EXIT=$?
-    else
-        [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Syncing active compose directories to $BACKUP_DEST..."
-        
-        mapfile -t UNIQUE_TARGETS < <(printf "%s\n" "${COMPOSE_TARGETS[@]}" | sort -u)
-        sudo rsync -rlth "${UNIQUE_TARGETS[@]}" "$BACKUP_DEST/" \
-            --delete \
-            --no-perms \
-            --no-owner \
-            --no-group \
-            --timeout=180 \
-            --quiet
-        RSYNC_EXIT=$?
-    fi
-
+    RSYNC_EXIT=$?
     if [ $RSYNC_EXIT -ne 0 ]; then
         log "❌ Rsync failed with exit code $RSYNC_EXIT"
     else
@@ -308,49 +193,28 @@ else
     fi
 fi
 
-# 6. Restart Containers
+# 7. Restart
 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Restarting containers..."
 
-EXECUTE_LIST=()
-EXECUTE_NAMES=()
-
-if [ -n "$TARGET_DIR" ]; then
-    EXECUTE_LIST=("$TARGET_DIR")
-    EXECUTE_NAMES=("$TARGET_CONTAINER")
-else
-    mapfile -t EXECUTE_LIST < <(printf "%s\n" "${COMPOSE_TARGETS[@]}" | sort -u)
-    EXECUTE_NAMES=("${CONTAINER_NAMES[@]}")
-fi
-
-for i in "${!EXECUTE_LIST[@]}"; do
-    path="${EXECUTE_LIST[$i]}"
-    cname="${EXECUTE_NAMES[$i]}"
-    DIR_NAME=$(basename "$path")
-    COMPOSE_FILE=$(find_compose "$path" "$cname")
+PATHS_TO_CHECK=("/opt" /opt/*/)
+for path in "${PATHS_TO_CHECK[@]}"; do
+    CLEAN_PATH="${path%/}"
+    DIR_NAME=$(basename "$CLEAN_PATH")
+    COMPOSE_FILE=$(find_compose "$path")
     
     if [ -n "$COMPOSE_FILE" ]; then
-        if [ -n "$TARGET_CONTAINER" ]; then
-            $DOCKER compose -f "$COMPOSE_FILE" up -d --build "$TARGET_CONTAINER"
-        else
-            $DOCKER compose -f "$COMPOSE_FILE" down >/dev/null 2>&1
-            $DOCKER compose -f "$COMPOSE_FILE" up -d --build
-        fi
+        $DOCKER compose -f "$COMPOSE_FILE" --project-directory "$CLEAN_PATH" down >/dev/null 2>&1
+        $DOCKER compose -f "$COMPOSE_FILE" --project-directory "$CLEAN_PATH" up -d --build
         
         if [ $? -eq 0 ]; then
-            [[ $LOG_LEVEL = "debug" ]] && log "✅ $DIR_NAME ($cname) is online."
+            [[ $LOG_LEVEL = "debug" ]] && log "✅ $DIR_NAME is online."
         else
-            log "❌ $DIR_NAME ($cname) failed to start via compose."
-        fi
-    else
-        log "⚠️ Could not locate compose file for $DIR_NAME in $path."
-        if [ -n "$cname" ]; then
-            $DOCKER start "$cname" >/dev/null 2>&1
-            [[ $LOG_LEVEL == "debug" ]] && log "⚠️ $cname started directly (container restart, no image pull applied)."
+            log "❌ $DIR_NAME failed to start."
         fi
     fi
 done
 
-# 7. Cleanup & Reboot Check
+# 8. Cleanup
 [[ $LOG_LEVEL == "debug" ]] && log "ℹ️ Pruning unused resources..."
 $DOCKER image prune -f
 
