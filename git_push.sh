@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # --- Load Shared Functions ---
-# Checking existence to prevent 'set -e' from killing the script cryptically
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
@@ -75,10 +74,10 @@ sudo -u "$REAL_USER" git add "$FILENAME"
 if ! sudo -u "$REAL_USER" git diff --cached --exit-code > /dev/null; then
     echo "Actual changes detected. Committing..."
     sudo -u "$REAL_USER" git commit -m "Update $FILENAME from $CURRENT_HOSTNAME"
-    
+
     echo "Pulling latest from GitHub (Rebasing)..."
     sudo -u "$REAL_USER" git pull origin main --rebase
-    
+
     echo "Pushing to GitHub..."
     sudo -u "$REAL_USER" git push origin main
     echo "Successfully pushed $FILENAME!"
@@ -86,7 +85,7 @@ else
     echo "No actual changes in $FILENAME. Clearing the Git index..."
     # Resetting ensures 'git pull' won't complain about unstaged changes
     sudo -u "$REAL_USER" git reset --hard HEAD
-    
+
     echo "Pulling latest updates from GitHub..."
     sudo -u "$REAL_USER" git pull origin main --rebase
     echo "Local repository is now up to date."
