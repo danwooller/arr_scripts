@@ -16,6 +16,7 @@ CERT_PATH="/opt/docker/swag/config/etc/letsencrypt/live/$DOMAIN"
 OUTPUT_FILE="$CERT_PATH/certificate.p12"
 P12_PASSWORD="VoorboorseT7676"
 CHECK_INTERVAL=86400 # 24 hours
+RENEW_THRESHOLD=2592000
 
 # Path to Docker binary and restart command
 DOCKER_BIN="/usr/bin/docker"
@@ -29,7 +30,9 @@ while true; do
     fi
 
     # Check if cert is expired OR if the P12 file is missing
-    if openssl x509 -checkend 0 -noout -in "$CERT_PATH/fullchain.pem" > /dev/null 2>&1 && [ -f "$OUTPUT_FILE" ]; then
+    #if openssl x509 -checkend 0 -noout -in "$CERT_PATH/fullchain.pem" > /dev/null 2>&1 && [ -f "$OUTPUT_FILE" ]; then
+    # Check if the P12 file exists AND is valid for at least 30 more days
+    if [ -f "$OUTPUT_FILE" ] && openssl pkcs12 -in "$OUTPUT_FILE" -passin "pass:$P12_PASSWORD" -nokeys 2>/dev/null | openssl x509 -checkend "$RENEW_THRESHOLD" -noout >/dev/null 2>&1; then
         log "✅ Certificate is valid and P12 exists. Sleeping..."
     else
         log "ℹ️ Action Required: Certificate expired/missing or P12 missing. Generating $OUTPUT_FILE..."
