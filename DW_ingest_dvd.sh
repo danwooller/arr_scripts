@@ -8,7 +8,7 @@ else
     exit 1
 fi
 
-log_start "DVD ingest"
+log_start "DVD ingest service"
 
 # --- CONFIGURATION ---
 DVD_DEVICE="/dev/sr0"
