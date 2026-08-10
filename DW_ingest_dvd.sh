@@ -8,6 +8,8 @@ else
     exit 1
 fi
 
+log_start "DVD ingest"
+
 # --- CONFIGURATION ---
 DVD_DEVICE="/dev/sr0"
 OUTPUT_DIR="/mnt/media/torrent/hold"
