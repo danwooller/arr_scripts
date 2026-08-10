@@ -4,7 +4,7 @@
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
-    echo "⚠️ Common functions missing."
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
     exit 1
 fi
 
