@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# --- EXIT TRAP FOR CLEAN SHUTDOWN ---
-#trap 'log "Stopping DVD ripper daemon."; exit 0' SIGINT SIGTERM
-
 # --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
@@ -11,15 +8,13 @@ else
     exit 1
 fi
 
-# --- Run Dependency Check ---
-check_dependencies "HandBrakeCLI"
-
 # --- CONFIGURATION ---
 DVD_DEVICE="/dev/sr0"
 OUTPUT_DIR="/mnt/media/torrent/hold"
-
-# HandBrake options defined as an array to prevent quoting bugs
 HANDBRAKE_PRESET=(--preset "Fast 1080p30")
+
+# --- Run Dependency Check ---
+check_dependencies "HandBrakeCLI" "eject" "blkid" "lsof"
 
 if [ ! -d "$OUTPUT_DIR" ]; then
     log "Creating output directory: $OUTPUT_DIR"
@@ -34,11 +29,8 @@ eject_disk() {
 }
 
 disc_is_present() {
-    if command -v is_cdrom &> /dev/null; then
-        is_cdrom "$DVD_DEVICE" &> /dev/null
-    else
-        blkid "$DVD_DEVICE" &> /dev/null
-    fi
+    # -p forces blkid to bypass cache and query the physical drive directly
+    blkid -p "$DVD_DEVICE" &> /dev/null
 }
 
 convert_dvd() {
@@ -48,9 +40,10 @@ convert_dvd() {
     timestamp=$(date +%Y%m%d_%H%M%S)
     local output_file="${OUTPUT_DIR}/DVD_Rip_${timestamp}.mp4"
 
-    log "Executing: HandBrakeCLI -i $DVD_DEVICE -o $output_file --title 0 ${HANDBRAKE_PRESET[*]}"
+    log "Executing: HandBrakeCLI -i $DVD_DEVICE -o $output_file --main-feature ${HANDBRAKE_PRESET[*]}"
 
-    HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --title 0 "${HANDBRAKE_PRESET[@]}"
+    # --main-feature automatically selects the main movie title
+    HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --main-feature "${HANDBRAKE_PRESET[@]}"
     local exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
@@ -68,7 +61,6 @@ convert_dvd() {
 
 # --- MAIN DAEMON LOOP ---
 
-check_dependencies
 log "Starting DVD monitor loop on $DVD_DEVICE (polling every 15s)..."
 
 while true; do
