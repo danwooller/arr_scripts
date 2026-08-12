@@ -1,22 +1,22 @@
 #!/bin/bash
 
-# --- Load Shared Functions ---
+# --- EXIT TRAP FOR CLEAN SHUTDOWN ---
+trap 'log "Stopping DVD ripper daemon."; exit 0' SIGINT SIGTERM
+
+# --- LOAD SHARED FUNCTIONS ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
-    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
+    echo "⚠️ Common functions missing."
     exit 1
 fi
-
-log_start "DVD ingest service"
 
 # --- CONFIGURATION ---
 DVD_DEVICE="/dev/sr0"
 OUTPUT_DIR="/mnt/media/torrent/hold"
-HANDBRAKE_PRESET=(--preset "Fast 1080p30")
 
-# --- Run Dependency Check ---
-check_dependencies "HandBrakeCLI" "eject" "blkid" "lsof"
+# --- RUN DEPENDENCY CHECK ---
+check_dependencies "HandBrakeCLI" "eject" "udevadm" "lsof"
 
 if [ ! -d "$OUTPUT_DIR" ]; then
     log "Creating output directory: $OUTPUT_DIR"
@@ -31,50 +31,78 @@ eject_disk() {
 }
 
 disc_is_present() {
-    # Returns 0 (success) as soon as the kernel detects physical media
+    # Queries the kernel block properties directly to bypass stale file system caches
     udevadm info --query=property --name="$DVD_DEVICE" 2>/dev/null | grep -q "ID_CDROM_MEDIA=1"
 }
 
+get_dynamic_preset() {
+    local dev="$1"
+    
+    # Query HandBrake for disc geometry on main feature / title 0
+    local scan_info
+    scan_info=$(HandBrakeCLI -i "$dev" --title 0 2>&1 | grep -i "Geometry:")
+    
+    # Extract vertical resolution (e.g., 720x576 -> 576)
+    local height
+    height=$(echo "$scan_info" | grep -oP '\d+x\d+' | head -n1 | cut -d'x' -f2)
+
+    # Fallback if height couldn't be parsed
+    if [ -z "$height" ]; then
+        log "WARNING: Could not parse native disc resolution. Defaulting to Fast 576p25."
+        echo "Fast 576p25"
+        return
+    fi
+
+    log "Detected source video height: ${height}p"
+
+    if [ "$height" -le 576 ]; then
+        # Standard Definition (PAL 576 / NTSC 480)
+        echo "Fast 576p25"
+    elif [ "$height" -le 720 ]; then
+        # 720p HD
+        echo "Fast 720p30"
+    else
+        # 1080p+ Full HD
+        echo "Fast 1080p30"
+    fi
+}
+
 convert_dvd() {
-    log "DVD detected. Scanning titles..."
+    log "Ready disc detected! Scanning disc properties..."
 
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
 
-    # 1. Get total number of titles from HandBrake CLI output
-    local title_count
-    title_count=$(HandBrakeCLI -i "$DVD_DEVICE" --title 0 2>&1 | grep -E "^\+ title " | wc -l)
+    # 1. Dynamically select preset based on native height
+    local detected_preset
+    detected_preset=$(get_dynamic_preset "$DVD_DEVICE")
+    local active_preset=(--preset "$detected_preset")
 
-    if [ "$title_count" -eq 0 ]; then
-        log "ERROR: No valid titles found on DVD."
-        eject_disk
-        return 1
-    fi
+    log "Selected HandBrake preset: $detected_preset"
 
-    log "Found $title_count title(s). Starting extraction..."
+    # 2. Identify main feature track number
+    local main_title
+    main_title=$(HandBrakeCLI -i "$DVD_DEVICE" --main-feature --title 0 2>&1 | grep -i "main feature" | awk '{print $NF}' | tr -d ':')
+    [ -z "$main_title" ] && main_title="1"
 
-    # 2. Loop through each title and append track number T01, T02, etc.
-    local t
-    for (( t=1; t<=title_count; t++ )); do
-        # Format title number with leading zeros (e.g. 01, 02)
-        local track_num
-        track_num=$(printf "%02d" "$t")
-        local output_file="${OUTPUT_DIR}/DVD_Rip_${timestamp}_T${track_num}.mp4"
+    local track_num
+    track_num=$(printf "%02d" "$main_title")
+    local output_file="${OUTPUT_DIR}/DVD_Rip_${timestamp}_T${track_num}.mp4"
 
-        log "Processing Track $t of $title_count -> $output_file"
+    log "Executing: HandBrakeCLI -i $DVD_DEVICE -o $output_file --title $main_title ${active_preset[*]}"
 
-        # --title $t extracts the specific track
-        # --min-duration 900 ignores extra tracks shorter than 15 mins (menus, trailers, etc.)
-        HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --title "$t" --min-duration 900 "${HANDBRAKE_PRESET[@]}"
-        
-        if [ $? -eq 0 ]; then
-            log "SUCCESS: Extracted Track $t -> $output_file"
-        else
-            log "WARNING: Track $t failed or was skipped (shorter than min-duration)."
-            # Clean up empty/failed file if created
-            [ -f "$output_file" ] && [ ! -s "$output_file" ] && rm -f "$output_file"
+    HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --title "$main_title" "${active_preset[@]}"
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        log "SUCCESS: Conversion completed -> $output_file"
+    else
+        log "ERROR: HandBrakeCLI failed with exit code $exit_code."
+        if [ -f "$output_file" ]; then
+            log "Cleaning up incomplete output file: $output_file"
+            rm -f "$output_file"
         fi
-    done
+    fi
 
     eject_disk
 }
@@ -86,7 +114,6 @@ log "Starting DVD monitor loop on $DVD_DEVICE (polling every 15s)..."
 while true; do
     if disc_is_present; then
         if ! lsof "$DVD_DEVICE" &> /dev/null; then
-            log "Ready disc detected!"
             convert_dvd
             
             # Cooldown pause to swap discs without immediate re-triggering
