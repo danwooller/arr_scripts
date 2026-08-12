@@ -38,18 +38,17 @@ disc_is_present() {
 get_dynamic_preset() {
     local dev="$1"
     
-    # Query HandBrake for disc geometry on main feature / title 0
+    # Query HandBrake for disc geometry
     local scan_info
     scan_info=$(HandBrakeCLI -i "$dev" --title 0 2>&1 | grep -i "Geometry:")
     
-    # Extract vertical resolution (e.g., 720x576 -> 576)
+    # Extract vertical height using awk/sed cleanly
     local height
     height=$(echo "$scan_info" | grep -oP '\d+x\d+' | head -n1 | cut -d'x' -f2)
 
-    # Fallback if height couldn't be parsed
     if [ -z "$height" ]; then
-        log "WARNING: Could not parse native disc resolution. Defaulting to Fast 576p25."
-        echo "Fast 576p25"
+        log "WARNING: Could not parse native disc resolution. Defaulting to General/Fast 576p25."
+        echo "General/Fast 576p25"
         return
     fi
 
@@ -57,13 +56,13 @@ get_dynamic_preset() {
 
     if [ "$height" -le 576 ]; then
         # Standard Definition (PAL 576 / NTSC 480)
-        echo "Fast 576p25"
+        echo "General/Fast 576p25"
     elif [ "$height" -le 720 ]; then
         # 720p HD
-        echo "Fast 720p30"
+        echo "General/Fast 720p30"
     else
         # 1080p+ Full HD
-        echo "Fast 1080p30"
+        echo "General/Fast 1080p30"
     fi
 }
 
