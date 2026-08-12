@@ -35,7 +35,8 @@ disc_is_present() {
 }
 
 get_dynamic_preset() {
-    log "Probing disc geometry on $DVD_DEVICE to determine preset..."
+    # Send log messages inside subshells to stderr (>&2) so stdout remains pure
+    log "Probing disc geometry on $DVD_DEVICE to determine preset..." >&2
 
     # Scan the disc title to extract vertical resolution integer
     local probed_height
@@ -47,7 +48,7 @@ get_dynamic_preset() {
             selected_preset="$PRESET_576P"      # Standard UK / PAL DVD
             ;;
         480)
-            selected_preset="$PRESET_SD"      # Standard NTSC DVD
+            selected_preset="$PRESET_SD"        # Standard NTSC DVD
             ;;
         720)
             selected_preset="$PRESET_720P"      # HD Source
@@ -56,13 +57,20 @@ get_dynamic_preset() {
             selected_preset="$PRESET_1080P"     # Full HD Source
             ;;
         *)
-            log "WARNING: Could not determine height reliably (detected: '${probed_height:-none}'). Defaulting to Fast 1080p30."
-            selected_preset="Fast1080p30"
+            log "WARNING: Could not determine height reliably (detected: '${probed_height:-none}'). Defaulting to Fast 1080p30." >&2
+            selected_preset="${PRESET_1080P:-Fast 1080p30}"
             ;;
     esac
 
-    log "Detected resolution: ${probed_height:-Unknown}p -> Selected Preset: '$selected_preset'"
-    echo "$selected_preset"
+    # Ensure fallback or variable has spaces if needed
+    if [ -z "$selected_preset" ]; then
+        selected_preset="Fast 1080p30"
+    fi
+
+    log "Detected resolution: ${probed_height:-Unknown}p -> Selected Preset: '$selected_preset'" >&2
+    
+    # Only stdout stream output in the function:
+    printf "%s" "$selected_preset"
 }
 
 convert_dvd() {
