@@ -36,27 +36,45 @@ disc_is_present() {
 }
 
 convert_dvd() {
-    log "DVD detected. Starting processing..."
+    log "DVD detected. Scanning titles..."
 
     local timestamp
     timestamp=$(date +%Y%m%d_%H%M%S)
-    local output_file="${OUTPUT_DIR}/DVD_Rip_${timestamp}.mp4"
 
-    log "Executing: HandBrakeCLI -i $DVD_DEVICE -o $output_file --main-feature ${HANDBRAKE_PRESET[*]}"
+    # 1. Get total number of titles from HandBrake CLI output
+    local title_count
+    title_count=$(HandBrakeCLI -i "$DVD_DEVICE" --title 0 2>&1 | grep -E "^\+ title " | wc -l)
 
-    # --main-feature automatically selects the main movie title
-    HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --main-feature "${HANDBRAKE_PRESET[@]}"
-    local exit_code=$?
-
-    if [ $exit_code -eq 0 ]; then
-        log "SUCCESS: Conversion completed -> $output_file"
-    else
-        log "ERROR: HandBrakeCLI failed with exit code $exit_code."
-        if [ -f "$output_file" ]; then
-            log "Cleaning up incomplete output file: $output_file"
-            rm -f "$output_file"
-        fi
+    if [ "$title_count" -eq 0 ]; then
+        log "ERROR: No valid titles found on DVD."
+        eject_disk
+        return 1
     fi
+
+    log "Found $title_count title(s). Starting extraction..."
+
+    # 2. Loop through each title and append track number T01, T02, etc.
+    local t
+    for (( t=1; t<=title_count; t++ )); do
+        # Format title number with leading zeros (e.g. 01, 02)
+        local track_num
+        track_num=$(printf "%02d" "$t")
+        local output_file="${OUTPUT_DIR}/DVD_Rip_${timestamp}_T${track_num}.mp4"
+
+        log "Processing Track $t of $title_count -> $output_file"
+
+        # --title $t extracts the specific track
+        # --min-duration 900 ignores extra tracks shorter than 15 mins (menus, trailers, etc.)
+        HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --title "$t" --min-duration 900 "${HANDBRAKE_PRESET[@]}"
+        
+        if [ $? -eq 0 ]; then
+            log "SUCCESS: Extracted Track $t -> $output_file"
+        else
+            log "WARNING: Track $t failed or was skipped (shorter than min-duration)."
+            # Clean up empty/failed file if created
+            [ -f "$output_file" ] && [ ! -s "$output_file" ] && rm -f "$output_file"
+        fi
+    done
 
     eject_disk
 }
