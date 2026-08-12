@@ -1,156 +1,116 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
 
-# ------------------------------------------------------------------------------
-# DW_ingest_dvd.sh
-# Automated DVD Ingest Script for Multi-Episode TV Discs & Movies
-# ------------------------------------------------------------------------------
-
-# 1. Define LOCK_FILE BEFORE sourcing shared functions
-# (Ensures variables exist if common functions bind EXIT/TERM traps immediately)
-LOCK_FILE="/tmp/DW_ingest_dvd.lock"
-INPUT_DRIVE="/dev/sr0"
-OUTPUT_DIR="/mnt/storage/media/dvd_ingest"
-MIN_DURATION_SECS=300  # 5 minutes in seconds
-
-# --- LOAD SHARED FUNCTIONS ---
+# --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
-    echo "⚠️ Common functions missing."
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
     exit 1
 fi
 
-# ------------------------------------------------------------------------------
-# 2. Concurrency Control (Single Instance Lock)
-# ------------------------------------------------------------------------------
-exec 200>"$LOCK_FILE"
-if ! flock -n 200; then
-    log_msg "INFO" "Another instance of DW_ingest_dvd.sh is actively running. Exiting."
-    exit 0
+log_start "DVD ingest service"
+
+# --- CONFIGURATION ---
+DVD_DEVICE="/dev/sr0"
+OUTPUT_DIR="/mnt/media/torrent/hold"
+
+# --- Run Dependency Check ---
+check_dependencies "HandBrakeCLI" "eject" "blkid" "lsof"
+
+if [ ! -d "$OUTPUT_DIR" ]; then
+    log "Creating output directory: $OUTPUT_DIR"
+    mkdir -p "$OUTPUT_DIR" || { log "ERROR: Failed to create output directory."; exit 1; }
 fi
 
-cleanup() {
-    log_msg "INFO" "Releasing process locks and terminating ingest sequence."
-    rm -f "$LOCK_FILE"
+# --- FUNCTIONS ---
+
+eject_disk() {
+    log "Ejecting disk from $DVD_DEVICE."
+    eject "$DVD_DEVICE"
 }
-trap cleanup EXIT INT TERM
 
-log_msg "INFO" "======================================================================"
-log_msg "INFO" "Starting DVD ingestion job on target drive: ${DVD_DEVICE}"
+disc_is_present() {
+    # Returns 0 (success) as soon as the kernel detects physical media
+    udevadm info --query=property --name="$DVD_DEVICE" 2>/dev/null | grep -q "ID_CDROM_MEDIA=1"
+}
 
-# Verify device node availability
-if [[ ! -b "$DVD_DEVICE" ]]; then
-    log_msg "ERROR" "Specified device node '${DVD_DEVICE}' does not exist or is not a block device."
-    exit 1
-fi
+get_dynamic_preset() {
+    log "Probing disc geometry on $DVD_DEVICE to determine preset..."
 
-# ------------------------------------------------------------------------------
-# 3. Dynamic Resolution Probing & Preset Selection
-# ------------------------------------------------------------------------------
-log_msg "INFO" "Scanning disc geometry with HandBrakeCLI to calculate dynamic preset..."
+    # Scan the disc title to extract vertical resolution integer
+    local probed_height
+    probed_height=$(HandBrakeCLI --min-duration 0 -i "$DVD_DEVICE" --title 1 --scan 2>&1 | grep -oP '\d+(?=x\d+)' | tail -n 1 || echo "")
 
-# Scan disc metadata to extract frame height integer
-SCAN_DATA=$(HandBrakeCLI --min-duration 0 -i "$DVD_DEVICE" --title 0 --scan 2>&1 || true)
-PROBED_HEIGHT=$(echo "$SCAN_DATA" | grep -oP '\d+(?=x\d+)' | head -n 1 || echo "")
+    local selected_preset
+    case "$probed_height" in
+        576)
+            selected_preset="General/Fast 576p25"      # Standard UK / PAL DVD
+            ;;
+        480)
+            selected_preset="General/Fast 480p30"      # Standard NTSC DVD
+            ;;
+        720)
+            selected_preset="General/Fast 720p30"      # HD Source
+            ;;
+        1080)
+            selected_preset="General/Fast 1080p30"     # Full HD Source
+            ;;
+        *)
+            log "WARNING: Could not determine height reliably (detected: '${probed_height:-none}'). Defaulting to PAL 576p25."
+            selected_preset="General/Fast 576p25"
+            ;;
+    esac
 
-# Map geometry directly to modern HandBrake category namespaces
-case "$PROBED_HEIGHT" in
-    576)
-        HB_PRESET="General/Fast 576p25"      # Standard UK / PAL DVD
-        ;;
-    480)
-        HB_PRESET="General/Fast 480p30"      # Standard NTSC DVD
-        ;;
-    720)
-        HB_PRESET="General/Fast 720p30"      # HD broadcast / standard source
-        ;;
-    1080)
-        HB_PRESET="General/Fast 1080p30"     # Full HD source
-        ;;
-    *)
-        # Safeguard fallback when scan stream fails to output discrete dimensions
-        log_msg "WARN" "Could not parse vertical height reliably (probed value: '${PROBED_HEIGHT:-empty}'). Defaulting to PAL SD preset."
-        HB_PRESET="General/Fast 576p25"
-        ;;
-esac
+    log "Detected resolution: ${probed_height:-Unknown}p -> Selected Preset: '$selected_preset'"
+    echo "$selected_preset"
+}
 
-log_msg "INFO" "Detected resolution: ${PROBED_HEIGHT:-Unknown}p | Selected HandBrake Preset: '${HB_PRESET}'"
+convert_dvd() {
+    log "DVD detected. Starting processing..."
 
-# ------------------------------------------------------------------------------
-# 4. Disc Metadata Parsing & Directory Setup
-# ------------------------------------------------------------------------------
-log_msg "INFO" "Querying lsdvd for disc label and title track layouts..."
+    # Detect preset dynamically for the inserted disc
+    local preset
+    preset=$(get_dynamic_preset)
 
-RAW_LABEL=$(lsdvd "$DVD_DEVICE" 2>/dev/null | grep -i "Disc Title:" | cut -d: -f2 | xargs || echo "")
-if [[ -z "$RAW_LABEL" || "$RAW_LABEL" == "null" ]]; then
-    DISC_LABEL="DVD_$(date +%Y%m%d_%H%M%S)"
-else
-    # Sanitize label for filesystem safety
-    DISC_LABEL=$(echo "$RAW_LABEL" | tr ' ' '_' | tr -cd '[:alnum:]_')
-fi
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    local output_file="${OUTPUT_DIR}/DVD_Rip_${timestamp}.mp4"
 
-TARGET_DIR="${INGEST_RAW_DIR:-/media/ingest/dvds}/${DISC_LABEL}"
-mkdir -p "$TARGET_DIR"
+    log "Executing: HandBrakeCLI -i $DVD_DEVICE -o $output_file --main-feature --preset \"$preset\" --crop 0:0:0:0"
 
-log_msg "INFO" "Target destination initialized: ${TARGET_DIR}"
+    # --main-feature automatically selects the main movie title
+    HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --main-feature --preset "$preset" --crop 0:0:0:0
+    local exit_code=$?
 
-# ------------------------------------------------------------------------------
-# 5. Multi-Title Batch Transcode Processing Loop
-# ------------------------------------------------------------------------------
-# Extract track titles matching minimum duration filter to handle both TV series & movies
-MATCHED_TITLES=$(HandBrakeCLI --input "$DVD_DEVICE" --title 0 --min-duration "$MIN_DURATION" --scan 2>&1 \
-    | grep -oP '^\+ title \K\d+' || echo "")
-
-if [[ -z "$MATCHED_TITLES" ]]; then
-    log_msg "WARN" "No titles found matching minimum duration criteria (${MIN_DURATION}s). Falling back to main-feature encoding."
-    MATCHED_TITLES="main"
-fi
-
-PROCESSING_ERRORS=0
-
-for TITLE_NUM in $MATCHED_TITLES; do
-    if [[ "$TITLE_NUM" == "main" ]]; then
-        OUTPUT_FILE="${TARGET_DIR}/${DISC_LABEL}_main.mp4"
-        LOG_LABEL="Main Feature"
-        HB_TITLE_FLAG="--main-feature"
+    if [ $exit_code -eq 0 ]; then
+        log "SUCCESS: Conversion completed -> $output_file"
     else
-        OUTPUT_FILE="${TARGET_DIR}/${DISC_LABEL}_title_${TITLE_NUM}.mp4"
-        LOG_LABEL="Title Track #${TITLE_NUM}"
-        HB_TITLE_FLAG="--title ${TITLE_NUM}"
+        log "ERROR: HandBrakeCLI failed with exit code $exit_code."
+        if [ -f "$output_file" ]; then
+            log "Cleaning up incomplete output file: $output_file"
+            rm -f "$output_file"
+        fi
     fi
 
-    log_msg "INFO" "Starting transcode for ${LOG_LABEL} -> $(basename "$OUTPUT_FILE")"
+    eject_disk
+}
 
-    # Transcode execution enforcing raw dimension retention via --crop 0:0:0:0
-    if HandBrakeCLI \
-        --input "$DVD_DEVICE" \
-        $HB_TITLE_FLAG \
-        --output "$OUTPUT_FILE" \
-        --preset "$HB_PRESET" \
-        --crop 0:0:0:0 \
-        --format av_mp4 \
-        >> "${LOG_FILE:-/dev/null}" 2>&1; then
-        
-        log_msg "INFO" "Successfully transcoded ${LOG_LABEL}."
-    else
-        log_msg "ERROR" "Transcode failed for ${LOG_LABEL} on device ${DVD_DEVICE}."
-        ((PROCESSING_ERRORS++))
+# --- MAIN DAEMON LOOP ---
+
+log "Starting DVD monitor loop on $DVD_DEVICE (polling every 15s)..."
+
+while true; do
+    if disc_is_present; then
+        if ! lsof "$DVD_DEVICE" &> /dev/null; then
+            log "Ready disc detected!"
+            convert_dvd
+            
+            # Cooldown pause to swap discs without immediate re-triggering
+            sleep 30
+        else
+            log "Disc detected, but drive is busy. Retrying in 15s..."
+        fi
     fi
+
+    sleep 15
 done
-
-# ------------------------------------------------------------------------------
-# 6. Post-Processing & Ejection Cleanup
-# ------------------------------------------------------------------------------
-if [[ $PROCESSING_ERRORS -eq 0 ]]; then
-    log_msg "INFO" "All titles processed successfully for disc '${DISC_LABEL}'."
-    
-    if command -v eject >/dev/null 2>&1; then
-        log_msg "INFO" "Ejecting media from ${DVD_DEVICE}..."
-        eject "$DVD_DEVICE" || log_msg "WARN" "Eject command failed or device busy."
-    fi
-    exit 0
-else
-    log_msg "ERROR" "Completed processing with ${PROCESSING_ERRORS} failed title(s)."
-    exit 1
-fi
