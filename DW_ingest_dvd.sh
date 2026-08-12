@@ -31,8 +31,8 @@ eject_disk() {
 }
 
 disc_is_present() {
-    # -p forces blkid to bypass cache and query the physical drive directly
-    blkid -p "$DVD_DEVICE" &> /dev/null
+    # Returns 0 (success) as soon as the kernel detects physical media
+    udevadm info --query=property --name="$DVD_DEVICE" 2>/dev/null | grep -q "ID_CDROM_MEDIA=1"
 }
 
 convert_dvd() {
