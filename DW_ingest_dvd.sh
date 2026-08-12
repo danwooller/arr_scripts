@@ -30,12 +30,12 @@ is_disc_inserted() {
 
 wait_for_disc_ready() {
   local dev="$1"
-  log "INFO" "Disc inserted. Waiting for drive to settle..."
+  log "Disc inserted. Waiting for drive to settle..."
   sleep 5
   
   # Ensure drive isn't busy or locked by another process
   while lsof "$dev" >/dev/null 2>&1; do
-    log "INFO" "Drive $dev is busy, waiting..."
+    log "Drive $dev is busy, waiting..."
     sleep 3
   done
 }
@@ -57,7 +57,7 @@ detect_preset() {
   fi
 
   # Log warning via DW_common_functions (stderr), return ONLY clean string to stdout
-  log "WARNING" "Could not parse native disc resolution. Defaulting to ${DEFAULT_PRESET}."
+  log "Could not parse native disc resolution. Defaulting to ${DEFAULT_PRESET}."
   echo "$DEFAULT_PRESET"
 }
 
@@ -73,20 +73,20 @@ detect_main_title() {
   if [[ -n "$main_title" && "$main_title" =~ ^[0-9]+$ ]]; then
     echo "$main_title"
   else
-    log "WARNING" "Could not automatically determine main title. Defaulting to title 1."
+    log "Could not automatically determine main title. Defaulting to title 1."
     echo "1"
   fi
 }
 
 # --- Main Service Loop ---
 mkdir -p "$OUTPUT_DIR"
-log "INFO" "Starting DVD ingestion daemon monitoring ${DVD_DEVICE}..."
+log "Starting DVD ingestion daemon monitoring ${DVD_DEVICE}..."
 
 while true; do
   if is_disc_inserted "$DVD_DEVICE"; then
     wait_for_disc_ready "$DVD_DEVICE"
 
-    log "INFO" "Starting DVD ingestion scan..."
+    log "Starting DVD ingestion scan..."
 
     PRESET=$(detect_preset "$DVD_DEVICE")
     TITLE_NUM=$(detect_main_title "$DVD_DEVICE")
@@ -94,10 +94,8 @@ while true; do
     TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
     OUTPUT_FILE="${OUTPUT_DIR}/DVD_Ingest_${TIMESTAMP}.mp4"
 
-    # Line 88 Fix: Safe Logging via DW_common_functions
-    log "INFO" "$(printf 'Selected Title: %s | Selected Preset: %s' "$TITLE_NUM" "$PRESET")"
-
-    log "INFO" "Beginning transcoding output to ${OUTPUT_FILE}..."
+    log "Selected Title: ${TITLE_NUM} | Selected Preset: ${PRESET}"
+    log "Beginning transcoding output to ${OUTPUT_FILE}..."
 
     # Executing HandBrake with strictly quoted arguments
     if HandBrakeCLI \
@@ -107,12 +105,12 @@ while true; do
       --preset "$PRESET" \
       2>&1; then
       
-      log "INFO" "DVD ingestion completed successfully."
+      log "DVD ingestion completed successfully."
     else
-      log "ERROR" "HandBrakeCLI transcode failed."
+      log "HandBrakeCLI transcode failed."
     fi
 
-    log "INFO" "Ejecting disc from ${DVD_DEVICE}..."
+    log "Ejecting disc from ${DVD_DEVICE}..."
     eject "$DVD_DEVICE" || true
     
     # Pause to allow user time to swap disc before re-polling
