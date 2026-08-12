@@ -44,20 +44,20 @@ get_dynamic_preset() {
     local selected_preset
     case "$probed_height" in
         576)
-            selected_preset="Fast 576p25"      # Standard UK / PAL DVD
+            selected_preset="$PRESET_576P"      # Standard UK / PAL DVD
             ;;
         480)
-            selected_preset="Fast 480p30"      # Standard NTSC DVD
+            selected_preset="$PRESET_SD"      # Standard NTSC DVD
             ;;
         720)
-            selected_preset="Fast 720p30"      # HD Source
+            selected_preset="$PRESET_720P"      # HD Source
             ;;
         1080)
-            selected_preset="Fast 1080p30"     # Full HD Source
+            selected_preset="$PRESET_1080P"     # Full HD Source
             ;;
         *)
             log "WARNING: Could not determine height reliably (detected: '${probed_height:-none}'). Defaulting to Fast 1080p30."
-            selected_preset="Fast 1080p30"
+            selected_preset="Fast1080p30"
             ;;
     esac
 
