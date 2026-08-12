@@ -46,7 +46,22 @@ touch "${LOCK_FILE}"
 # ------------------------------------------------------------------------------
 mkdir -p "${OUTPUT_DIR}"
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting DVD scan on ${INPUT_DRIVE}..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Waiting for optical disc to be ready on ${INPUT_DRIVE}..."
+
+# Wait up to 30 seconds for the drive tray to close and spin up
+MAX_WAIT=30
+COUNTER=0
+until blkid "${INPUT_DRIVE}" >/dev/null 2>&1 || [ ${COUNTER} -eq ${MAX_WAIT} ]; do
+    sleep 2
+    ((COUNTER+=2))
+done
+
+if ! blkid "${INPUT_DRIVE}" >/dev/null 2>&1; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] No media detected or drive not ready on ${INPUT_DRIVE}."
+    exit 0
+fi
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Disc detected. Starting DVD scan on ${INPUT_DRIVE}..."
 
 # Scan disc structure and capture stdout/stderr to parse title durations
 SCAN_OUTPUT=$(HandBrakeCLI --input "${INPUT_DRIVE}" --title 0 --min-duration "${MIN_DURATION_SECS}" 2>&1 || true)
