@@ -12,115 +12,112 @@ else
 fi
 
 # --- CONFIGURATION ---
-DVD_DEVICE="/dev/sr0"
-OUTPUT_DIR="/mnt/media/torrent/hold"
+set -euo pipefail
+DVD_DEVICE="${1:-/dev/sr0}"
+OUTPUT_DIR="${2:-/mnt/storage/media/dvd_ingest}"
+DEFAULT_PRESET="General/Fast 576p25"
+POLL_INTERVAL=5
 
-# --- RUN DEPENDENCY CHECK ---
-check_dependencies "HandBrakeCLI" "eject" "udevadm" "lsof"
-
-if [ ! -d "$OUTPUT_DIR" ]; then
-    log "Creating output directory: $OUTPUT_DIR"
-    mkdir -p "$OUTPUT_DIR" || { log "ERROR: Failed to create output directory."; exit 1; }
-fi
-
-# --- FUNCTIONS ---
-
-eject_disk() {
-    log "Ejecting disk from $DVD_DEVICE."
-    eject "$DVD_DEVICE"
+# --- Disc Detection Helpers ---
+is_disc_inserted() {
+  local dev="$1"
+  # Use udevadm to check physical media state
+  if udevadm info --query=property --name="$dev" 2>/dev/null | grep -q "ID_CDROM_MEDIA=1"; then
+    return 0
+  fi
+  return 1
 }
 
-disc_is_present() {
-    # Queries the kernel block properties directly to bypass stale file system caches
-    udevadm info --query=property --name="$DVD_DEVICE" 2>/dev/null | grep -q "ID_CDROM_MEDIA=1"
+wait_for_disc_ready() {
+  local dev="$1"
+  log "INFO" "Disc inserted. Waiting for drive to settle..."
+  sleep 5
+  
+  # Ensure drive isn't busy or locked by another process
+  while lsof "$dev" >/dev/null 2>&1; do
+    log "INFO" "Drive $dev is busy, waiting..."
+    sleep 3
+  done
 }
 
-get_dynamic_preset() {
-    local dev="$1"
-    
-    # Query HandBrake for disc geometry
-    local scan_info
-    scan_info=$(HandBrakeCLI -i "$dev" --title 0 2>&1 | grep -i "Geometry:")
-    
-    # Extract vertical height using awk/sed cleanly
-    local height
-    height=$(echo "$scan_info" | grep -oP '\d+x\d+' | head -n1 | cut -d'x' -f2)
-
-    if [ -z "$height" ]; then
-        log "WARNING: Could not parse native disc resolution. Defaulting to General/Fast 576p25."
-        echo "General/Fast 576p25"
-        return
+# --- Resolution Detection & Preset Fallback ---
+detect_preset() {
+  local dev="$1"
+  local res_info
+  
+  # Capture scan output safely
+  if res_info=$(HandBrakeCLI -i "$dev" --min-duration 0 --scan 2>&1); then
+    if echo "$res_info" | grep -q "576i\|576p\|720x576"; then
+      echo "General/Fast 576p25"
+      return 0
+    elif echo "$res_info" | grep -q "480i\|480p\|720x480"; then
+      echo "General/Fast 480p30"
+      return 0
     fi
+  fi
 
-    log "Detected source video height: ${height}p"
-
-    if [ "$height" -le 576 ]; then
-        # Standard Definition (PAL 576 / NTSC 480)
-        echo "General/Fast 576p25"
-    elif [ "$height" -le 720 ]; then
-        # 720p HD
-        echo "General/Fast 720p30"
-    else
-        # 1080p+ Full HD
-        echo "General/Fast 1080p30"
-    fi
+  # Log warning via DW_common_functions (stderr), return ONLY clean string to stdout
+  log "WARNING" "Could not parse native disc resolution. Defaulting to ${DEFAULT_PRESET}."
+  echo "$DEFAULT_PRESET"
 }
 
-convert_dvd() {
-    log "Ready disc detected! Scanning disc properties..."
+# --- Title Detection ---
+detect_main_title() {
+  local dev="$1"
+  local main_title
 
-    local timestamp
-    timestamp=$(date +%Y%m%d_%H%M%S)
+  # Parse main feature title from HandBrake scan output
+  main_title=$(HandBrakeCLI -i "$dev" --title 0 2>&1 | grep "+ title " | awk '{print $3}' | tr -d ':' | head -n 1)
 
-    # 1. Dynamically select preset based on native height
-    local detected_preset
-    detected_preset=$(get_dynamic_preset "$DVD_DEVICE")
-    local active_preset=(--preset "$detected_preset")
-
-    log "Selected HandBrake preset: $detected_preset"
-
-    # 2. Identify main feature track number
-    local main_title
-    main_title=$(HandBrakeCLI -i "$DVD_DEVICE" --main-feature --title 0 2>&1 | grep -i "main feature" | awk '{print $NF}' | tr -d ':')
-    [ -z "$main_title" ] && main_title="1"
-
-    local track_num
-    track_num=$(printf "%02d" "$main_title")
-    local output_file="${OUTPUT_DIR}/DVD_Rip_${timestamp}_T${track_num}.mp4"
-
-    log "Executing: HandBrakeCLI -i $DVD_DEVICE -o $output_file --title $main_title ${active_preset[*]}"
-
-    HandBrakeCLI -i "$DVD_DEVICE" -o "$output_file" --title "$main_title" "${active_preset[@]}"
-    local exit_code=$?
-
-    if [ $exit_code -eq 0 ]; then
-        log "SUCCESS: Conversion completed -> $output_file"
-    else
-        log "ERROR: HandBrakeCLI failed with exit code $exit_code."
-        if [ -f "$output_file" ]; then
-            log "Cleaning up incomplete output file: $output_file"
-            rm -f "$output_file"
-        fi
-    fi
-
-    eject_disk
+  # Ensure main_title is purely numeric
+  if [[ -n "$main_title" && "$main_title" =~ ^[0-9]+$ ]]; then
+    echo "$main_title"
+  else
+    log "WARNING" "Could not automatically determine main title. Defaulting to title 1."
+    echo "1"
+  fi
 }
 
-# --- MAIN DAEMON LOOP ---
-
-log "Starting DVD monitor loop on $DVD_DEVICE (polling every 15s)..."
+# --- Main Service Loop ---
+mkdir -p "$OUTPUT_DIR"
+log "INFO" "Starting DVD ingestion daemon monitoring ${DVD_DEVICE}..."
 
 while true; do
-    if disc_is_present; then
-        if ! lsof "$DVD_DEVICE" &> /dev/null; then
-            convert_dvd
-            
-            # Cooldown pause to swap discs without immediate re-triggering
-            sleep 30
-        else
-            log "Disc detected, but drive is busy. Retrying in 15s..."
-        fi
+  if is_disc_inserted "$DVD_DEVICE"; then
+    wait_for_disc_ready "$DVD_DEVICE"
+
+    log "INFO" "Starting DVD ingestion scan..."
+
+    PRESET=$(detect_preset "$DVD_DEVICE")
+    TITLE_NUM=$(detect_main_title "$DVD_DEVICE")
+
+    TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
+    OUTPUT_FILE="${OUTPUT_DIR}/DVD_Ingest_${TIMESTAMP}.mp4"
+
+    # Line 88 Fix: Safe Logging via DW_common_functions
+    log "INFO" "$(printf 'Selected Title: %s | Selected Preset: %s' "$TITLE_NUM" "$PRESET")"
+
+    log "INFO" "Beginning transcoding output to ${OUTPUT_FILE}..."
+
+    # Executing HandBrake with strictly quoted arguments
+    if HandBrakeCLI \
+      --input "$DVD_DEVICE" \
+      --output "$OUTPUT_FILE" \
+      --title "$TITLE_NUM" \
+      --preset "$PRESET" \
+      2>&1; then
+      
+      log "INFO" "DVD ingestion completed successfully."
+    else
+      log "ERROR" "HandBrakeCLI transcode failed."
     fi
 
-    sleep 15
+    log "INFO" "Ejecting disc from ${DVD_DEVICE}..."
+    eject "$DVD_DEVICE" || true
+    
+    # Pause to allow user time to swap disc before re-polling
+    sleep 10
+  fi
+
+  sleep "$POLL_INTERVAL"
 done
