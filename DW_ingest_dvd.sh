@@ -1,7 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# --- EXIT TRAP FOR CLEAN SHUTDOWN ---
-trap 'log "Stopping DVD ripper daemon."; exit 0' SIGINT SIGTERM
+# ------------------------------------------------------------------------------
+# DW_ingest_dvd.sh
+# Automated DVD Ingest Script for Multi-Episode TV Discs & Movies
+# ------------------------------------------------------------------------------
+
+# 1. Define LOCK_FILE BEFORE sourcing shared functions
+# (Ensures variables exist if common functions bind EXIT/TERM traps immediately)
+LOCK_FILE="/tmp/DW_ingest_dvd.lock"
+INPUT_DRIVE="/dev/sr0"
+OUTPUT_DIR="/mnt/storage/media/dvd_ingest"
+MIN_DURATION_SECS=900  # 15 minutes in seconds
 
 # --- LOAD SHARED FUNCTIONS ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
@@ -11,111 +21,71 @@ else
     exit 1
 fi
 
-# --- CONFIGURATION ---
-set -euo pipefail
-DVD_DEVICE="${1:-/dev/sr0}"
-OUTPUT_DIR="${2:-/mnt/storage/media/dvd_ingest}"
-DEFAULT_PRESET="General/Fast 576p25"
-POLL_INTERVAL=5
-
-# --- Disc Detection Helpers ---
-is_disc_inserted() {
-  local dev="$1"
-  # Use udevadm to check physical media state
-  if udevadm info --query=property --name="$dev" 2>/dev/null | grep -q "ID_CDROM_MEDIA=1"; then
-    return 0
-  fi
-  return 1
-}
-
-wait_for_disc_ready() {
-  local dev="$1"
-  log "Disc inserted. Waiting for drive to settle..."
-  sleep 5
-  
-  # Ensure drive isn't busy or locked by another process
-  while lsof "$dev" >/dev/null 2>&1; do
-    log "Drive $dev is busy, waiting..."
-    sleep 3
-  done
-}
-
-# --- Resolution Detection & Preset Fallback ---
-detect_preset() {
-  local dev="$1"
-  local res_info
-  
-  # Capture scan output safely
-  if res_info=$(HandBrakeCLI -i "$dev" --min-duration 0 --scan 2>&1); then
-    if echo "$res_info" | grep -q "576i\|576p\|720x576"; then
-      echo "General/Fast 576p25"
-      return 0
-    elif echo "$res_info" | grep -q "480i\|480p\|720x480"; then
-      echo "General/Fast 480p30"
-      return 0
+# ------------------------------------------------------------------------------
+# Cleanup / Trap Handling
+# ------------------------------------------------------------------------------
+cleanup() {
+    local exit_code=$?
+    # Guard with ${LOCK_FILE:-} so 'set -u' never throws an unbound error on exit
+    if [[ -n "${LOCK_FILE:-}" ]] && [[ -f "${LOCK_FILE:-}" ]]; then
+        rm -f "${LOCK_FILE}"
     fi
-  fi
-
-  # Log warning via DW_common_functions (stderr), return ONLY clean string to stdout
-  log "Could not parse native disc resolution. Defaulting to ${DEFAULT_PRESET}."
-  echo "$DEFAULT_PRESET"
+    exit "${exit_code}"
 }
+trap cleanup EXIT INT TERM
 
-# --- Title Detection ---
-detect_main_title() {
-  local dev="$1"
-  local main_title
+# Prevent duplicate execution
+if [[ -f "${LOCK_FILE}" ]]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Lockfile exists at ${LOCK_FILE}. Process already running."
+    exit 0
+fi
+touch "${LOCK_FILE}"
 
-  # Parse main feature title from HandBrake scan output
-  main_title=$(HandBrakeCLI -i "$dev" --title 0 2>&1 | grep "+ title " | awk '{print $3}' | tr -d ':' | head -n 1)
+# ------------------------------------------------------------------------------
+# Main Processing Logic
+# ------------------------------------------------------------------------------
+mkdir -p "${OUTPUT_DIR}"
 
-  # Ensure main_title is purely numeric
-  if [[ -n "$main_title" && "$main_title" =~ ^[0-9]+$ ]]; then
-    echo "$main_title"
-  else
-    log "Could not automatically determine main title. Defaulting to title 1."
-    echo "1"
-  fi
-}
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting DVD scan on ${INPUT_DRIVE}..."
 
-# --- Main Service Loop ---
-mkdir -p "$OUTPUT_DIR"
-log "Starting DVD ingestion daemon monitoring ${DVD_DEVICE}..."
+# Scan disc structure and capture stdout/stderr to parse title durations
+SCAN_OUTPUT=$(HandBrakeCLI --input "${INPUT_DRIVE}" --title 0 --min-duration "${MIN_DURATION_SECS}" 2>&1 || true)
 
-while true; do
-  if is_disc_inserted "$DVD_DEVICE"; then
-    wait_for_disc_ready "$DVD_DEVICE"
+# Extract all valid title numbers matching the minimum duration filter
+# HandBrake prints candidate titles formatted as "+ title X:"
+mapfile -t VALID_TITLES < <(echo "${SCAN_OUTPUT}" | grep -E '^\+ title [0-9]+:' | awk '{print $3}' | tr -d ':')
 
-    log "Starting DVD ingestion scan..."
+if [[ ${#VALID_TITLES[@]} -eq 0 ]]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] No valid titles found over $((MIN_DURATION_SECS / 60)) minutes. Ejecting."
+    eject "${INPUT_DRIVE}" || true
+    exit 0
+fi
 
-    PRESET=$(detect_preset "$DVD_DEVICE")
-    TITLE_NUM=$(detect_main_title "$DVD_DEVICE")
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Found ${#VALID_TITLES[@]} title(s) matching criteria: ${VALID_TITLES[*]}"
 
-    TIMESTAMP=$(date +'%Y%m%d_%H%M%S')
-    OUTPUT_FILE="${OUTPUT_DIR}/DVD_Ingest_${TIMESTAMP}.mp4"
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
 
-    log "Selected Title: ${TITLE_NUM} | Selected Preset: ${PRESET}"
-    log "Beginning transcoding output to ${OUTPUT_FILE}..."
-
-    # Executing HandBrake with strictly quoted arguments
-    if HandBrakeCLI \
-      --input "$DVD_DEVICE" \
-      --output "$OUTPUT_FILE" \
-      --title "$TITLE_NUM" \
-      --preset "$PRESET" \
-      2>&1; then
-      
-      log "DVD ingestion completed successfully."
-    else
-      log "HandBrakeCLI transcode failed."
-    fi
-
-    log "Ejecting disc from ${DVD_DEVICE}..."
-    eject "$DVD_DEVICE" || true
+# Loop over each qualifying episode title
+for TITLE_NUM in "${VALID_TITLES[@]}"; do
+    OUTPUT_FILE="${OUTPUT_DIR}/DVD_Ingest_${TIMESTAMP}_T${TITLE_NUM}.mp4"
     
-    # Pause to allow user time to swap disc before re-polling
-    sleep 10
-  fi
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Ripping Title ${TITLE_NUM} -> ${OUTPUT_FILE}"
+    
+    HandBrakeCLI \
+        --input "${INPUT_DRIVE}" \
+        --output "${OUTPUT_FILE}" \
+        --title "${TITLE_NUM}" \
+        --min-duration "${MIN_DURATION_SECS}" \
+        --crop 0:0:0:0 \
+        --preset "Normal" \
+        --quality 20 \
+        --encoder x264 \
+        --aencoder aac \
+        --comb-detect \
+        --decomb
 
-  sleep "$POLL_INTERVAL"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Completed Title ${TITLE_NUM}."
 done
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] All titles processed successfully. Ejecting disc."
+eject "${INPUT_DRIVE}" || true

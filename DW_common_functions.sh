@@ -7,7 +7,7 @@ HOST=$(hostname -s)
 cleanup() {
     if [ -f "$LOCK_FILE" ]; then
         log "🛑 Service stopping. Removing lock file."
-        rm -f "$LOCK_FILE"
+        rm -f "${LOCK_FILE:-}"
     else
         log "🛑 Service stopping."
     fi
