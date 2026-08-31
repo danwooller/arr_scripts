@@ -63,8 +63,9 @@ if [ -n "$FILENAME" ]; then
 
     # 5. Handle Service File (Template & Extension Aware)
     # Strip .sh from the filename to find the service (e.g., monitor_convert)
-    BASE_NAME="${FILENAME%.sh}"
-    
+    #    BASE_NAME="${FILENAME%.sh}"
+        BASE_NAME="${FILENAME%.*}"
+
     # Define possible service file names
     SERVICE_TEMPLATE="${BASE_NAME}@.service"
     SERVICE_STANDARD="${BASE_NAME}.service"
