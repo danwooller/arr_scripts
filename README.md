@@ -56,11 +56,11 @@ Automated processing for "Linux ISOs" using HandBrakeCLI, featuring resolution-a
 | [**git_push.sh**](./git_push.sh) | Pushes local edits to GitHub. Auto-handles identity, branch naming, and index cleanup. |
 | ***.service** | Systemd unit templates for running any of the above as background daemons. |
 | **xxx.sh** | xxx. |
----
 
 ### 🔧 Matter Server
 | File | Description |
 | [**alpstuga_sync_time.py**](./alpstuga_sync_time.py) | Automatically synchronizes local time, UTC timestamps, and British Summer Time (BST/GMT) offsets to IKEA ALPSTUGA Matter LED drivers. _Running on ubuntu9_ |
+---
 
 ## 🚀 Key Workflows
 
