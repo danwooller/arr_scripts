@@ -1,0 +1,8 @@
+[Unit]
+Description=Sync Time to Matter ALPSTUGA Devices
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker exec matter-server python3 /data/sync_time.py
