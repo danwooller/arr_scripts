@@ -5,4 +5,4 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/docker exec matter-server python3 /data/sync_time.py
+ExecStart=/usr/bin/docker exec matter-server python3 /data/alpstuga_sync_time.py
