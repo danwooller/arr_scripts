@@ -99,7 +99,7 @@ check_service "Wizarr" "$WIZARR_API_BASE" "$WIZARR_API_KEY" "/users"
 [[ $? -eq 0 ]] && ha_update_status "Wizarr" "online" || ha_update_status "Wizarr" "offline"
 
 # Qbittorrent
-QBT_NAMES=("TV" "Movies" "Music" "4K TV" "4K Movies")
+QBT_NAMES=("TV" "Movies" "Music" "4K TV" "4K Movies" "chaptarr")
 
 for i in "${!QBT_SERVERS[@]}"; do
     URL="${QBT_SERVERS[$i]}"
