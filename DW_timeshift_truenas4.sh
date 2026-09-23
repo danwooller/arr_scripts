@@ -32,7 +32,7 @@ fi
 
 # 3. Mount TrueNAS (Now we know it's awake)
 sudo mkdir -p $MOUNT_POINT
-echo "Mounting TrueNAS..."
+#echo "Mounting TrueNAS..."
 sudo mount -t nfs -o soft,timeo=50,retrans=2 $BASE_HOST4:$NAS_PATH $MOUNT_POINT
 
 if mountpoint -q "$MOUNT_POINT" && mountpoint -q "$SSD_MOUNT"; then
