@@ -74,28 +74,28 @@ find_compose() {
 
 # 4. Pre-fetch Images (with Error Logging)
 ROOT_COMPOSE=$(find_compose "/opt")
+
 if [ -n "$ROOT_COMPOSE" ]; then
     log "ℹ️ Pre-pulling images for: $ROOT_COMPOSE"
 
-    # --- Pre-Pull Space Check ---
     # Get current available space in MB
     CURRENT_SPACE_MB=$(df -m /opt | awk 'NR==2 {print $4}')
     
     if [ "$CURRENT_SPACE_MB" -lt "$REQUIRED_SPACE_MB" ]; then
-        log "⚠️ Skipping pull for $DIR_NAME. Low space: ${CURRENT_SPACE_MB}MB (Required: ${REQUIRED_SPACE_MB}MB)"
-        continue # Skip to the next folder in /opt/
-    fi
-    
-    # Run timeout and capture the result
-    sudo timeout 300s $DOCKER compose -f "$ROOT_COMPOSE" pull -q
-    RESULT=$?
-
-    if [ $RESULT -eq 124 ]; then
-        log "❌ Pull TIMED OUT (300s exceeded) for $ROOT_COMPOSE"
-    elif [ $RESULT -ne 0 ]; then
-        log "❌ Pull FAILED (Exit Code: $RESULT) for $ROOT_COMPOSE"
+        log "⚠️ Skipping pull for $ROOT_COMPOSE. Low space: ${CURRENT_SPACE_MB}MB (Required: ${REQUIRED_SPACE_MB}MB)"
     else
-        [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $ROOT_COMPOSE"
+        # Run pull, capturing stderr to log file on error instead of suppressing with -q
+        PULL_ERRORS=$(sudo timeout 300s $DOCKER compose -f "$ROOT_COMPOSE" pull 2>&1)
+        RESULT=$?
+
+        if [ $RESULT -eq 124 ]; then
+            log "❌ Pull TIMED OUT (300s exceeded) for $ROOT_COMPOSE"
+        elif [ $RESULT -ne 0 ]; then
+            log "❌ Pull FAILED (Exit Code: $RESULT) for $ROOT_COMPOSE"
+            log "Details: $PULL_ERRORS"
+        else
+            [[ $LOG_LEVEL == "debug" ]] && log "✅ Pull successful for $ROOT_COMPOSE"
+        fi
     fi
 fi
 
