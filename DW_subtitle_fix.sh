@@ -4,34 +4,47 @@
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
     source "/usr/local/bin/DW_common_functions.sh"
 else
-    echo "⚠️️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
+    echo "⚠️ /usr/local/bin/DW_common_functions.sh missing. Exiting."
     exit 1
 fi
 
 # --- File & Title Detection ---
-# Priority: Argument $1 -> Sonarr Env -> Radarr Env
-INPUT_FILE="${1:-${sonarr_episodefile_path:-$radarr_moviefile_path}}"
-TITLE="${sonarr_series_title:-${radarr_movie_title:-$(basename "$INPUT_FILE" | sed 's/\.[^.]*$//')}}"
+INPUT_PATH="${1:-${sonarr_episodefile_path:-$radarr_moviefile_path}}"
 
-if [[ -z "$INPUT_FILE" || ! -f "$INPUT_FILE" ]]; then
-    echo "❌ Error: No valid file provided or file does not exist."
-    echo "Usage: $0 <path_to_mkv_file> [target_directory]"
+if [[ -z "$INPUT_PATH" ]]; then
+    echo "❌ Error: No input path provided."
+    echo "Usage: $0 <path_to_mkv_file_or_directory> [target_directory]"
     exit 1
 fi
 
+# If $1 is a directory, find the first .mkv file inside it
+if [[ -d "$INPUT_PATH" ]]; then
+    INPUT_FILE=$(find "$INPUT_PATH" -maxdepth 2 -type f -name "*.mkv" | head -n 1)
+    if [[ -z "$INPUT_FILE" ]]; then
+        echo "❌ Error: No .mkv file found inside directory '$INPUT_PATH'."
+        exit 1
+    fi
+else
+    INPUT_FILE="$INPUT_PATH"
+fi
+
+if [[ ! -f "$INPUT_FILE" ]]; then
+    echo "❌ Error: File '$INPUT_FILE' does not exist."
+    exit 1
+fi
+
+TITLE="${sonarr_series_title:-${radarr_movie_title:-$(basename "$INPUT_FILE" | sed 's/\.[^.]*$//')}}"
 FILE_PATH="$INPUT_FILE"
 
 # --- Target Folder Handling ($2) ---
 TARGET_DIR="$2"
 
 if [[ -n "$TARGET_DIR" ]]; then
-    # Create target directory if it doesn't exist
     mkdir -p "$TARGET_DIR"
     
     FILENAME=$(basename "$FILE_PATH")
     NEW_FILE_PATH="$TARGET_DIR/$FILENAME"
     
-    # Move file to target directory if it's not already there
     if [[ "$FILE_PATH" != "$NEW_FILE_PATH" ]]; then
         log "📦 Moving file to target folder: $TARGET_DIR"
         if mv "$FILE_PATH" "$NEW_FILE_PATH"; then
@@ -45,22 +58,25 @@ fi
 
 log "📺 Processing: $TITLE"
 
+# Setup temporary working path in the SAME directory
+TARGET_DIR_PATH=$(dirname "$FILE_PATH")
+TARGET_FILENAME=$(basename "$FILE_PATH")
+TEMP_WORK_FILE="${TARGET_DIR_PATH}/.${TARGET_FILENAME}.tmp"
+
 # --- STEP 1: Audio & Subtitle Cleanup ---
-# Filters tracks based on your English/Forced logic
 audio_subtitle_opt "$FILE_PATH"
 
-TEMP_CLEAN="${FILE_PATH}.clean"
-if mkvmerge -q -o "$TEMP_CLEAN" $TRACK_OPTS "$FILE_PATH"; then
-    mv "$TEMP_CLEAN" "$FILE_PATH"
+if mkvmerge -q -o "$TEMP_WORK_FILE" $TRACK_OPTS "$FILE_PATH"; then
+    mv "$TEMP_WORK_FILE" "$FILE_PATH"
     log "✅ Step 1: Optimization Complete (Tracks stripped)."
 else
     log "❌ Step 1 Failed."
-    rm -f "$TEMP_CLEAN"
+    rm -f "$TEMP_WORK_FILE"
     exit 1
 fi
 
 # --- STEP 2: Sonos Audio Fix ---
-# Transcodes audio to AC3/EAC3 for Sonos compatibility
+# Note: Ensure sonos_audio_fix accepts output path or handles temp file internally
 if sonos_audio_fix "$FILE_PATH"; then
     log "✅ Step 2: Sonos Fix Complete."
 else
@@ -70,12 +86,8 @@ fi
 # --- STEP 3: Final Flags & Extraction ---
 if [ "$NEEDS_PROPEDIT" = true ]; then
     log "📝 Finalizing: Extracting forced subtitles and setting flags..."
-    
-    # 1. Extract the subtitle first as an external backup
     subtitle_extract "$FILE_PATH"
     
-    # 2. Set the flags on the internal track
-    # Note: track:s1 assumes this is the first subtitle track after remux
     if mkvpropedit "$FILE_PATH" --edit track:s1 --set name="Forced" --set flag-forced=1 --set flag-default=1 >/dev/null 2>&1; then
         log "✅ Internal flags set and subtitle extracted."
     else
