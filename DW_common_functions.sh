@@ -430,6 +430,16 @@ plex_busy() {
     fi
 }
 # --- END PLEX SECTION ---
+
+# --- Radarr/Sonarr Test Event ---
+radarr_sonarr_ingest() {
+    EVENT_TYPE="${sonarr_eventtype:-$radarr_eventtype}"
+    if [ "$EVENT_TYPE" = "Test" ]; then
+        echo "🧪 Test event received from Radarr/Sonarr. Exiting successfully."
+        exit 0
+    fi
+}
+# --- End Radarr/Sonarr Test Event ---
 # --- RADARR SECTION ---
 radarr_ingest() {
     # DW_ingest_radarr.sh
