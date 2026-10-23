@@ -2,7 +2,7 @@
 
 # Called by radarr - Navigate to Settings > Connect
 
-radarr_sonarr_ingest
+radarr_sonarr_ingest()
 
 # --- Load Shared Functions ---
 if [ -f "/usr/local/bin/DW_common_functions.sh" ]; then
