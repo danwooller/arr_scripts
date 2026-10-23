@@ -14,11 +14,17 @@ radarr_sonarr_ingest
 
 # --- Sonarr/Radarr Variable Detection ---
 # This allows the script to work regardless of which service calls it
-FILE_PATH="${sonarr_episodefile_path:-$radarr_moviefile_path}"
+FILE_PATH="${1:-${sonarr_episodefile_path:-$radarr_moviefile_path}}"
+
+# Automatically derive a title if not provided manually, or default to the filename
 TITLE="${sonarr_series_title:-$radarr_movie_title}"
+if [ -z "$TITLE" ] && [ -n "$FILE_PATH" ]; then
+    TITLE=$(basename "$FILE_PATH")
+fi
 
 if [[ -z "$FILE_PATH" || ! -f "$FILE_PATH" ]]; then
-    exit 0
+    log "❌ Error: No valid file path provided."
+    exit 1
 fi
 
 log "📺 Processing: $TITLE"
