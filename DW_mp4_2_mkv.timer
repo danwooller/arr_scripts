@@ -1,0 +1,10 @@
+[Unit]
+Description=Run DW_mp4_2_mkv every 2 hours
+
+[Timer]
+OnBootSec=20min
+OnUnitActiveSec=2h
+Unit=DW_mp4_2_mkv.service
+
+[Install]
+WantedBy=timers.target
