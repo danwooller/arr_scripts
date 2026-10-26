@@ -150,8 +150,8 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
                 fi
             fi
         else
-            log "❓ No episodes detected for $series_name. Deleting path."
-            rm -r "$CURRENT_SERIES_PATH"
+            log "❓ No episodes detected for $series_name. Moving to $DIR_MEDIA_HOLD."
+            mv "$CURRENT_SERIES_PATH" "$DIR_MEDIA_HOLD"
         fi
         
         [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed $series_name"
