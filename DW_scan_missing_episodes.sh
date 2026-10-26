@@ -150,8 +150,8 @@ for ROOT_DIR in "${TARGET_ROOTS[@]}"; do
                 fi
             fi
         else
-            log "❓ No episodes detected for $series_name. Skipping resolution to be safe."
-            log "$CURRENT_SERIES_PATH"
+            log "❓ No episodes detected for $series_name. Deleting path."
+            rm "$CURRENT_SERIES_PATH"
         fi
         
         [[ $LOG_LEVEL == "debug" ]] && log "✅ Completed $series_name"
