@@ -21,7 +21,7 @@ fi
 DEST_DIR="/home/$REAL_USER/arr_scripts"
 BIN_DIR="/usr/local/bin"
 FILENAME=$1
-COMMON_KEYS="/mnt/media/backup/ubuntu24/arr_scripts"
+COMMON_KEYS="$DIR_MEDIA_BACKUP/ubuntu24/arr_scripts"
 #SERVICE_FILE="$FILENAME.service"
 SERVICE_DIR="/etc/systemd/system/"
 
