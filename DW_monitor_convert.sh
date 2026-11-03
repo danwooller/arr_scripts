@@ -119,6 +119,7 @@ while true; do
         if [[ "$LOWER_FILENAME" =~ "2160p" ]]; then PRESET="$PRESET_4K"
         elif [[ "$LOWER_FILENAME" =~ "1080p.x265" ]]; then PRESET="$PRESET_1080P_X265"
         elif [[ "$LOWER_FILENAME" =~ "1080p" ]]; then PRESET="$PRESET_1080P"
+        elif [[ "$LOWER_FILENAME" =~ "720p" ]]; then PRESET="$PRESET_720P"
         else PRESET="$PRESET_SD"; fi
 
 #        HandBrakeCLI --preset "$PRESET" -q 24.0 -i "$FILE_TO_PROCESS" -o "$TEMP_OUTPUT" $AUDIO_PARAMS --subtitle none --optimize --crop 0:0:0:0 < /dev/null
