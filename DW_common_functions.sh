@@ -988,6 +988,7 @@ sonarr_weekly_shows() {
 # --- SONOS AUDIO ---
 sonos_audio_fix() {
     local media_name="$1"
+    local ffmpeg_log="/tmp/ffmpeg_debug_$(id -u)_$$.log"
     
     # Force absolute path if needed
     [[ "$media_name" != /* ]] && media_name="/$media_name"
