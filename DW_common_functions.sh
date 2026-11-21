@@ -1049,7 +1049,12 @@ sonos_audio_fix() {
     else
         log "❌ FFmpeg failed (Exit: $exit_code). Check /tmp/ffmpeg_debug.log"
         # Print the last line of the error log to the main log for visibility
-        log "DEBUG: $(tail -n 1 /tmp/ffmpeg_debug.log)"
+        #log "DEBUG: $(tail -n 1 /tmp/ffmpeg_debug.log)"
+        if [ -s /tmp/ffmpeg_debug.log ]; then
+            log "DEBUG: $(tail -n 1 /tmp/ffmpeg_debug.log)"
+        else
+            log "DEBUG: ffmpeg exited $exit_code with empty stderr (check stream mapping or file permissions)"
+        fi
         rm -f -- "$output_file"
         return 1
     fi
