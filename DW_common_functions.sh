@@ -1037,7 +1037,7 @@ sonos_audio_fix() {
         "${cmd_args[@]}" \
         -metadata SONOS_FIXED="true" \
         -max_muxing_queue_size 4096 \
-        "$output_file" > /tmp/ffmpeg_debug.log 2>&1
+        "$output_file" > "$ffmpeg_log" 2>&1
 
     local exit_code=$?
 
@@ -1048,11 +1048,9 @@ sonos_audio_fix() {
         [[ $LOG_LEVEL == "debug" ]] && log "✨ Audio Fix complete: $(basename "$media_name")"
         return 0
     else
-        log "❌ FFmpeg failed (Exit: $exit_code). Check /tmp/ffmpeg_debug.log"
-        # Print the last line of the error log to the main log for visibility
-        #log "DEBUG: $(tail -n 1 /tmp/ffmpeg_debug.log)"
-        if [ -s /tmp/ffmpeg_debug.log ]; then
-            log "DEBUG: $(tail -n 1 /tmp/ffmpeg_debug.log)"
+        log "❌ FFmpeg failed (Exit: $exit_code). Check $ffmpeg_log"
+        if [ -s "$ffmpeg_log" ]; then
+            log "DEBUG: $(tail -n 1 "$ffmpeg_log")"
         else
             log "DEBUG: ffmpeg exited $exit_code with empty stderr (check stream mapping or file permissions)"
         fi
