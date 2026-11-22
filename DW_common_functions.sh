@@ -1,6 +1,7 @@
 #!/bin/bash
 
-HOST=$(hostname -s)
+#HOST=$(hostname -s)
+HOST="${HOST:-${HOSTNAME:-$(hostname -s)}}"
 
 # Universal Graceful Exit
 #trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
