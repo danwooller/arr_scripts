@@ -1,20 +1,13 @@
 #!/bin/bash
 
 #HOST=$(hostname -s)
-HOST="${HOST:-${HOSTNAME:-$(hostname -s)}}"
+if [ -n "${HOST_HOSTNAME:-}" ]; then
+  HOST="$HOST_HOSTNAME"
+elif [ -z "${HOST:-}" ]; then
+  HOST="$(hostname -s)"
+fi
+export HOST
 
-# Universal Graceful Exit
-#trap "log '🛑 Process interrupted by user (SIGINT/SIGTERM).'; exit 1" SIGINT SIGTERM
-cleanup() {
-    if [ -f "$LOCK_FILE" ]; then
-        log "🛑 Service stopping. Removing lock file."
-        rm -f "${LOCK_FILE:-}"
-    else
-        log "🛑 Service stopping."
-    fi
-    exit
-}
-trap cleanup SIGTERM SIGINT
 
 # --- Load External Configuration ---
 CONFIG_FILE="/usr/local/bin/common_keys.txt"
